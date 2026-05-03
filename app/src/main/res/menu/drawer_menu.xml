@@ -14,6 +14,18 @@
             android:icon="@drawable/ic_settings"
             android:title="@string/settings" />
     </group>
+    <item android:title="Chat History">
+        <menu>
+            <item
+                android:id="@+id/nav_history_1"
+                android:icon="@android:drawable/ic_menu_recent_history"
+                android:title="Example chat history title" />
+            <item
+                android:id="@+id/nav_history_2"
+                android:icon="@android:drawable/ic_menu_recent_history"
+                android:title="Example chat history title" />
+        </menu>
+    </item>
     <item android:title="@string/account">
         <menu>
             <item
