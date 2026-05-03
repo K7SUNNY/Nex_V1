@@ -1,0 +1,25 @@
+<resources>
+    <string name="app_name">Nex V1</string>
+    <string name="nex">Nex</string>
+    <string name="personal_ai_workspace">Personal AI workspace</string>
+    <string name="main_title">Chat with Nex for coding, ideas, and focused work.</string>
+    <string name="main_subtitle">Fast conversations, saved memory, and model control in one simple workspace.</string>
+    <string name="fast_chat">Fast chat</string>
+    <string name="saved_memory">Saved memory</string>
+    <string name="code_ready">Code-ready</string>
+    <string name="plan_my_day">Plan my day</string>
+    <string name="plan_my_day_desc">Turn today\'s tasks into a clean action list.</string>
+    <string name="improve_ui">Improve UI</string>
+    <string name="improve_ui_desc">Refine layouts, spacing, and overall app feel.</string>
+    <string name="debug_a_bug">Debug a bug</string>
+    <string name="debug_a_bug_desc">Work through an issue without losing the thread.</string>
+    <string name="ready_for_chat">Ready for chat</string>
+    <string name="sync_info">Memory, chat history, and your default model stay in sync here.</string>
+    <string name="input_hint">Ask Nex to think, plan, code, or create…</string>
+    <string name="nex_fast">Nex Fast</string>
+    <string name="send">Send</string>
+    <string name="chat">Chat</string>
+    <string name="memory">Memory</string>
+    <string name="settings">Settings</string>
+    <string name="account">Account</string>
+</resources>
