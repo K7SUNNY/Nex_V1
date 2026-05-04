@@ -12,4 +12,10 @@
         <item name="android:windowFullscreen">false</item>
         <item name="android:fitsSystemWindows">true</item>
     </style>
+
+    <style name="Theme.NexV1.Drawer" parent="Theme.NexV1">
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowAnimationStyle">@null</item>
+    </style>
 </resources>
