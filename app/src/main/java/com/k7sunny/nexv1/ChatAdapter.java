@@ -39,7 +39,11 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         if (holder instanceof UserViewHolder) {
             ((UserViewHolder) holder).messageText.setText(message.getText());
         } else if (holder instanceof AiViewHolder) {
-            ((AiViewHolder) holder).messageText.setText(message.getText());
+            if (message.getType() == Message.TYPE_TYPING) {
+                ((AiViewHolder) holder).messageText.setText("Nex is thinking...");
+            } else {
+                ((AiViewHolder) holder).messageText.setText(message.getText());
+            }
         }
     }
 

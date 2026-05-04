@@ -24,6 +24,7 @@ public class MainActivity extends AppCompatActivity {
     private View welcomeContainer;
     private EditText messageInput;
     private ImageButton sendButton;
+    private AIManager aiManager;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -33,6 +34,8 @@ public class MainActivity extends AppCompatActivity {
         WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
 
         setContentView(R.layout.activity_main);
+
+        aiManager = new AIManager();
 
         // Handle window insets manually to support both status bar and keyboard (IME)
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
@@ -85,12 +88,21 @@ public class MainActivity extends AppCompatActivity {
             // Clear input
             messageInput.setText("");
 
-            // Simulate AI response after a short delay
-            recyclerView.postDelayed(() -> {
-                messageList.add(new Message("This is a simulated AI response for: \"" + text + "\"", Message.TYPE_AI));
-                chatAdapter.notifyItemInserted(messageList.size() - 1);
-                recyclerView.scrollToPosition(messageList.size() - 1);
-            }, 1000);
+            // Add typing indicator
+            Message typingMessage = new Message("", Message.TYPE_TYPING);
+            messageList.add(typingMessage);
+            chatAdapter.notifyItemInserted(messageList.size() - 1);
+            recyclerView.scrollToPosition(messageList.size() - 1);
+
+            // Use AIManager to generate response
+            aiManager.generateResponse(text, response -> {
+                // Remove typing indicator and add real response
+                int index = messageList.indexOf(typingMessage);
+                if (index != -1) {
+                    messageList.set(index, new Message(response, Message.TYPE_AI));
+                    chatAdapter.notifyItemChanged(index);
+                }
+            });
         }
     }
 }
