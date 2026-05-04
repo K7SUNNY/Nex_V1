@@ -18,7 +18,7 @@ public class AIManager {
     private final Handler mainHandler;
     private boolean isModelLoaded = false;
 
-    // ─── JNI Declarations ────────────────────────────────────────────────────
+    // JNI bridge methods exposed from native code.
 
     public native String stringFromJNI();
     public native boolean initNative();
@@ -26,13 +26,13 @@ public class AIManager {
     public native String runInferenceNative(String prompt, int maxTokens);
     public native void freeNative();
 
-    // ─── Callback Interface ───────────────────────────────────────────────────
+    // Callback interface for async model responses.
 
     public interface ResponseCallback {
         void onResponse(String response);
     }
 
-    // ─── Constructor ──────────────────────────────────────────────────────────
+    // Initialize the worker thread and native backend.
 
     public AIManager() {
         this.executorService = Executors.newSingleThreadExecutor();
@@ -43,7 +43,7 @@ public class AIManager {
         Log.d(TAG, "Native bridge test: " + stringFromJNI());
     }
 
-    // ─── Model Loading ────────────────────────────────────────────────────────
+    // Load the model on a background thread.
 
     public void loadModel(String modelPath) {
         if (modelPath == null || modelPath.isEmpty()) {
@@ -63,7 +63,7 @@ public class AIManager {
         });
     }
 
-    // ─── Inference ────────────────────────────────────────────────────────────
+    // Generate a response in the background and return it on the main thread.
 
     public void generateResponse(String prompt, ResponseCallback callback) {
         executorService.execute(() -> {
@@ -84,7 +84,7 @@ public class AIManager {
         });
     }
 
-    // ─── Cleanup ──────────────────────────────────────────────────────────────
+    // Free native resources and stop background work.
 
     /**
      * Call this from Activity.onDestroy() to free native memory and shut down threads.

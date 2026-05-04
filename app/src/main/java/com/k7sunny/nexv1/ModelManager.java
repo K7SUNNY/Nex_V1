@@ -17,7 +17,7 @@ public class ModelManager {
         this.context = context.getApplicationContext();
     }
 
-    // Always use ONE clean location
+    // Keep the model in one stable app-specific directory.
     private File getModelDirectory() {
         File dir = new File(context.getExternalFilesDir(null), "models");
         if (!dir.exists()) {
@@ -68,7 +68,7 @@ public class ModelManager {
     }
 
     private boolean isValidModelFile(File file) {
-        // TinyLlama ~700MB → anything <500MB = garbage
+        // TinyLlama is roughly 700 MB, so files under 500 MB are treated as invalid.
         return file != null && file.exists() && file.length() > 500L * 1024L * 1024L;
     }
 }

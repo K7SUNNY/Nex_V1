@@ -33,7 +33,7 @@ Java_com_k7sunny_nexv1_AIManager_loadModelNative(JNIEnv* env, jobject /* this */
     LOGD("Loading model from: %s", path);
 
     llama_model_params model_params = llama_model_default_params();
-    // Enable mmap for better performance/memory management
+    // Use mmap to improve load performance and memory behavior.
     model_params.use_mmap = true;
 
     g_model = llama_model_load_from_file(path, model_params);
@@ -58,9 +58,9 @@ Java_com_k7sunny_nexv1_AIManager_runInferenceNative(JNIEnv* env, jobject /* this
     const char* prompt = env->GetStringUTFChars(jprompt, nullptr);
     LOGD("Processing prompt: %s", prompt);
 
-    // Context parameters
+    // Configure inference context parameters.
     llama_context_params ctx_params = llama_context_default_params();
-    ctx_params.n_ctx = 2048; // Sufficient for mobile
+    ctx_params.n_ctx = 2048; // Good context size for this mobile setup.
     ctx_params.n_threads = 4;
     ctx_params.n_threads_batch = 4;
 
@@ -71,7 +71,7 @@ Java_com_k7sunny_nexv1_AIManager_runInferenceNative(JNIEnv* env, jobject /* this
         return env->NewStringUTF("Error: Failed to create context");
     }
 
-    // Tokenize prompt
+    // Tokenize the input prompt.
     std::vector<llama_token> tokens = common_tokenize(ctx, prompt, true, true);
     env->ReleaseStringUTFChars(jprompt, prompt);
 
@@ -80,15 +80,15 @@ Java_com_k7sunny_nexv1_AIManager_runInferenceNative(JNIEnv* env, jobject /* this
         return env->NewStringUTF("");
     }
 
-    // Initialize batch
+    // Initialize a batch for prompt and generated tokens.
     llama_batch batch = llama_batch_init(tokens.size() + max_tokens, 0, 1);
 
-    // Add prompt tokens to batch
+    // Add prompt tokens to the initial batch.
     for (size_t i = 0; i < tokens.size(); ++i) {
         common_batch_add(batch, tokens[i], i, {0}, i == tokens.size() - 1);
     }
 
-    // Decode prompt
+    // Run an initial decode pass on the prompt.
     if (llama_decode(ctx, batch) != 0) {
         LOGE("llama_decode failed for prompt");
         llama_batch_free(batch);
@@ -96,7 +96,7 @@ Java_com_k7sunny_nexv1_AIManager_runInferenceNative(JNIEnv* env, jobject /* this
         return env->NewStringUTF("Error: llama_decode failed");
     }
 
-    // Sampling setup
+    // Configure sampling parameters.
     common_params_sampling sparams;
     sparams.temp = 0.7f;
     sparams.top_k = 40;
@@ -111,7 +111,7 @@ Java_com_k7sunny_nexv1_AIManager_runInferenceNative(JNIEnv* env, jobject /* this
     int n_curr = tokens.size();
     int n_predict = 0;
 
-    // Generation loop
+    // Generate tokens until EOS or max token limit.
     while (n_predict < max_tokens) {
         if (llama_vocab_is_eog(llama_model_get_vocab(g_model), curr_token)) {
             LOGD("EOS reached");
@@ -121,7 +121,7 @@ Java_com_k7sunny_nexv1_AIManager_runInferenceNative(JNIEnv* env, jobject /* this
         std::string piece = common_token_to_piece(ctx, curr_token);
         response += piece;
 
-        // Prepare for next token
+        // Prepare the next decode step with the sampled token.
         common_batch_clear(batch);
         common_batch_add(batch, curr_token, n_curr, {0}, true);
 
@@ -139,7 +139,7 @@ Java_com_k7sunny_nexv1_AIManager_runInferenceNative(JNIEnv* env, jobject /* this
 
     LOGD("Inference complete. Response length: %zu", response.length());
 
-    // Cleanup
+    // Release context and sampler resources.
     common_sampler_free(sampler);
     llama_batch_free(batch);
     llama_free(ctx);

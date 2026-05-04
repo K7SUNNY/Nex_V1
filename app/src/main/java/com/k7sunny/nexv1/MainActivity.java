@@ -33,7 +33,7 @@ public class MainActivity extends AppCompatActivity {
 
     private static final String TAG = "MainActivity";
 
-    // How often (ms) to poll DownloadManager for real progress
+    // Polling interval in milliseconds for download progress updates.
     private static final int PROGRESS_POLL_INTERVAL_MS = 500;
 
     private RecyclerView recyclerView;
@@ -44,7 +44,7 @@ public class MainActivity extends AppCompatActivity {
     private AIManager aiManager;
     private ModelManager modelManager;
 
-    // Download UI
+    // Views used by the model download card.
     private View downloadModelCard;
     private Button btnDownloadModel;
     private LinearProgressIndicator downloadProgress;
@@ -52,7 +52,7 @@ public class MainActivity extends AppCompatActivity {
 
     private long currentDownloadId = -1;
 
-    // Handler + Runnable for polling real download progress
+    // Handler and runnable for periodic DownloadManager polling.
     private final Handler progressHandler = new Handler(Looper.getMainLooper());
     private Runnable progressPoller;
 
@@ -66,13 +66,13 @@ public class MainActivity extends AppCompatActivity {
         aiManager = new AIManager();
         modelManager = new ModelManager(this);
 
-        // UI References
+        // Bind download-related views.
         downloadModelCard = findViewById(R.id.downloadModelCard);
         btnDownloadModel = findViewById(R.id.btnDownloadModel);
         downloadProgress = findViewById(R.id.downloadProgress);
         downloadStatusText = findViewById(R.id.downloadStatusText);
 
-        // Handle window insets
+        // Apply system bar and keyboard insets.
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
             Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
             Insets ime = insets.getInsets(WindowInsetsCompat.Type.ime());
@@ -102,7 +102,7 @@ public class MainActivity extends AppCompatActivity {
             });
         }
 
-        // Register broadcast receiver for download completion
+        // Listen for DownloadManager completion events.
         ContextCompat.registerReceiver(this, onDownloadComplete,
                 new IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE),
                 ContextCompat.RECEIVER_EXPORTED);
@@ -115,11 +115,11 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        // Check model on startup and update UI accordingly
+        // Check model status on startup and update the screen.
         checkModelStatus();
     }
 
-    // ─── BroadcastReceiver: fires when DownloadManager finishes ───────────────
+    // Handles the callback when DownloadManager finishes a download.
 
     private final BroadcastReceiver onDownloadComplete = new BroadcastReceiver() {
         @Override
@@ -127,10 +127,10 @@ public class MainActivity extends AppCompatActivity {
             long id = intent.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1);
             if (id != currentDownloadId) return;
 
-            // Stop polling — download is done
+            // Stop polling because the download has finished.
             stopProgressPolling();
 
-            // Check if download succeeded or failed
+            // Read the final download status.
             DownloadManager dm = (DownloadManager) getSystemService(Context.DOWNLOAD_SERVICE);
             DownloadManager.Query query = new DownloadManager.Query().setFilterById(id);
             Cursor cursor = dm.query(query);
@@ -145,13 +145,13 @@ public class MainActivity extends AppCompatActivity {
                 cursor.close();
             }
 
-            // Reset download ID regardless of outcome
+            // Clear the active download ID in either case.
             currentDownloadId = -1;
 
             if (success) {
                 Log.d(TAG, "Download succeeded, checking model...");
                 Toast.makeText(context, "Model downloaded!", Toast.LENGTH_SHORT).show();
-                checkModelStatus(); // Will load model and update UI
+                checkModelStatus(); // Load the model and refresh UI state.
             } else {
                 Log.e(TAG, "Download failed or was cancelled");
                 Toast.makeText(context, "Download failed. Please try again.", Toast.LENGTH_SHORT).show();
@@ -160,7 +160,7 @@ public class MainActivity extends AppCompatActivity {
         }
     };
 
-    // ─── Progress Polling ─────────────────────────────────────────────────────
+    // Poll DownloadManager for byte-level progress updates.
 
     /**
      * Starts polling DownloadManager every PROGRESS_POLL_INTERVAL_MS ms
@@ -170,7 +170,7 @@ public class MainActivity extends AppCompatActivity {
         progressPoller = new Runnable() {
             @Override
             public void run() {
-                if (currentDownloadId == -1) return; // Download finished or cancelled
+                if (currentDownloadId == -1) return; // Download already finished or canceled.
 
                 DownloadManager dm = (DownloadManager) getSystemService(Context.DOWNLOAD_SERVICE);
                 DownloadManager.Query query = new DownloadManager.Query()
@@ -196,19 +196,19 @@ public class MainActivity extends AppCompatActivity {
                         }
 
                         if (total > 0) {
-                            // Real determinate progress
+                            // Update determinate progress when total size is known.
                             int percent = (int) ((downloaded * 100L) / total);
                             downloadProgress.setIndeterminate(false);
                             downloadProgress.setMax(100);
                             downloadProgress.setProgress(percent);
 
-                            // Human-readable MB display
+                            // Show progress in MB for readability.
                             long downloadedMB = downloaded / (1024 * 1024);
                             long totalMB = total / (1024 * 1024);
                             downloadStatusText.setText(
                                     "Downloading... " + downloadedMB + " MB / " + totalMB + " MB (" + percent + "%)");
                         } else {
-                            // Total size unknown — stay indeterminate
+                            // Keep indeterminate mode when total size is unknown.
                             downloadProgress.setIndeterminate(true);
                             downloadStatusText.setText("Downloading model... Please wait.");
                         }
@@ -216,7 +216,7 @@ public class MainActivity extends AppCompatActivity {
                     cursor.close();
                 }
 
-                // Schedule next poll
+                // Queue the next progress check.
                 progressHandler.postDelayed(this, PROGRESS_POLL_INTERVAL_MS);
             }
         };
@@ -230,13 +230,13 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    // ─── Model Status ─────────────────────────────────────────────────────────
+    // Update UI based on whether a valid model exists.
 
     private void checkModelStatus() {
         String modelPath = modelManager.getValidModelPath();
 
         if (modelPath != null) {
-            // Model exists and is valid — hide the download card
+            // Model is valid, so hide the download card.
             downloadModelCard.setVisibility(View.GONE);
             downloadProgress.setVisibility(View.GONE);
 
@@ -245,7 +245,7 @@ public class MainActivity extends AppCompatActivity {
 
             Toast.makeText(this, "AI model ready!", Toast.LENGTH_SHORT).show();
         } else {
-            // Model missing — show download card
+            // Model is missing, so show the download card.
             downloadModelCard.setVisibility(View.VISIBLE);
             downloadProgress.setVisibility(View.GONE);
             btnDownloadModel.setEnabled(true);
@@ -257,7 +257,7 @@ public class MainActivity extends AppCompatActivity {
     private void startModelDownload() {
         btnDownloadModel.setEnabled(false);
         downloadProgress.setVisibility(View.VISIBLE);
-        downloadProgress.setIndeterminate(true); // Start indeterminate until we get size info
+        downloadProgress.setIndeterminate(true); // Stay indeterminate until total size is available.
         downloadStatusText.setText("Starting download...");
 
         currentDownloadId = modelManager.downloadModel();
@@ -265,7 +265,7 @@ public class MainActivity extends AppCompatActivity {
         if (currentDownloadId != -1) {
             Log.d(TAG, "Download started with ID: " + currentDownloadId);
             Toast.makeText(this, "Download started", Toast.LENGTH_SHORT).show();
-            startProgressPolling(); // Begin real progress tracking
+            startProgressPolling(); // Start polling for real-time byte progress.
         } else {
             Log.e(TAG, "DownloadManager failed to enqueue");
             Toast.makeText(this, "Failed to start download", Toast.LENGTH_SHORT).show();
@@ -281,7 +281,7 @@ public class MainActivity extends AppCompatActivity {
         downloadStatusText.setText(statusMessage);
     }
 
-    // ─── Chat ─────────────────────────────────────────────────────────────────
+    // Send a user message and render the model response.
 
     private void sendMessage() {
         String text = messageInput.getText().toString().trim();
@@ -313,7 +313,7 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
-    // ─── Lifecycle ────────────────────────────────────────────────────────────
+    // Release resources when the activity is destroyed.
 
     @Override
     protected void onDestroy() {
@@ -324,6 +324,6 @@ public class MainActivity extends AppCompatActivity {
         } catch (Exception e) {
             Log.w(TAG, "Receiver already unregistered");
         }
-        aiManager.release(); // Free native resources
+        aiManager.release(); // Free native model resources.
     }
 }

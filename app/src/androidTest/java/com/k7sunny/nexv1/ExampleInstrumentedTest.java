@@ -19,7 +19,7 @@ import static org.junit.Assert.*;
 public class ExampleInstrumentedTest {
     @Test
     public void useAppContext() {
-        // Context of the app under test.
+        // Get the target app context from the test instrumentation.
         Context appContext = InstrumentationRegistry.getInstrumentation().getTargetContext();
         assertEquals("com.k7sunny.nexv1", appContext.getPackageName());
     }
