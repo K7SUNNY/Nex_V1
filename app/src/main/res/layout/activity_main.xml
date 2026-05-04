@@ -36,7 +36,8 @@
         android:visibility="gone"
         app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
         app:layout_constraintBottom_toTopOf="@+id/inputContainer"
-        app:layout_constraintTop_toBottomOf="@id/toolbar" />
+        app:layout_constraintTop_toBottomOf="@id/toolbar"
+        android:padding="14dp"/>
 
     <!-- Welcome/Greeting Area (Temporary Start Screen) -->
     <androidx.core.widget.NestedScrollView
