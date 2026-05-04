@@ -16,34 +16,91 @@ public class AIManager {
 
     private final ExecutorService executorService;
     private final Handler mainHandler;
+    private boolean isModelLoaded = false;
+
+    // ─── JNI Declarations ────────────────────────────────────────────────────
 
     public native String stringFromJNI();
+    public native boolean initNative();
+    public native long loadModelNative(String modelPath);
+    public native String runInferenceNative(String prompt, int maxTokens);
+    public native void freeNative();
+
+    // ─── Callback Interface ───────────────────────────────────────────────────
 
     public interface ResponseCallback {
         void onResponse(String response);
     }
 
+    // ─── Constructor ──────────────────────────────────────────────────────────
+
     public AIManager() {
         this.executorService = Executors.newSingleThreadExecutor();
         this.mainHandler = new Handler(Looper.getMainLooper());
 
-        // Verify native bridge
+        boolean initialized = initNative();
+        Log.d(TAG, "Native backend initialized: " + initialized);
         Log.d(TAG, "Native bridge test: " + stringFromJNI());
     }
 
+    // ─── Model Loading ────────────────────────────────────────────────────────
+
+    public void loadModel(String modelPath) {
+        if (modelPath == null || modelPath.isEmpty()) {
+            Log.e(TAG, "loadModel called with null or empty path");
+            return;
+        }
+        executorService.execute(() -> {
+            Log.d(TAG, "Loading model from: " + modelPath);
+            long modelPtr = loadModelNative(modelPath);
+            if (modelPtr != 0) {
+                isModelLoaded = true;
+                Log.d(TAG, "Model loaded successfully");
+            } else {
+                isModelLoaded = false;
+                Log.e(TAG, "Failed to load model from: " + modelPath);
+            }
+        });
+    }
+
+    // ─── Inference ────────────────────────────────────────────────────────────
+
     public void generateResponse(String prompt, ResponseCallback callback) {
         executorService.execute(() -> {
-            // Simulate AI processing delay
-            try {
-                Thread.sleep(1500);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
+            String response;
+            if (isModelLoaded) {
+                Log.d(TAG, "Running inference for prompt: " + prompt);
+                response = runInferenceNative(prompt, 200);
+                if (response == null || response.isEmpty()) {
+                    response = "Sorry, I couldn't generate a response. Please try again.";
+                }
+            } else {
+                Log.w(TAG, "generateResponse called but model is not loaded");
+                response = "Model is not ready yet. Please wait or download the model first.";
             }
 
-            String response = "This is a simulated AI response for: \"" + prompt + "\"";
-
-            // Return result to main thread
-            mainHandler.post(() -> callback.onResponse(response));
+            final String finalResponse = response;
+            mainHandler.post(() -> callback.onResponse(finalResponse));
         });
+    }
+
+    // ─── Cleanup ──────────────────────────────────────────────────────────────
+
+    /**
+     * Call this from Activity.onDestroy() to free native memory and shut down threads.
+     */
+    public void release() {
+        executorService.execute(() -> {
+            if (isModelLoaded) {
+                Log.d(TAG, "Freeing native resources");
+                freeNative();
+                isModelLoaded = false;
+            }
+        });
+        executorService.shutdown();
+    }
+
+    public boolean isModelLoaded() {
+        return isModelLoaded;
     }
 }
