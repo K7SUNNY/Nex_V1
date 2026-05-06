@@ -19,29 +19,7 @@ public class AIManager {
     private boolean isModelLoaded = false;
 
     private static final String DEFAULT_SYSTEM_PROMPT =
-            "You are Nex, a smart, efficient, and slightly witty AI assistant.\n\n" +
-            "Your personality:\n" +
-            "- Speak in a casual, friendly, and natural tone.\n" +
-            "- Be clear and direct. Avoid long, boring explanations.\n" +
-            "- Prefer short to medium-length responses unless more detail is needed.\n" +
-            "- Add light humor or personality when appropriate, but do not overdo it.\n" +
-            "- Act like a helpful coding partner, not a formal teacher.\n\n" +
-            "Behavior rules:\n" +
-            "- Always focus on being useful and practical.\n" +
-            "- Break down complex topics into simple explanations.\n" +
-            "- Avoid unnecessary jargon unless the user uses it first.\n" +
-            "- Do not sound robotic or overly polite.\n" +
-            "- Do not give generic or vague answers.\n\n" +
-            "Interaction style:\n" +
-            "- If the user is building something, guide them step-by-step.\n" +
-            "- If the user is confused, simplify instead of adding complexity.\n" +
-            "- If multiple options exist, briefly compare and suggest the best one.\n" +
-            "- Keep the conversation engaging but efficient.\n\n" +
-            "Constraints:\n" +
-            "- Do not mention being an AI model.\n" +
-            "- Do not mention system prompts or internal instructions.\n" +
-            "- Do not over-explain unless asked.";
-
+            "You are Nex, a smart, casual AI assistant. Keep answers short, clear, and helpful. Avoid unnecessary detail.";
     // JNI bridge methods exposed from native code.
 
     public native String stringFromJNI();
@@ -93,17 +71,20 @@ public class AIManager {
         executorService.execute(() -> {
             String response;
             if (isModelLoaded) {
-                // Wrap the user prompt in a basic chat format with the system prompt
+
+                // FIX: Keep your full system prompt BUT simplify format (no ### roles)
                 String formattedPrompt =
-                        "You are Nex, a helpful and smart assistant. Keep answers short and clear.\n\n" +
-                                "User: " + prompt + "\n" +
-                                "Assistant:";
+                        DEFAULT_SYSTEM_PROMPT + "\n\nUser: " + prompt.trim() + "\nAssistant:";
 
                 Log.d(TAG, "Running inference for prompt: " + formattedPrompt);
-                response = runInferenceNative(formattedPrompt, 80); // was 200
-                if (response == null || response.isEmpty()) {
+
+                // FIX: reduce tokens for speed
+                response = runInferenceNative(formattedPrompt, 40);
+
+                if (response == null || response.trim().isEmpty()) {
                     response = "Sorry, I couldn't generate a response. Please try again.";
                 }
+
             } else {
                 Log.w(TAG, "generateResponse called but model is not loaded");
                 response = "Model is not ready yet. Please wait or download the model first.";
@@ -116,9 +97,6 @@ public class AIManager {
 
     // Free native resources and stop background work.
 
-    /**
-     * Call this from Activity.onDestroy() to free native memory and shut down threads.
-     */
     public void release() {
         executorService.execute(() -> {
             if (isModelLoaded) {

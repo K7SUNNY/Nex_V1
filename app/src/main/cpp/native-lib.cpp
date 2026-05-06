@@ -14,6 +14,14 @@
 static llama_model* g_model = nullptr;
 static llama_context* g_ctx = nullptr;
 
+extern "C" JNIEXPORT jstring JNICALL
+Java_com_k7sunny_nexv1_AIManager_stringFromJNI(
+        JNIEnv* env,
+        jobject) {
+    std::string hello = "Hello from C++ (NDK) with llama.cpp";
+    return env->NewStringUTF(hello.c_str());
+}
+
 extern "C" JNIEXPORT jboolean JNICALL
 Java_com_k7sunny_nexv1_AIManager_initNative(JNIEnv*, jobject) {
     llama_backend_init();
@@ -23,7 +31,9 @@ Java_com_k7sunny_nexv1_AIManager_initNative(JNIEnv*, jobject) {
 
 extern "C" JNIEXPORT jlong JNICALL
 Java_com_k7sunny_nexv1_AIManager_loadModelNative(JNIEnv* env, jobject, jstring model_path) {
+
     const char* path = env->GetStringUTFChars(model_path, nullptr);
+    LOGD("Loading model from: %s", path);
 
     llama_model_params model_params = llama_model_default_params();
     model_params.use_mmap = true;
@@ -37,9 +47,12 @@ Java_com_k7sunny_nexv1_AIManager_loadModelNative(JNIEnv* env, jobject, jstring m
     }
 
     llama_context_params ctx_params = llama_context_default_params();
+
+    // FIX: better performance tuning
     ctx_params.n_ctx = 512;
-    ctx_params.n_threads = 4;
-    ctx_params.n_threads_batch = 4;
+    int threads = std::thread::hardware_concurrency();
+    ctx_params.n_threads = threads > 0 ? threads : 4;
+    ctx_params.n_threads_batch = ctx_params.n_threads;
 
     g_ctx = llama_init_from_model(g_model, ctx_params);
 
@@ -60,6 +73,7 @@ Java_com_k7sunny_nexv1_AIManager_runInferenceNative(JNIEnv* env, jobject, jstrin
     }
 
     const char* prompt = env->GetStringUTFChars(jprompt, nullptr);
+    LOGD("Prompt: %s", prompt);
 
     std::vector<llama_token> tokens = common_tokenize(g_ctx, prompt, true, true);
     env->ReleaseStringUTFChars(jprompt, prompt);
@@ -97,13 +111,14 @@ Java_com_k7sunny_nexv1_AIManager_runInferenceNative(JNIEnv* env, jobject, jstrin
         if (llama_vocab_is_eog(llama_model_get_vocab(g_model), token)) break;
 
         std::string piece = common_token_to_piece(g_ctx, token);
-        response += piece;
 
-        // Stop cleanly
-        if (response.find("\nUser:") != std::string::npos ||
-            response.find("\nAssistant:") != std::string::npos) {
+        // ✅ FIX: stop BEFORE appending bad tokens
+        if (piece.find("User:") != std::string::npos ||
+            piece.find("Assistant:") != std::string::npos) {
             break;
         }
+
+        response += piece;
 
         common_batch_clear(batch);
         common_batch_add(batch, token, n_cur++, {0}, true);
@@ -115,6 +130,8 @@ Java_com_k7sunny_nexv1_AIManager_runInferenceNative(JNIEnv* env, jobject, jstrin
 
         n_predict++;
     }
+
+    LOGD("Response length: %zu", response.length());
 
     common_sampler_free(sampler);
     llama_batch_free(batch);
