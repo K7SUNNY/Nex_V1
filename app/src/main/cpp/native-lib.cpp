@@ -48,11 +48,10 @@ Java_com_k7sunny_nexv1_AIManager_loadModelNative(JNIEnv* env, jobject, jstring m
 
     llama_context_params ctx_params = llama_context_default_params();
 
-    // FIX: better performance tuning
+    // Limit threads to avoid big.LITTLE CPU starvation
     ctx_params.n_ctx = 512;
-    int threads = std::thread::hardware_concurrency();
-    ctx_params.n_threads = threads > 0 ? threads : 4;
-    ctx_params.n_threads_batch = ctx_params.n_threads;
+    ctx_params.n_threads = 4;
+    ctx_params.n_threads_batch = 4;
 
     g_ctx = llama_init_from_model(g_model, ctx_params);
 
@@ -71,6 +70,10 @@ Java_com_k7sunny_nexv1_AIManager_runInferenceNative(JNIEnv* env, jobject, jstrin
     if (!g_model || !g_ctx) {
         return env->NewStringUTF("Error: Model not loaded");
     }
+
+    // THE FIX: Use the modern API to clear the KV cache
+    // This removes all tokens (0 to -1) across all sequences (-1)
+    llama_memory_seq_rm(llama_get_memory(g_ctx), -1, 0, -1);
 
     const char* prompt = env->GetStringUTFChars(jprompt, nullptr);
     LOGD("Prompt: %s", prompt);
@@ -93,9 +96,10 @@ Java_com_k7sunny_nexv1_AIManager_runInferenceNative(JNIEnv* env, jobject, jstrin
     }
 
     common_params_sampling sparams;
-    sparams.temp = 0.6f;
-    sparams.top_k = 30;
+    sparams.temp = 0.2f;
+    sparams.top_k = 40;
     sparams.top_p = 0.9f;
+    sparams.penalty_repeat = 1.15f;
 
     common_sampler* sampler = common_sampler_init(g_model, sparams);
 
@@ -111,14 +115,20 @@ Java_com_k7sunny_nexv1_AIManager_runInferenceNative(JNIEnv* env, jobject, jstrin
         if (llama_vocab_is_eog(llama_model_get_vocab(g_model), token)) break;
 
         std::string piece = common_token_to_piece(g_ctx, token);
+        response += piece;
 
-        // ✅ FIX: stop BEFORE appending bad tokens
-        if (piece.find("User:") != std::string::npos ||
-            piece.find("Assistant:") != std::string::npos) {
+        // Robust stop sequence check: search the tail of the response
+        if (response.find("<|user|>") != std::string::npos ||
+            response.find("<|assistant|>") != std::string::npos ||
+            response.find("<|system|>") != std::string::npos) {
+
+            // Clean up the stop tag from the visible response
+            size_t pos;
+            if ((pos = response.find("<|user|>")) != std::string::npos) response.erase(pos);
+            if ((pos = response.find("<|assistant|>")) != std::string::npos) response.erase(pos);
+            if ((pos = response.find("<|system|>")) != std::string::npos) response.erase(pos);
             break;
         }
-
-        response += piece;
 
         common_batch_clear(batch);
         common_batch_add(batch, token, n_cur++, {0}, true);

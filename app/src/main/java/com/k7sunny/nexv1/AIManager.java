@@ -17,10 +17,10 @@ public class AIManager {
     private final ExecutorService executorService;
     private final Handler mainHandler;
     private boolean isModelLoaded = false;
+    private final java.util.List<String> chatHistory = new java.util.ArrayList<>();
+    private static final int MAX_HISTORY = 6; // Keep last 3 rounds of chat
 
-    private static final String DEFAULT_SYSTEM_PROMPT =
-            "You are Nex, a smart, casual AI assistant. Keep answers short, clear, and helpful. Avoid unnecessary detail.";
-    // JNI bridge methods exposed from native code.
+    // JNI bridge methods
 
     public native String stringFromJNI();
     public native boolean initNative();
@@ -28,13 +28,9 @@ public class AIManager {
     public native String runInferenceNative(String prompt, int maxTokens);
     public native void freeNative();
 
-    // Callback interface for async model responses.
-
     public interface ResponseCallback {
         void onResponse(String response);
     }
-
-    // Initialize the worker thread and native backend.
 
     public AIManager() {
         this.executorService = Executors.newSingleThreadExecutor();
@@ -45,57 +41,69 @@ public class AIManager {
         Log.d(TAG, "Native bridge test: " + stringFromJNI());
     }
 
-    // Load the model on a background thread.
-
     public void loadModel(String modelPath) {
         if (modelPath == null || modelPath.isEmpty()) {
             Log.e(TAG, "loadModel called with null or empty path");
             return;
         }
+
         executorService.execute(() -> {
             Log.d(TAG, "Loading model from: " + modelPath);
             long modelPtr = loadModelNative(modelPath);
+
             if (modelPtr != 0) {
                 isModelLoaded = true;
                 Log.d(TAG, "Model loaded successfully");
             } else {
                 isModelLoaded = false;
-                Log.e(TAG, "Failed to load model from: " + modelPath);
+                Log.e(TAG, "Failed to load model");
             }
         });
     }
-
-    // Generate a response in the background and return it on the main thread.
 
     public void generateResponse(String prompt, ResponseCallback callback) {
         executorService.execute(() -> {
             String response;
+
             if (isModelLoaded) {
+                String cleanPrompt = prompt.trim();
 
-                // FIX: Keep your full system prompt BUT simplify format (no ### roles)
-                String formattedPrompt =
-                        DEFAULT_SYSTEM_PROMPT + "\n\nUser: " + prompt.trim() + "\nAssistant:";
+                // 1. Add User message to history
+                chatHistory.add("<|user|>\n" + cleanPrompt);
 
-                Log.d(TAG, "Running inference for prompt: " + formattedPrompt);
+                // 2. Build the full prompt with history
+                StringBuilder fullPrompt = new StringBuilder("<|system|>\nYou are a helpful AI assistant.");
+                for (String entry : chatHistory) {
+                    fullPrompt.append("\n").append(entry);
+                }
+                fullPrompt.append("\n<|assistant|>\n");
 
-                // FIX: reduce tokens for speed
-                response = runInferenceNative(formattedPrompt, 40);
+                Log.d(TAG, "Running inference with history.");
+
+                response = runInferenceNative(fullPrompt.toString(), 150);
 
                 if (response == null || response.trim().isEmpty()) {
-                    response = "Sorry, I couldn't generate a response. Please try again.";
+                    response = "No response generated.";
+                } else {
+                    // 3. Add AI response to history
+                    chatHistory.add("<|assistant|>\n" + response.trim());
+                }
+
+                // 4. Keep history lean (sliding window of 3 rounds)
+                if (chatHistory.size() > MAX_HISTORY) {
+                    chatHistory.remove(0); // Remove oldest user msg
+                    chatHistory.remove(0); // Remove oldest AI resp
                 }
 
             } else {
-                Log.w(TAG, "generateResponse called but model is not loaded");
-                response = "Model is not ready yet. Please wait or download the model first.";
+                Log.w(TAG, "Model not loaded");
+                response = "Model is not ready yet.";
             }
 
-            final String finalResponse = response;
+            String finalResponse = response;
             mainHandler.post(() -> callback.onResponse(finalResponse));
         });
     }
-
-    // Free native resources and stop background work.
 
     public void release() {
         executorService.execute(() -> {
