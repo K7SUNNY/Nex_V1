@@ -4,8 +4,7 @@
     android:id="@+id/main"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#000000"
-    android:fitsSystemWindows="true">
+    android:background="#000000">
 
     <!-- Top Bar -->
     <com.google.android.material.appbar.MaterialToolbar
@@ -53,12 +52,13 @@
             android:layout_height="wrap_content"
             android:gravity="center_horizontal"
             android:orientation="vertical"
-            android:padding="24dp">
+            android:paddingHorizontal="24dp"
+            android:paddingVertical="16dp">
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="40dp"
+                android:layout_marginTop="8dp"
                 android:background="@drawable/bg_label"
                 android:paddingHorizontal="12dp"
                 android:paddingVertical="4dp"

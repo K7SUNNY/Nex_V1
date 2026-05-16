@@ -76,8 +76,24 @@ public class MainActivity extends AppCompatActivity {
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
             Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
             Insets ime = insets.getInsets(WindowInsetsCompat.Type.ime());
-            int bottomPadding = Math.max(systemBars.bottom, ime.bottom);
-            v.setPadding(systemBars.left, systemBars.top, systemBars.right, bottomPadding);
+            int bottomInset = Math.max(systemBars.bottom, ime.bottom);
+
+            // Update toolbar padding for top status bar
+            View toolbar = findViewById(R.id.toolbar);
+            if (toolbar != null) {
+                toolbar.setPadding(0, systemBars.top, 0, 0);
+            }
+
+            // Update input container margin for bottom navigation/keyboard
+            View inputContainer = findViewById(R.id.inputContainer);
+            if (inputContainer != null) {
+                androidx.constraintlayout.widget.ConstraintLayout.LayoutParams lp =
+                        (androidx.constraintlayout.widget.ConstraintLayout.LayoutParams) inputContainer.getLayoutParams();
+                int baseMargin = (int) (12 * getResources().getDisplayMetrics().density);
+                lp.bottomMargin = baseMargin + bottomInset;
+                inputContainer.setLayoutParams(lp);
+            }
+
             return WindowInsetsCompat.CONSUMED;
         });
 
