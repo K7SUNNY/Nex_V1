@@ -13,6 +13,8 @@
 
 static llama_model* g_model = nullptr;
 static llama_context* g_ctx = nullptr;
+static std::string g_last_prompt = "";
+static int g_last_token_count = 0;
 
 extern "C" JNIEXPORT jstring JNICALL
 Java_com_k7sunny_nexv1_AIManager_stringFromJNI(
@@ -37,6 +39,7 @@ Java_com_k7sunny_nexv1_AIManager_loadModelNative(JNIEnv* env, jobject, jstring m
 
     llama_model_params model_params = llama_model_default_params();
     model_params.use_mmap = true;
+    model_params.n_gpu_layers = 0; // CPU only for now to ensure stability
 
     g_model = llama_model_load_from_file(path, model_params);
     env->ReleaseStringUTFChars(model_path, path);
@@ -48,10 +51,14 @@ Java_com_k7sunny_nexv1_AIManager_loadModelNative(JNIEnv* env, jobject, jstring m
 
     llama_context_params ctx_params = llama_context_default_params();
 
-    // Limit threads to avoid big.LITTLE CPU starvation
-    ctx_params.n_ctx = 512;
-    ctx_params.n_threads = 4;
-    ctx_params.n_threads_batch = 4;
+    // Optimize for modern Android CPUs (often 8 cores: 4 big, 4 small)
+    // Using 6-8 threads often hits the big cores without overloading
+    int num_threads = (int)std::thread::hardware_concurrency();
+    if (num_threads > 4) num_threads = 6;
+
+    ctx_params.n_ctx = 2048; // Increased context size
+    ctx_params.n_threads = num_threads;
+    ctx_params.n_threads_batch = num_threads;
 
     g_ctx = llama_init_from_model(g_model, ctx_params);
 
@@ -71,28 +78,48 @@ Java_com_k7sunny_nexv1_AIManager_runInferenceNative(JNIEnv* env, jobject, jstrin
         return env->NewStringUTF("Error: Model not loaded");
     }
 
-    // THE FIX: Use the modern API to clear the KV cache
-    // This removes all tokens (0 to -1) across all sequences (-1)
-    llama_memory_seq_rm(llama_get_memory(g_ctx), -1, 0, -1);
+    // SMART KV CACHE REUSE
+    // If the new prompt starts with the previous prompt, we only decode the new part.
+    // This dramatically speeds up follow-up messages in a chat.
+    const char* prompt_cstr = env->GetStringUTFChars(jprompt, nullptr);
+    std::string prompt(prompt_cstr);
+    env->ReleaseStringUTFChars(jprompt, prompt_cstr);
 
-    const char* prompt = env->GetStringUTFChars(jprompt, nullptr);
-    LOGD("Prompt: %s", prompt);
-
-    std::vector<llama_token> tokens = common_tokenize(g_ctx, prompt, true, true);
-    env->ReleaseStringUTFChars(jprompt, prompt);
-
-    if (tokens.empty()) return env->NewStringUTF("");
-
-    llama_batch batch = llama_batch_init(tokens.size() + max_tokens, 0, 1);
-
-    for (size_t i = 0; i < tokens.size(); i++) {
-        common_batch_add(batch, tokens[i], i, {0}, i == tokens.size() - 1);
+    int n_past = 0;
+    if (!g_last_prompt.empty() && prompt.find(g_last_prompt) == 0) {
+        n_past = g_last_token_count;
+        LOGD("Reusing KV cache: %d tokens", n_past);
+    } else {
+        llama_memory_clear(llama_get_memory(g_ctx), true);
+        LOGD("Prompt changed significantly, cleared KV cache");
+        n_past = 0;
     }
 
-    if (llama_decode(g_ctx, batch) != 0) {
-        LOGE("Decode failed");
+    std::vector<llama_token> all_tokens = common_tokenize(g_ctx, prompt, true, true);
+    if (all_tokens.empty()) return env->NewStringUTF("");
+
+    // Tokens we actually need to decode (the ones not in cache)
+    std::vector<llama_token> new_tokens;
+    if (n_past < all_tokens.size()) {
+        new_tokens.assign(all_tokens.begin() + n_past, all_tokens.end());
+    }
+
+    LOGD("Total tokens: %zu, New to decode: %zu", all_tokens.size(), new_tokens.size());
+
+    if (!new_tokens.empty()) {
+        llama_batch batch = llama_batch_init(new_tokens.size(), 0, 1);
+        for (size_t i = 0; i < new_tokens.size(); i++) {
+            common_batch_add(batch, new_tokens[i], n_past + i, {0}, i == new_tokens.size() - 1);
+        }
+
+        int64_t start_eval = ggml_time_us();
+        if (llama_decode(g_ctx, batch) != 0) {
+            LOGE("Decode failed");
+            llama_batch_free(batch);
+            return env->NewStringUTF("Error");
+        }
+        LOGD("Decode took %lld ms", (ggml_time_us() - start_eval) / 1000);
         llama_batch_free(batch);
-        return env->NewStringUTF("Error");
     }
 
     common_params_sampling sparams;
@@ -108,21 +135,19 @@ Java_com_k7sunny_nexv1_AIManager_runInferenceNative(JNIEnv* env, jobject, jstrin
     common_sampler_accept(sampler, token, true);
 
     int n_predict = 0;
-    int n_cur = tokens.size();
+    int n_cur = all_tokens.size();
+
+    llama_batch run_batch = llama_batch_init(1, 0, 1);
 
     while (n_predict < max_tokens) {
-
         if (llama_vocab_is_eog(llama_model_get_vocab(g_model), token)) break;
 
         std::string piece = common_token_to_piece(g_ctx, token);
         response += piece;
 
-        // Robust stop sequence check: search the tail of the response
         if (response.find("<|user|>") != std::string::npos ||
             response.find("<|assistant|>") != std::string::npos ||
             response.find("<|system|>") != std::string::npos) {
-
-            // Clean up the stop tag from the visible response
             size_t pos;
             if ((pos = response.find("<|user|>")) != std::string::npos) response.erase(pos);
             if ((pos = response.find("<|assistant|>")) != std::string::npos) response.erase(pos);
@@ -130,21 +155,24 @@ Java_com_k7sunny_nexv1_AIManager_runInferenceNative(JNIEnv* env, jobject, jstrin
             break;
         }
 
-        common_batch_clear(batch);
-        common_batch_add(batch, token, n_cur++, {0}, true);
+        common_batch_clear(run_batch);
+        common_batch_add(run_batch, token, n_cur++, {0}, true);
 
-        if (llama_decode(g_ctx, batch) != 0) break;
+        if (llama_decode(g_ctx, run_batch) != 0) break;
 
         token = common_sampler_sample(sampler, g_ctx, -1);
         common_sampler_accept(sampler, token, true);
-
         n_predict++;
     }
+
+    // Update state for next call
+    g_last_prompt = prompt + response;
+    g_last_token_count = n_cur;
 
     LOGD("Response length: %zu", response.length());
 
     common_sampler_free(sampler);
-    llama_batch_free(batch);
+    llama_batch_free(run_batch);
 
     return env->NewStringUTF(response.c_str());
 }

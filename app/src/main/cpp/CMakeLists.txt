@@ -10,6 +10,7 @@ set(LLAMA_BUILD_COMMON ON CACHE INTERNAL "")
 set(LLAMA_BUILD_EXAMPLES OFF CACHE INTERNAL "")
 set(LLAMA_BUILD_TESTS OFF CACHE INTERNAL "")
 set(LLAMA_BUILD_SERVER OFF CACHE INTERNAL "")
+set(GGML_OPENMP ON CACHE INTERNAL "")
 
 # Automatically fetch llama.cpp if not present locally
 include(FetchContent)
@@ -42,9 +43,16 @@ find_library(
     log
 )
 
+# OpenMP support
+find_package(OpenMP)
+if(OpenMP_CXX_FOUND)
+    set(OPENMP_LIBRARIES OpenMP::OpenMP_CXX)
+endif()
+
 target_link_libraries(
     nexv1
     llama
     llama-common
     ${log-lib}
+    ${OPENMP_LIBRARIES}
 )
