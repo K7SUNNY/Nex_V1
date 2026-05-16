@@ -25,11 +25,12 @@ public class AIManager {
     public native String stringFromJNI();
     public native boolean initNative();
     public native long loadModelNative(String modelPath);
-    public native String runInferenceNative(String prompt, int maxTokens);
+    public native String runInferenceNative(String prompt, int maxTokens, ResponseCallback callback);
     public native void freeNative();
 
     public interface ResponseCallback {
         void onResponse(String response);
+        default void onToken(String token) {}
     }
 
     public AIManager() {
@@ -80,7 +81,18 @@ public class AIManager {
 
                 Log.d(TAG, "Running inference with history.");
 
-                response = runInferenceNative(fullPrompt.toString(), 150);
+                // Use the new signature with callback for streaming
+                response = runInferenceNative(fullPrompt.toString(), 256, new ResponseCallback() {
+                    @Override
+                    public void onResponse(String response) {
+                        // Not used directly in native, but kept for interface
+                    }
+
+                    @Override
+                    public void onToken(String token) {
+                        mainHandler.post(() -> callback.onToken(token));
+                    }
+                });
 
                 if (response == null || response.trim().isEmpty()) {
                     response = "No response generated.";

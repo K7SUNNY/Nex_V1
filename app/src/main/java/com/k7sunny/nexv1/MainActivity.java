@@ -321,15 +321,29 @@ public class MainActivity extends AppCompatActivity {
         Log.d(TAG, "User message: " + text);
 
         long startTime = System.currentTimeMillis();
-        aiManager.generateResponse(text, response -> {
-            long duration = System.currentTimeMillis() - startTime;
-            Log.d(TAG, "AI Raw Response: " + response);
-            Log.d(TAG, "AI Generation Time: " + duration + " ms");
-            int index = messageList.indexOf(typingMessage);
-            if (index != -1) {
-                messageList.set(index, new Message(response, Message.TYPE_AI));
-                chatAdapter.notifyItemChanged(index);
-                recyclerView.scrollToPosition(index);
+        aiManager.generateResponse(text, new AIManager.ResponseCallback() {
+            @Override
+            public void onResponse(String response) {
+                long duration = System.currentTimeMillis() - startTime;
+                Log.d(TAG, "AI Raw Response: " + response);
+                Log.d(TAG, "AI Generation Time: " + duration + " ms");
+                int index = messageList.indexOf(typingMessage);
+                if (index != -1) {
+                    messageList.set(index, new Message(response, Message.TYPE_AI));
+                    chatAdapter.notifyItemChanged(index);
+                    recyclerView.scrollToPosition(index);
+                }
+            }
+
+            @Override
+            public void onToken(String token) {
+                int index = messageList.indexOf(typingMessage);
+                if (index != -1) {
+                    Message msg = messageList.get(index);
+                    msg.setText(msg.getText() + token);
+                    chatAdapter.notifyItemChanged(index);
+                    recyclerView.scrollToPosition(index);
+                }
             }
         });
     }

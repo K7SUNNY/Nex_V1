@@ -17,6 +17,10 @@ public class Message {
         return text;
     }
 
+    public void setText(String text) {
+        this.text = text;
+    }
+
     public int getType() {
         return type;
     }

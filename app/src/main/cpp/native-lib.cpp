@@ -51,10 +51,14 @@ Java_com_k7sunny_nexv1_AIManager_loadModelNative(JNIEnv* env, jobject, jstring m
 
     llama_context_params ctx_params = llama_context_default_params();
 
-    // Optimize for modern Android CPUs (often 8 cores: 4 big, 4 small)
-    // Using 6-8 threads often hits the big cores without overloading
+    // Optimize for big.LITTLE mobile CPUs.
+    // Most Android phones have 4 big cores and 4 small cores.
+    // Using 4 threads is often much faster than using 6 or 8 because it avoids the small cores.
     int num_threads = (int)std::thread::hardware_concurrency();
-    if (num_threads > 4) num_threads = 6;
+    if (num_threads > 4) num_threads = 4;
+    if (num_threads < 1) num_threads = 1;
+
+    LOGD("Initializing context with %d threads", num_threads);
 
     ctx_params.n_ctx = 2048; // Increased context size
     ctx_params.n_threads = num_threads;
@@ -72,15 +76,17 @@ Java_com_k7sunny_nexv1_AIManager_loadModelNative(JNIEnv* env, jobject, jstring m
 }
 
 extern "C" JNIEXPORT jstring JNICALL
-Java_com_k7sunny_nexv1_AIManager_runInferenceNative(JNIEnv* env, jobject, jstring jprompt, jint max_tokens) {
+Java_com_k7sunny_nexv1_AIManager_runInferenceNative(JNIEnv* env, jobject, jstring jprompt, jint max_tokens, jobject jcallback) {
 
     if (!g_model || !g_ctx) {
         return env->NewStringUTF("Error: Model not loaded");
     }
 
+    // Get the callback class and method ID
+    jclass callbackClass = env->GetObjectClass(jcallback);
+    jmethodID onTokenMethod = env->GetMethodID(callbackClass, "onToken", "(Ljava/lang/String;)V");
+
     // SMART KV CACHE REUSE
-    // If the new prompt starts with the previous prompt, we only decode the new part.
-    // This dramatically speeds up follow-up messages in a chat.
     const char* prompt_cstr = env->GetStringUTFChars(jprompt, nullptr);
     std::string prompt(prompt_cstr);
     env->ReleaseStringUTFChars(jprompt, prompt_cstr);
@@ -118,7 +124,7 @@ Java_com_k7sunny_nexv1_AIManager_runInferenceNative(JNIEnv* env, jobject, jstrin
             llama_batch_free(batch);
             return env->NewStringUTF("Error");
         }
-        LOGD("Decode took %lld ms", (ggml_time_us() - start_eval) / 1000);
+        LOGD("Initial prompt decode took %lld ms", (ggml_time_us() - start_eval) / 1000);
         llama_batch_free(batch);
     }
 
@@ -144,6 +150,11 @@ Java_com_k7sunny_nexv1_AIManager_runInferenceNative(JNIEnv* env, jobject, jstrin
 
         std::string piece = common_token_to_piece(g_ctx, token);
         response += piece;
+
+        // Stream the token back to Java
+        jstring jpiece = env->NewStringUTF(piece.c_str());
+        env->CallVoidMethod(jcallback, onTokenMethod, jpiece);
+        env->DeleteLocalRef(jpiece);
 
         if (response.find("<|user|>") != std::string::npos ||
             response.find("<|assistant|>") != std::string::npos ||
