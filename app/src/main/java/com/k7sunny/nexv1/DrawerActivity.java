@@ -1,9 +1,11 @@
 package com.k7sunny.nexv1;
 
 import android.content.Intent;
+import android.content.pm.PackageInfo;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.ImageButton;
+import android.widget.TextView;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.graphics.Insets;
@@ -40,7 +42,19 @@ public class DrawerActivity extends AppCompatActivity {
             finish();
         });
 
+        setupVersionInfo();
         setupRecentChats();
+    }
+
+    private void setupVersionInfo() {
+        TextView tvVersion = findViewById(R.id.tv_app_version);
+        try {
+            PackageInfo pInfo = getPackageManager().getPackageInfo(getPackageName(), 0);
+            String version = pInfo.versionName;
+            tvVersion.setText(getString(R.string.app_version, version));
+        } catch (Exception e) {
+            tvVersion.setText(getString(R.string.app_version, "1.0"));
+        }
     }
 
     private void setupRecentChats() {
