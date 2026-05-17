@@ -30,6 +30,10 @@
             android:name=".DrawerActivity"
             android:exported="false"
             android:theme="@style/Theme.NexV1.Drawer" />
+        <activity
+            android:name=".SettingsActivity"
+            android:exported="false"
+            android:theme="@style/Theme.NexV1" />
     </application>
 
 </manifest>
