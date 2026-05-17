@@ -1,5 +1,17 @@
+import java.util.Properties
+import java.io.FileInputStream
+
 plugins {
     alias(libs.plugins.android.application)
+}
+
+val versionPropsFile = file("version.properties")
+val versionProps = Properties()
+if (versionPropsFile.exists()) {
+    versionProps.load(FileInputStream(versionPropsFile))
+} else {
+    versionProps["VERSION_CODE"] = "1"
+    versionProps["VERSION_NAME"] = "1.0.0"
 }
 
 android {
@@ -14,8 +26,8 @@ android {
         applicationId = "com.k7sunny.nexv1"
         minSdk = 24
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = versionProps["VERSION_CODE"].toString().toInt()
+        versionName = versionProps["VERSION_NAME"].toString()
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -65,4 +77,16 @@ dependencies {
     testImplementation(libs.junit)
     androidTestImplementation(libs.espresso.core)
     androidTestImplementation(libs.ext.junit)
+}
+
+tasks.register("incrementVersion") {
+    doLast {
+        val properties = Properties()
+        val file = file("version.properties")
+        properties.load(file.inputStream())
+        val currentCode = properties.getProperty("VERSION_CODE").toInt()
+        properties.setProperty("VERSION_CODE", (currentCode + 1).toString())
+        properties.store(file.outputStream(), null)
+        println("Version code incremented to ${properties.getProperty("VERSION_CODE")}")
+    }
 }
