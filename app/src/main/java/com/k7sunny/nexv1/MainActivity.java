@@ -85,13 +85,13 @@ public class MainActivity extends AppCompatActivity {
             }
 
             // Update input container margin for bottom navigation/keyboard
-            View inputContainer = findViewById(R.id.inputContainer);
-            if (inputContainer != null) {
+            View inputCard = findViewById(R.id.inputCard);
+            if (inputCard != null) {
                 androidx.constraintlayout.widget.ConstraintLayout.LayoutParams lp =
-                        (androidx.constraintlayout.widget.ConstraintLayout.LayoutParams) inputContainer.getLayoutParams();
-                int baseMargin = (int) (12 * getResources().getDisplayMetrics().density);
+                        (androidx.constraintlayout.widget.ConstraintLayout.LayoutParams) inputCard.getLayoutParams();
+                int baseMargin = (int) (16 * getResources().getDisplayMetrics().density);
                 lp.bottomMargin = baseMargin + bottomInset;
-                inputContainer.setLayoutParams(lp);
+                inputCard.setLayoutParams(lp);
             }
 
             return WindowInsetsCompat.CONSUMED;

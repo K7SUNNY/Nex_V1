@@ -1,150 +1,218 @@
 <?xml version="1.0" encoding="utf-8"?>
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/drawer_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:background="#191A1C"
-    android:fitsSystemWindows="true">
+    android:background="#111111"
+    tools:context=".DrawerActivity">
 
+    <!-- Header Section -->
+    <ImageView
+        android:id="@+id/app_logo"
+        android:layout_width="28dp"
+        android:layout_height="28dp"
+        android:layout_marginStart="24dp"
+        android:layout_marginTop="24dp"
+        android:src="@drawable/app_icon"
+        android:contentDescription="@string/app_name"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:tint="@android:color/white" />
+
+    <TextView
+        android:id="@+id/app_title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="12dp"
+        android:text="@string/app_name"
+        android:textColor="@android:color/white"
+        android:textSize="22sp"
+        android:textStyle="bold"
+        app:layout_constraintBottom_toBottomOf="@id/app_logo"
+        app:layout_constraintStart_toEndOf="@id/app_logo"
+        app:layout_constraintTop_toTopOf="@id/app_logo" />
+
+    <ImageButton
+        android:id="@+id/btn_close"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_marginEnd="12dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:contentDescription="Close"
+        android:src="@drawable/ic_close"
+        app:layout_constraintBottom_toBottomOf="@id/app_title"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="@id/app_title"
+        app:tint="@android:color/white" />
+
+    <!-- New Chat Button -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btn_new_chat"
+        style="@style/Widget.Material3.Button"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="20dp"
+        android:layout_marginTop="32dp"
+        android:paddingHorizontal="24dp"
+        android:paddingVertical="12dp"
+        android:text="New Chat"
+        android:textAllCaps="false"
+        android:textColor="@android:color/white"
+        android:textSize="14sp"
+        android:textStyle="bold"
+        app:backgroundTint="#1C1C1E"
+        app:cornerRadius="24dp"
+        app:icon="@drawable/ic_add"
+        app:iconSize="18dp"
+        app:iconTint="@android:color/white"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/app_logo"
+        app:strokeColor="#2C2C2E"
+        app:strokeWidth="1dp" />
+
+    <!-- SYSTEM Section (Anchored to Bottom) -->
     <LinearLayout
+        android:id="@+id/system_section"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
+        android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:padding="20dp">
+        android:paddingHorizontal="12dp"
+        android:paddingBottom="16dp"
+        app:layout_constraintBottom_toBottomOf="parent">
 
-        <!-- Header -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical">
-
-            <com.google.android.material.textview.MaterialTextView
-                android:id="@+id/app_name"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:drawableStart="@drawable/app_icon"
-                android:drawablePadding="8dp"
-                android:text="@string/app_name"
-                android:textSize="22sp"
-                android:textStyle="bold"
-                android:textColor="@android:color/white"/>
-
-            <Space
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"/>
-
-            <ImageButton
-                android:id="@+id/btn_close"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:src="@drawable/ic_close"
-                android:background="?attr/selectableItemBackgroundBorderless"
-                android:contentDescription="Close"/>
-        </LinearLayout>
-
-        <!-- New Chat -->
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btn_new_chat"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="20dp"
-            android:text="New Chat"
-            android:textColor="@android:color/white"
-            app:icon="@drawable/ic_add"
-            app:iconPadding="12dp"
-            app:backgroundTint="#26282B"
-            app:cornerRadius="20dp"/>
-
-        <!-- MAIN -->
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="MAIN"
-            android:textColor="#8E8E93"
-            android:textSize="12sp"
-            android:layout_marginTop="24dp"/>
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/nav_chat"
-            style="@style/Widget.Material3.Button.TextButton"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Chat"
-            android:textColor="@android:color/white"
-            app:icon="@drawable/ic_chat"
-            app:iconTint="@color/white"
-            app:iconGravity="textStart"
-            app:iconPadding="12dp"/>
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/nav_memory"
-            style="@style/Widget.Material3.Button.TextButton"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Memory"
-            android:textColor="@android:color/white"
-            app:icon="@drawable/ic_memory"
-            app:iconTint="@color/white"
-            app:iconGravity="textStart"
-            app:iconPadding="12dp"/>
-
-        <!-- RECENT CHATS -->
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="RECENT"
-            android:textColor="#8E8E93"
-            android:textSize="12sp"
-            android:layout_marginTop="24dp"/>
-
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/recentChatsRecycler"
-            android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_weight="1"
-            android:paddingTop="8dp"/>
-
-        <!-- SYSTEM -->
         <View
-            android:id="@+id/divider"
             android:layout_width="match_parent"
             android:layout_height="1dp"
-            android:background="?android:attr/listDivider" />
+            android:layout_marginHorizontal="16dp"
+            android:layout_marginBottom="16dp"
+            android:background="#1AFFFFFF" />
 
         <TextView
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="SYSTEM"
-            android:textColor="#8E8E93"
+            android:layout_marginStart="16dp"
+            android:text="@string/system"
+            android:textColor="#555555"
             android:textSize="12sp"
-            android:layout_marginTop="16dp"/>
+            android:textStyle="bold"
+            android:letterSpacing="0.05" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/nav_settings"
             style="@style/Widget.Material3.Button.TextButton"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Settings"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:layout_marginTop="8dp"
+            android:gravity="start|center_vertical"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:text="@string/settings"
             android:textColor="@android:color/white"
+            android:textSize="16sp"
             app:icon="@drawable/ic_settings"
-            app:iconTint="@color/white"
-            app:iconGravity="textStart"
-            app:iconPadding="12dp"/>
+            app:iconSize="24dp"
+            app:iconTint="@android:color/white"
+            app:iconPadding="16dp" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/nav_account"
             style="@style/Widget.Material3.Button.TextButton"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Account"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:gravity="start|center_vertical"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:text="@string/account"
             android:textColor="@android:color/white"
+            android:textSize="16sp"
             app:icon="@drawable/ic_account"
-            app:iconTint="@color/white"
-            app:iconGravity="textStart"
-            app:iconPadding="12dp"/>
-
+            app:iconSize="24dp"
+            app:iconTint="@android:color/white"
+            app:iconPadding="16dp" />
     </LinearLayout>
+
+    <!-- Scrollable content (Fills remaining space) -->
+    <androidx.core.widget.NestedScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_marginTop="24dp"
+        android:fillViewport="true"
+        app:layout_constraintBottom_toTopOf="@id/system_section"
+        app:layout_constraintTop_toBottomOf="@id/btn_new_chat">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingHorizontal="12dp">
+
+            <!-- MAIN Section -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
+                android:layout_marginTop="16dp"
+                android:text="MAIN"
+                android:textColor="#555555"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:letterSpacing="0.05" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/nav_chat"
+                style="@style/Widget.Material3.Button.TextButton"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:layout_marginTop="8dp"
+                android:gravity="start|center_vertical"
+                android:paddingStart="16dp"
+                android:paddingEnd="16dp"
+                android:text="@string/chat"
+                android:textColor="@android:color/white"
+                android:textSize="16sp"
+                app:icon="@drawable/ic_chat"
+                app:iconSize="24dp"
+                app:iconTint="@android:color/white"
+                app:iconPadding="16dp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/nav_memory"
+                style="@style/Widget.Material3.Button.TextButton"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:gravity="start|center_vertical"
+                android:paddingStart="16dp"
+                android:paddingEnd="16dp"
+                android:text="@string/memory"
+                android:textColor="@android:color/white"
+                android:textSize="16sp"
+                app:icon="@drawable/ic_memory"
+                app:iconSize="24dp"
+                app:iconTint="@android:color/white"
+                app:iconPadding="16dp" />
+
+            <!-- RECENT Section -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
+                android:layout_marginTop="32dp"
+                android:text="RECENT"
+                android:textColor="#555555"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:letterSpacing="0.05" />
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/recentChatsRecycler"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:nestedScrollingEnabled="false" />
+
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

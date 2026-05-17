@@ -40,9 +40,11 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             ((UserViewHolder) holder).messageText.setText(message.getText());
         } else if (holder instanceof AiViewHolder) {
             if (message.getType() == Message.TYPE_TYPING) {
-                ((AiViewHolder) holder).messageText.setText("Nex is thinking...");
+                ((AiViewHolder) holder).messageText.setText("...");
+                ((AiViewHolder) holder).messageText.setAlpha(0.5f);
             } else {
                 ((AiViewHolder) holder).messageText.setText(message.getText());
+                ((AiViewHolder) holder).messageText.setAlpha(1.0f);
             }
         }
     }

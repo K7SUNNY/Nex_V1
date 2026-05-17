@@ -14,6 +14,7 @@
         android:background="@android:color/transparent"
         app:layout_constraintTop_toTopOf="parent"
         app:navigationIcon="@drawable/ic_menu"
+        app:navigationIconTint="@android:color/white"
         app:title="@string/app_name"
         app:titleTextColor="@android:color/white">
 
@@ -22,7 +23,10 @@
             android:layout_height="32dp"
             android:layout_gravity="end"
             android:layout_marginEnd="16dp"
-            android:src="@android:drawable/sym_def_app_icon"
+            android:src="@drawable/ic_account"
+            android:padding="6dp"
+            android:background="#26282B"
+            app:tint="@android:color/white"
             app:shapeAppearanceOverlay="@style/ShapeAppearance.Material3.Corner.Full" />
 
     </com.google.android.material.appbar.MaterialToolbar>
@@ -34,9 +38,10 @@
         android:layout_height="0dp"
         android:visibility="gone"
         app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
-        app:layout_constraintBottom_toTopOf="@+id/inputContainer"
+        app:layout_constraintBottom_toTopOf="@+id/inputCard"
         app:layout_constraintTop_toBottomOf="@id/toolbar"
-        android:padding="14dp"/>
+        android:clipToPadding="false"
+        android:paddingBottom="16dp"/>
 
     <!-- Welcome/Greeting Area (Temporary Start Screen) -->
     <androidx.core.widget.NestedScrollView
@@ -44,7 +49,7 @@
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:fillViewport="true"
-        app:layout_constraintBottom_toTopOf="@+id/inputContainer"
+        app:layout_constraintBottom_toTopOf="@+id/inputCard"
         app:layout_constraintTop_toBottomOf="@id/toolbar">
 
         <LinearLayout
@@ -73,7 +78,7 @@
                 android:gravity="center"
                 android:text="@string/main_title"
                 android:textColor="@android:color/white"
-                android:textSize="28sp"
+                android:textSize="32sp"
                 android:textStyle="bold" />
 
             <TextView
@@ -95,17 +100,17 @@
                 <LinearLayout
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:layout_gravity="center">
+                    android:orientation="horizontal">
 
                     <com.google.android.material.button.MaterialButton
                         style="@style/Widget.Material3.Button.OutlinedButton"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="@string/fast_chat"
-                        android:textSize="10sp"
+                        android:textSize="11sp"
                         android:textColor="@android:color/white"
-                        app:strokeColor="#333333" />
+                        app:strokeColor="#333333"
+                        app:cornerRadius="20dp"/>
 
                     <com.google.android.material.button.MaterialButton
                         style="@style/Widget.Material3.Button.OutlinedButton"
@@ -113,9 +118,10 @@
                         android:layout_height="wrap_content"
                         android:layout_marginStart="8dp"
                         android:text="@string/saved_memory"
-                        android:textSize="10sp"
+                        android:textSize="11sp"
                         android:textColor="@android:color/white"
-                        app:strokeColor="#333333" />
+                        app:strokeColor="#333333"
+                        app:cornerRadius="20dp"/>
 
                     <com.google.android.material.button.MaterialButton
                         style="@style/Widget.Material3.Button.OutlinedButton"
@@ -123,9 +129,10 @@
                         android:layout_height="wrap_content"
                         android:layout_marginStart="8dp"
                         android:text="@string/code_ready"
-                        android:textSize="10sp"
+                        android:textSize="11sp"
                         android:textColor="@android:color/white"
-                        app:strokeColor="#333333" />
+                        app:strokeColor="#333333"
+                        app:cornerRadius="20dp"/>
                 </LinearLayout>
             </HorizontalScrollView>
 
@@ -140,15 +147,16 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginBottom="12dp"
-                    app:cardBackgroundColor="#1C1C1E"
-                    app:cardCornerRadius="16dp"
-                    app:strokeWidth="0dp">
+                    app:cardBackgroundColor="#131314"
+                    app:cardCornerRadius="20dp"
+                    app:strokeWidth="1dp"
+                    app:strokeColor="#26282B">
 
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:orientation="vertical"
-                        android:padding="16dp">
+                        android:padding="20dp">
 
                         <TextView
                             android:layout_width="wrap_content"
@@ -161,7 +169,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="4dp"
+                            android:layout_marginTop="6dp"
                             android:text="@string/plan_my_day_desc"
                             android:textColor="#8E8E93"
                             android:textSize="12sp" />
@@ -173,15 +181,16 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginBottom="12dp"
-                    app:cardBackgroundColor="#1C1C1E"
-                    app:cardCornerRadius="16dp"
-                    app:strokeWidth="0dp">
+                    app:cardBackgroundColor="#131314"
+                    app:cardCornerRadius="20dp"
+                    app:strokeWidth="1dp"
+                    app:strokeColor="#26282B">
 
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:orientation="vertical"
-                        android:padding="16dp">
+                        android:padding="20dp">
 
                         <TextView
                             android:layout_width="wrap_content"
@@ -194,7 +203,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="4dp"
+                            android:layout_marginTop="6dp"
                             android:text="@string/improve_ui_desc"
                             android:textColor="#8E8E93"
                             android:textSize="12sp" />
@@ -207,8 +216,8 @@
                     android:layout_height="wrap_content"
                     android:layout_marginBottom="12dp"
                     android:visibility="gone"
-                    app:cardBackgroundColor="#2C2C2E"
-                    app:cardCornerRadius="16dp"
+                    app:cardBackgroundColor="#131314"
+                    app:cardCornerRadius="20dp"
                     app:strokeColor="#007AFF"
                     app:strokeWidth="1dp">
 
@@ -216,7 +225,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:orientation="vertical"
-                        android:padding="16dp">
+                        android:padding="20dp">
 
                         <TextView
                             android:layout_width="wrap_content"
@@ -230,7 +239,7 @@
                             android:id="@+id/downloadStatusText"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="4dp"
+                            android:layout_marginTop="6dp"
                             android:text="Download the core AI engine (~700MB) to start chatting offline."
                             android:textColor="#8E8E93"
                             android:textSize="12sp" />
@@ -239,7 +248,7 @@
                             android:id="@+id/downloadProgress"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="12dp"
+                            android:layout_marginTop="16dp"
                             android:visibility="gone"
                             app:indicatorColor="#007AFF"
                             app:trackColor="#3A3A3C" />
@@ -249,10 +258,10 @@
                             style="@style/Widget.Material3.Button"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="12dp"
+                            android:layout_marginTop="16dp"
                             android:text="Download Model"
                             app:backgroundTint="#007AFF"
-                            app:cornerRadius="12dp" />
+                            app:cornerRadius="14dp" />
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
 
@@ -262,80 +271,82 @@
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
 
-    <!-- Input Container -->
+    <!-- Input Area Redesign -->
     <com.google.android.material.card.MaterialCardView
-        android:id="@+id/inputContainer"
+        android:id="@+id/inputCard"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_margin="12dp"
-        app:cardBackgroundColor="#191A1C"
-        app:cardCornerRadius="24dp"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:strokeWidth="0dp">
+        android:layout_margin="16dp"
+        app:cardBackgroundColor="#131314"
+        app:cardCornerRadius="28dp"
+        app:strokeWidth="1dp"
+        app:strokeColor="#26282B"
+        app:layout_constraintBottom_toBottomOf="parent">
 
         <LinearLayout
+            android:id="@+id/inputContainer"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:padding="12dp">
+            android:padding="8dp">
 
             <EditText
                 android:id="@+id/messageInput"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginHorizontal="8dp"
+                android:layout_marginHorizontal="12dp"
+                android:layout_marginTop="4dp"
                 android:background="@android:color/transparent"
-                android:hint="@string/input_hint"
+                android:hint="Ask Nex to think, plan, code, or create..."
                 android:importantForAutofill="no"
                 android:inputType="textMultiLine"
-                android:maxLines="4"
+                android:maxLines="6"
                 android:textColor="@android:color/white"
-                android:textColorHint="#585B61"
-                android:textSize="16sp" />
+                android:textColorHint="#8E8E93"
+                android:textSize="16sp"
+                android:minHeight="48dp"
+                android:gravity="top|start"/>
 
-            <LinearLayout
+            <RelativeLayout
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:layout_gravity="center">
+                android:layout_height="48dp"
+                android:layout_marginTop="4dp">
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/modelSelector"
                     style="@style/Widget.Material3.Button.TextButton"
                     android:layout_width="wrap_content"
                     android:layout_height="36dp"
-                    android:text="@string/nex_fast"
+                    android:layout_centerVertical="true"
+                    android:layout_marginStart="4dp"
+                    android:text="Nex Fast"
                     android:textColor="@android:color/white"
                     android:textSize="12sp"
                     app:icon="@drawable/ic_bolt"
                     app:iconGravity="textStart"
-                    app:iconSize="20dp"
+                    app:iconSize="18dp"
                     app:iconTint="@android:color/white"
-                    android:layout_gravity="center"
-                    app:backgroundTint="#26282b"
+                    app:backgroundTint="#26282B"
                     android:minWidth="0dp"
-                    android:minHeight="0dp"
-                    android:paddingHorizontal="12dp"
-                    android:insetTop="0dp"
-                    android:insetBottom="0dp"
+                    android:paddingHorizontal="16dp"
                     app:cornerRadius="18dp" />
-
-                <Space
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1" />
 
                 <com.google.android.material.floatingactionbutton.FloatingActionButton
                     android:id="@+id/sendButton"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
+                    android:layout_alignParentEnd="true"
+                    android:layout_centerVertical="true"
+                    android:layout_marginEnd="4dp"
                     android:contentDescription="@string/send"
-                    app:backgroundTint="#26282b"
-                    app:fabCustomSize="46dp"
+                    app:backgroundTint="@android:color/white"
+                    app:fabCustomSize="40dp"
+                    app:maxImageSize="20dp"
                     app:srcCompat="@drawable/ic_send"
-                    app:tint="@android:color/white"
-                    android:layout_gravity="center"/>
-            </LinearLayout>
+                    app:tint="@android:color/black"
+                    app:elevation="0dp"
+                    app:pressedTranslationZ="0dp"/>
+            </RelativeLayout>
         </LinearLayout>
     </com.google.android.material.card.MaterialCardView>
 
