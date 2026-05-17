@@ -27,6 +27,9 @@ import androidx.core.view.WindowInsetsCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import com.google.android.material.appbar.MaterialToolbar;
+import com.google.android.material.bottomsheet.BottomSheetDialog;
+import com.google.android.material.button.MaterialButton;
+import com.google.android.material.card.MaterialCardView;
 import com.google.android.material.progressindicator.LinearProgressIndicator;
 import java.util.ArrayList;
 import java.util.List;
@@ -131,6 +134,11 @@ public class MainActivity extends AppCompatActivity {
         recyclerView.setAdapter(chatAdapter);
 
         sendButton.setOnClickListener(v -> sendMessage());
+
+        MaterialButton modelSelector = findViewById(R.id.modelSelector);
+        if (modelSelector != null) {
+            modelSelector.setOnClickListener(v -> showModelSelection());
+        }
 
         MaterialToolbar toolbar = findViewById(R.id.toolbar);
         if (toolbar != null) {
@@ -310,6 +318,40 @@ public class MainActivity extends AppCompatActivity {
             Toast.makeText(this, "Failed to start download", Toast.LENGTH_SHORT).show();
             setDownloadIdleState("Could not start download. Tap to retry.");
         }
+    }
+
+    private void showModelSelection() {
+        BottomSheetDialog dialog = new BottomSheetDialog(this);
+        View view = getLayoutInflater().inflate(R.layout.bottom_sheet_model_selection, null);
+        dialog.setContentView(view);
+
+        MaterialCardView cardFast = view.findViewById(R.id.card_nex_fast);
+        MaterialCardView cardPro = view.findViewById(R.id.card_nex_pro);
+        View checkFast = view.findViewById(R.id.check_fast);
+        View checkPro = view.findViewById(R.id.check_pro);
+
+        MaterialButton modelSelector = findViewById(R.id.modelSelector);
+        String currentModel = modelSelector.getText().toString();
+        boolean isPro = currentModel.equals("Nex Pro");
+
+        checkFast.setVisibility(isPro ? View.GONE : View.VISIBLE);
+        checkPro.setVisibility(isPro ? View.VISIBLE : View.GONE);
+        cardFast.setStrokeColor(isPro ? 0x1AFFFFFF : 0xFF007AFF);
+        cardPro.setStrokeColor(isPro ? 0xFF007AFF : 0x1AFFFFFF);
+
+        cardFast.setOnClickListener(v -> {
+            modelSelector.setText(R.string.nex_fast);
+            modelSelector.setIconResource(R.drawable.ic_bolt);
+            dialog.dismiss();
+        });
+
+        cardPro.setOnClickListener(v -> {
+            modelSelector.setText("Nex Pro");
+            modelSelector.setIconResource(R.drawable.app_icon);
+            dialog.dismiss();
+        });
+
+        dialog.show();
     }
 
     private void loadSession(String sessionId) {
