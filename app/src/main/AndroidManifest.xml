@@ -34,6 +34,10 @@
             android:name=".SettingsActivity"
             android:exported="false"
             android:theme="@style/Theme.NexV1" />
+        <activity
+            android:name=".MemoryActivity"
+            android:exported="false"
+            android:theme="@style/Theme.NexV1" />
     </application>
 
 </manifest>

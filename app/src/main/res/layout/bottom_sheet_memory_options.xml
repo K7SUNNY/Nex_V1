@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="#111111"
+    android:orientation="vertical"
+    android:padding="20dp">
+
+    <View
+        android:layout_width="40dp"
+        android:layout_height="4dp"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginBottom="24dp"
+        android:background="#333333" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btn_edit"
+        style="@style/Widget.Material3.Button.TextButton"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:gravity="start|center_vertical"
+        android:text="@string/edit_memory"
+        android:textColor="@android:color/white"
+        android:textSize="16sp"
+        app:icon="@drawable/ic_bolt"
+        app:iconPadding="16dp"
+        app:iconTint="@android:color/white" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btn_pin"
+        style="@style/Widget.Material3.Button.TextButton"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:gravity="start|center_vertical"
+        android:text="@string/pin_memory"
+        android:textColor="@android:color/white"
+        android:textSize="16sp"
+        app:icon="@drawable/ic_memory"
+        app:iconPadding="16dp"
+        app:iconTint="@android:color/white" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btn_copy"
+        style="@style/Widget.Material3.Button.TextButton"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:gravity="start|center_vertical"
+        android:text="@string/copy_content"
+        android:textColor="@android:color/white"
+        android:textSize="16sp"
+        app:icon="@drawable/ic_chat"
+        app:iconPadding="16dp"
+        app:iconTint="@android:color/white" />
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:layout_marginVertical="8dp"
+        android:background="#1AFFFFFF" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btn_delete"
+        style="@style/Widget.Material3.Button.TextButton"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:gravity="start|center_vertical"
+        android:text="@string/delete_memory"
+        android:textColor="#FF453A"
+        android:textSize="16sp"
+        app:icon="@drawable/ic_close"
+        app:iconPadding="16dp"
+        app:iconTint="#FF453A" />
+
+</LinearLayout>

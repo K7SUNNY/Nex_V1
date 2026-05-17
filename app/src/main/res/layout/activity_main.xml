@@ -100,17 +100,18 @@
                 <LinearLayout
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:orientation="horizontal">
+                    android:orientation="horizontal"
+                    android:layout_gravity="center">
 
                     <com.google.android.material.button.MaterialButton
                         style="@style/Widget.Material3.Button.OutlinedButton"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="@string/fast_chat"
-                        android:textSize="11sp"
                         android:textColor="@android:color/white"
-                        app:strokeColor="#333333"
-                        app:cornerRadius="20dp"/>
+                        android:textSize="11sp"
+                        app:cornerRadius="20dp"
+                        app:strokeColor="#333333" />
 
                     <com.google.android.material.button.MaterialButton
                         style="@style/Widget.Material3.Button.OutlinedButton"
@@ -118,10 +119,10 @@
                         android:layout_height="wrap_content"
                         android:layout_marginStart="8dp"
                         android:text="@string/saved_memory"
-                        android:textSize="11sp"
                         android:textColor="@android:color/white"
-                        app:strokeColor="#333333"
-                        app:cornerRadius="20dp"/>
+                        android:textSize="11sp"
+                        app:cornerRadius="20dp"
+                        app:strokeColor="#333333" />
 
                     <com.google.android.material.button.MaterialButton
                         style="@style/Widget.Material3.Button.OutlinedButton"
@@ -129,10 +130,10 @@
                         android:layout_height="wrap_content"
                         android:layout_marginStart="8dp"
                         android:text="@string/code_ready"
-                        android:textSize="11sp"
                         android:textColor="@android:color/white"
-                        app:strokeColor="#333333"
-                        app:cornerRadius="20dp"/>
+                        android:textSize="11sp"
+                        app:cornerRadius="20dp"
+                        app:strokeColor="#333333" />
                 </LinearLayout>
             </HorizontalScrollView>
 

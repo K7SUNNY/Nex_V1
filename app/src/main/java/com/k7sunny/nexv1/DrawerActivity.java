@@ -47,6 +47,11 @@ public class DrawerActivity extends AppCompatActivity {
             startActivity(intent);
         });
 
+        findViewById(R.id.nav_memory).setOnClickListener(v -> {
+            Intent intent = new Intent(this, MemoryActivity.class);
+            startActivity(intent);
+        });
+
         setupVersionInfo();
         setupRecentChats();
     }
