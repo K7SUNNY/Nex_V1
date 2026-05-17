@@ -133,6 +133,8 @@ public class MainActivity extends AppCompatActivity {
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
         recyclerView.setAdapter(chatAdapter);
 
+        setupSuggestions();
+
         sendButton.setOnClickListener(v -> sendMessage());
 
         MaterialButton modelSelector = findViewById(R.id.modelSelector);
@@ -318,6 +320,26 @@ public class MainActivity extends AppCompatActivity {
             Toast.makeText(this, "Failed to start download", Toast.LENGTH_SHORT).show();
             setDownloadIdleState("Could not start download. Tap to retry.");
         }
+    }
+
+    private void setupSuggestions() {
+        View chipFast = findViewById(R.id.chipFastChat);
+        View chipMemory = findViewById(R.id.chipSavedMemory);
+        View chipCode = findViewById(R.id.chipCodeReady);
+        View cardPlan = findViewById(R.id.cardPlanDay);
+        View cardImprove = findViewById(R.id.cardImproveUI);
+
+        if (chipFast != null) chipFast.setOnClickListener(v -> fillAndSend("Let's start a fast chat."));
+        if (chipMemory != null) chipMemory.setOnClickListener(v -> fillAndSend("Recall my saved memories."));
+        if (chipCode != null) chipCode.setOnClickListener(v -> fillAndSend("Help me write some code."));
+        if (cardPlan != null) cardPlan.setOnClickListener(v -> fillAndSend("Help me plan my day."));
+        if (cardImprove != null) cardImprove.setOnClickListener(v -> fillAndSend("How can I improve my app's UI?"));
+    }
+
+    private void fillAndSend(String text) {
+        messageInput.setText(text);
+        messageInput.setSelection(text.length()); // Move cursor to the end
+        messageInput.requestFocus();
     }
 
     private void showModelSelection() {
