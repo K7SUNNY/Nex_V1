@@ -16,6 +16,8 @@ import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.TextView;
 import android.widget.Toast;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
 import androidx.core.graphics.Insets;
@@ -43,6 +45,25 @@ public class MainActivity extends AppCompatActivity {
     private EditText messageInput;
     private AIManager aiManager;
     private ModelManager modelManager;
+    private HistoryManager historyManager;
+    private String currentSessionId;
+
+    private final ActivityResultLauncher<Intent> drawerLauncher = registerForActivityResult(
+            new ActivityResultContracts.StartActivityForResult(),
+            result -> {
+                if (result.getResultCode() == RESULT_OK) {
+                    if (result.getData() != null) {
+                        String sessionId = result.getData().getStringExtra("session_id");
+                        if (sessionId != null) {
+                            loadSession(sessionId);
+                            return;
+                        }
+                    }
+                    // If no session ID, it's a "New Chat" request
+                    startNewChat();
+                }
+            }
+    );
 
     // Views used by the model download card.
     private View downloadModelCard;
@@ -65,6 +86,8 @@ public class MainActivity extends AppCompatActivity {
 
         aiManager = new AIManager();
         modelManager = new ModelManager(this);
+        historyManager = new HistoryManager(this);
+        currentSessionId = String.valueOf(System.currentTimeMillis());
 
         // Bind download-related views.
         downloadModelCard = findViewById(R.id.downloadModelCard);
@@ -113,7 +136,7 @@ public class MainActivity extends AppCompatActivity {
         if (toolbar != null) {
             toolbar.setNavigationOnClickListener(v -> {
                 Intent intent = new Intent(MainActivity.this, DrawerActivity.class);
-                startActivity(intent);
+                drawerLauncher.launch(intent);
                 overridePendingTransition(R.anim.slide_in_left, 0);
             });
         }
@@ -289,6 +312,36 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    private void loadSession(String sessionId) {
+        currentSessionId = sessionId;
+        messageList.clear();
+        messageList.addAll(historyManager.getMessages(sessionId));
+        chatAdapter.notifyDataSetChanged();
+        
+        if (messageList.isEmpty()) {
+            startNewChat();
+        } else {
+            if (welcomeContainer != null) welcomeContainer.setVisibility(View.GONE);
+            recyclerView.setVisibility(View.VISIBLE);
+            recyclerView.scrollToPosition(messageList.size() - 1);
+            
+            // Sync AI history with loaded messages
+            aiManager.setHistory(messageList);
+        }
+    }
+
+    private void startNewChat() {
+        messageList.clear();
+        chatAdapter.notifyDataSetChanged();
+        if (welcomeContainer != null) {
+            welcomeContainer.setVisibility(View.VISIBLE);
+        }
+        recyclerView.setVisibility(View.GONE);
+        currentSessionId = String.valueOf(System.currentTimeMillis());
+        // Also clear AI history
+        aiManager.clearHistory();
+    }
+
     /** Resets the download card to idle/error state without hiding it. */
     private void setDownloadIdleState(String statusMessage) {
         btnDownloadModel.setEnabled(true);
@@ -308,9 +361,15 @@ public class MainActivity extends AppCompatActivity {
         }
         recyclerView.setVisibility(View.VISIBLE);
 
-        messageList.add(new Message(text, Message.TYPE_USER));
+        Message userMsg = new Message(text, Message.TYPE_USER);
+        messageList.add(userMsg);
         chatAdapter.notifyItemInserted(messageList.size() - 1);
         recyclerView.scrollToPosition(messageList.size() - 1);
+        
+        // Save session and messages
+        String title = messageList.get(0).getText();
+        if (title.length() > 30) title = title.substring(0, 27) + "...";
+        historyManager.saveSession(new ChatSession(currentSessionId, title, System.currentTimeMillis()), messageList);
 
         messageInput.setText("");
 
@@ -332,6 +391,11 @@ public class MainActivity extends AppCompatActivity {
                     messageList.set(index, new Message(response, Message.TYPE_AI));
                     chatAdapter.notifyItemChanged(index);
                     recyclerView.scrollToPosition(index);
+                    
+                    // Save history after AI response
+                    String title = messageList.get(0).getText();
+                    if (title.length() > 30) title = title.substring(0, 27) + "...";
+                    historyManager.saveSession(new ChatSession(currentSessionId, title, System.currentTimeMillis()), messageList);
                 }
             }
 

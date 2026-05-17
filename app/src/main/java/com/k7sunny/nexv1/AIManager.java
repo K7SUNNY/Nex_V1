@@ -117,6 +117,32 @@ public class AIManager {
         });
     }
 
+    public void setHistory(java.util.List<Message> messages) {
+        executorService.execute(() -> {
+            chatHistory.clear();
+            // Convert Message objects back to JNI prompt format
+            for (Message m : messages) {
+                if (m.getType() == Message.TYPE_USER) {
+                    chatHistory.add("<|user|>\n" + m.getText());
+                } else if (m.getType() == Message.TYPE_AI) {
+                    chatHistory.add("<|assistant|>\n" + m.getText());
+                }
+            }
+            // Keep lean
+            while (chatHistory.size() > MAX_HISTORY) {
+                chatHistory.remove(0);
+            }
+            Log.d(TAG, "Chat history synchronized, size: " + chatHistory.size());
+        });
+    }
+
+    public void clearHistory() {
+        executorService.execute(() -> {
+            chatHistory.clear();
+            Log.d(TAG, "Chat history cleared");
+        });
+    }
+
     public void release() {
         executorService.execute(() -> {
             if (isModelLoaded) {
