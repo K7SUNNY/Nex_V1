@@ -4,10 +4,18 @@ import android.content.Intent;
 import android.content.pm.PackageInfo;
 import android.os.Bundle;
 import android.view.View;
+import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.TextView;
 
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+
+import com.google.android.material.bottomsheet.BottomSheetDialog;
+
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowCompat;
@@ -79,16 +87,81 @@ public class DrawerActivity extends AppCompatActivity {
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
 
         HistoryManager historyManager = new HistoryManager(this);
-        List<ChatSession> sessions = historyManager.getSessions();
+        refreshChats(recyclerView, historyManager);
+    }
 
-        RecentChatAdapter adapter = new RecentChatAdapter(sessions, session -> {
-            // Return selected session ID to MainActivity
-            Intent data = new Intent();
-            data.putExtra("session_id", session.getId());
-            setResult(RESULT_OK, data);
-            finish();
+    private void refreshChats(RecyclerView recyclerView, HistoryManager historyManager) {
+        List<ChatSession> sessions = historyManager.getSessions();
+        RecentChatAdapter adapter = new RecentChatAdapter(sessions, new RecentChatAdapter.OnChatClickListener() {
+            @Override
+            public void onChatClick(ChatSession session) {
+                Intent data = new Intent();
+                data.putExtra("session_id", session.getId());
+                setResult(RESULT_OK, data);
+                finish();
+            }
+
+            @Override
+            public void onOptionsClick(ChatSession session) {
+                showChatOptions(session, historyManager, () -> refreshChats(recyclerView, historyManager));
+            }
         });
         recyclerView.setAdapter(adapter);
+    }
+
+    private void showChatOptions(ChatSession session, HistoryManager historyManager, Runnable onRefresh) {
+        BottomSheetDialog dialog = new BottomSheetDialog(this, R.style.CustomBottomSheetDialogTheme);
+        View view = getLayoutInflater().inflate(R.layout.bottom_sheet_chat_options, null);
+        dialog.setContentView(view);
+
+        TextView tvTitle = view.findViewById(R.id.tv_sheet_title);
+        SimpleDateFormat sdf = new SimpleDateFormat("MMM dd, yyyy • HH:mm", Locale.getDefault());
+        String dateStr = sdf.format(new Date(session.getTimestamp()));
+        tvTitle.setText(session.getTitle() + "\n" + dateStr);
+
+        view.findViewById(R.id.btn_rename).setOnClickListener(v -> {
+            dialog.dismiss();
+            showRenameDialog(session, historyManager, onRefresh);
+        });
+
+        view.findViewById(R.id.btn_delete).setOnClickListener(v -> {
+            dialog.dismiss();
+            new AlertDialog.Builder(this)
+                .setTitle(R.string.delete)
+                .setMessage("Are you sure you want to delete this chat?")
+                .setPositiveButton(R.string.delete, (d, which) -> {
+                    historyManager.deleteSession(session.getId());
+                    onRefresh.run();
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
+        });
+
+        dialog.show();
+    }
+
+    private void showRenameDialog(ChatSession session, HistoryManager historyManager, Runnable onComplete) {
+        final EditText input = new EditText(this);
+        input.setText(session.getTitle());
+        input.setSelectAllOnFocus(true);
+
+        int padding = (int) (16 * getResources().getDisplayMetrics().density);
+        AlertDialog dialog = new AlertDialog.Builder(this)
+            .setTitle(R.string.rename_chat)
+            .setView(input)
+            .setPositiveButton("OK", (d, which) -> {
+                String newTitle = input.getText().toString().trim();
+                if (!newTitle.isEmpty()) {
+                    historyManager.renameSession(session.getId(), newTitle);
+                    onComplete.run();
+                }
+            })
+            .setNegativeButton("Cancel", null)
+            .create();
+
+        // Add some padding to the EditText in the dialog
+        dialog.setView(input, padding, padding, padding, 0);
+        dialog.show();
     }
 
     @Override

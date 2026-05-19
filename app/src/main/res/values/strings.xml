@@ -34,4 +34,9 @@
     <string name="select_model">SELECT MODEL</string>
     <string name="nex_fast_desc">Optimized for speed and efficiency.</string>
     <string name="nex_pro_desc">Most capable for complex reasoning.</string>
+    <string name="menu_options">Options</string>
+    <string name="edit">Edit</string>
+    <string name="delete">Delete</string>
+    <string name="rename_chat">Rename Chat</string>
+    <string name="chat_options">Chat Options</string>
 </resources>

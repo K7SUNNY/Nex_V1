@@ -100,4 +100,27 @@ public class HistoryManager {
             e.printStackTrace();
         }
     }
+
+    public void deleteSession(String sessionId) {
+        List<ChatSession> sessions = getSessions();
+        sessions.removeIf(s -> s.getId().equals(sessionId));
+        saveSessions(sessions);
+        prefs.edit().remove("msgs_" + sessionId).apply();
+    }
+
+    public void renameSession(String sessionId, String newTitle) {
+        List<ChatSession> sessions = getSessions();
+        boolean found = false;
+        for (int i = 0; i < sessions.size(); i++) {
+            ChatSession s = sessions.get(i);
+            if (s.getId().equals(sessionId)) {
+                sessions.set(i, new ChatSession(s.getId(), newTitle, s.getTimestamp()));
+                found = true;
+                break;
+            }
+        }
+        if (found) {
+            saveSessions(sessions);
+        }
+    }
 }

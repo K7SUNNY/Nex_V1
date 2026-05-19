@@ -3,6 +3,7 @@ package com.k7sunny.nexv1;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ImageButton;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 import com.google.android.material.button.MaterialButton;
@@ -15,6 +16,7 @@ public class RecentChatAdapter extends RecyclerView.Adapter<RecentChatAdapter.Vi
 
     public interface OnChatClickListener {
         void onChatClick(ChatSession session);
+        void onOptionsClick(ChatSession session);
     }
 
     public RecentChatAdapter(List<ChatSession> sessions, OnChatClickListener listener) {
@@ -34,6 +36,15 @@ public class RecentChatAdapter extends RecyclerView.Adapter<RecentChatAdapter.Vi
         ChatSession session = sessions.get(position);
         holder.btnRecentChat.setText(session.getTitle());
         holder.btnRecentChat.setOnClickListener(v -> listener.onChatClick(session));
+        
+        holder.btnRecentChat.setOnLongClickListener(v -> {
+            listener.onOptionsClick(session);
+            return true;
+        });
+        
+        holder.btnMoreOptions.setOnClickListener(v -> {
+            listener.onOptionsClick(session);
+        });
     }
 
     @Override
@@ -43,10 +54,12 @@ public class RecentChatAdapter extends RecyclerView.Adapter<RecentChatAdapter.Vi
 
     public static class ViewHolder extends RecyclerView.ViewHolder {
         MaterialButton btnRecentChat;
+        ImageButton btnMoreOptions;
 
         public ViewHolder(@NonNull View itemView) {
             super(itemView);
-            btnRecentChat = (MaterialButton) itemView;
+            btnRecentChat = itemView.findViewById(R.id.btn_recent_chat);
+            btnMoreOptions = itemView.findViewById(R.id.btn_more_options);
         }
     }
 }
