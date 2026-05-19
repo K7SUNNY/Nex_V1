@@ -2,6 +2,8 @@
     <color name="black">#000000</color>
     <color name="white">#FFFFFF</color>
 
-    <!-- Optional accent -->
-    <color name="primary">#6750A4</color>
+    <!-- App Colors -->
+    <color name="primary">#FFFFFF</color>
+    <color name="selection_color">#40FFFFFF</color> <!-- Translucent white for selection -->
+    <color name="accent_blue">#007AFF</color>
 </resources>
