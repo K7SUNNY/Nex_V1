@@ -12,6 +12,7 @@ import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.google.android.material.bottomsheet.BottomSheetDialog;
+import com.google.android.material.textfield.TextInputEditText;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -141,26 +142,26 @@ public class DrawerActivity extends AppCompatActivity {
     }
 
     private void showRenameDialog(ChatSession session, HistoryManager historyManager, Runnable onComplete) {
-        final EditText input = new EditText(this);
+        BottomSheetDialog dialog = new BottomSheetDialog(this, R.style.CustomBottomSheetDialogTheme);
+        View view = getLayoutInflater().inflate(R.layout.dialog_rename_chat, null);
+        dialog.setContentView(view);
+
+        TextInputEditText input = view.findViewById(R.id.edit_text_rename);
         input.setText(session.getTitle());
         input.setSelectAllOnFocus(true);
+        input.requestFocus();
 
-        int padding = (int) (16 * getResources().getDisplayMetrics().density);
-        AlertDialog dialog = new AlertDialog.Builder(this)
-            .setTitle(R.string.rename_chat)
-            .setView(input)
-            .setPositiveButton("OK", (d, which) -> {
+        view.findViewById(R.id.btn_save_rename).setOnClickListener(v -> {
+            if (input.getText() != null) {
                 String newTitle = input.getText().toString().trim();
                 if (!newTitle.isEmpty()) {
                     historyManager.renameSession(session.getId(), newTitle);
                     onComplete.run();
                 }
-            })
-            .setNegativeButton("Cancel", null)
-            .create();
+            }
+            dialog.dismiss();
+        });
 
-        // Add some padding to the EditText in the dialog
-        dialog.setView(input, padding, padding, padding, 0);
         dialog.show();
     }
 

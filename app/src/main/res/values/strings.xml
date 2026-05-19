@@ -38,5 +38,6 @@
     <string name="edit">Edit</string>
     <string name="delete">Delete</string>
     <string name="rename_chat">Rename Chat</string>
+    <string name="save">Save</string>
     <string name="chat_options">Chat Options</string>
 </resources>
