@@ -73,6 +73,9 @@ public class AIManager {
                 chatHistory.add("<|user|>\n" + cleanPrompt);
 
                 // 2. Build the full prompt with history
+                // Need to master the system prompt handling and maybe this <|system|> <|user|> <|assistant|> method is not understandable for the model of quantized GGUFs
+                // The model likely treated those as plain text, not special chat tokens.
+
                 StringBuilder fullPrompt = new StringBuilder("<|system|>\nYou are a helpful AI assistant.");
                 for (String entry : chatHistory) {
                     fullPrompt.append("\n").append(entry);
