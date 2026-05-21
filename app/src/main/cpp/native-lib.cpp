@@ -129,10 +129,11 @@ Java_com_k7sunny_nexv1_AIManager_runInferenceNative(JNIEnv* env, jobject, jstrin
     }
 
     common_params_sampling sparams;
-    sparams.temp = 0.2f; // Slight randomness to prevent repeating the same token
-    sparams.top_k = 40;
-    sparams.top_p = 0.95f;
-    sparams.penalty_repeat = 1.15f;
+    sparams.temp           = 0.5f;   // Balanced: not too greedy, not too random
+    sparams.top_k          = 40;
+    sparams.top_p          = 0.90f;  // Slightly tighter nucleus for focused output
+    sparams.penalty_repeat = 1.3f;   // Stronger anti-repetition
+    sparams.penalty_last_n = 128;    // Penalize repeats within last 128 tokens only
 
     common_sampler* sampler = common_sampler_init(g_model, sparams);
 
@@ -156,18 +157,23 @@ Java_com_k7sunny_nexv1_AIManager_runInferenceNative(JNIEnv* env, jobject, jstrin
         env->CallVoidMethod(jcallback, onTokenMethod, jpiece);
         env->DeleteLocalRef(jpiece);
 
-        if (response.find("<|user|>") != std::string::npos ||
-            response.find("<|assistant|>") != std::string::npos ||
-            response.find("<|system|>") != std::string::npos ||
-            response.find("User:") != std::string::npos ||
-            response.find("Instruction:") != std::string::npos) {
-            size_t pos;
-            if ((pos = response.find("<|user|>")) != std::string::npos) response.erase(pos);
-            if ((pos = response.find("<|assistant|>")) != std::string::npos) response.erase(pos);
-            if ((pos = response.find("<|system|>")) != std::string::npos) response.erase(pos);
-            if ((pos = response.find("User:")) != std::string::npos) response.erase(pos);
-            if ((pos = response.find("Instruction:")) != std::string::npos) response.erase(pos);
-            break;
+        // Check for role-leak / stop patterns — trim at earliest match and stop
+        {
+            std::vector<std::string> stops = {
+                "<|user|>", "<|assistant|>", "<|system|>", "</s>",
+                "User:", "Instruction:"
+            };
+            size_t earliest = std::string::npos;
+            for (const auto& s : stops) {
+                size_t pos = response.find(s);
+                if (pos != std::string::npos && pos < earliest) {
+                    earliest = pos;
+                }
+            }
+            if (earliest != std::string::npos) {
+                response.erase(earliest);
+                break;
+            }
         }
 
         common_batch_clear(run_batch);

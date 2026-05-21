@@ -18,8 +18,9 @@ public class AIManager {
     private final Handler mainHandler;
     private boolean isModelLoaded = false;
     private final java.util.List<Message> chatHistory = new java.util.ArrayList<>();
-    private static final int MAX_HISTORY = 6; // Keep last 3 rounds of chat
-    private String systemPrompt = "You are Nex, a friendly digital assistant. Use the facts below. Be conversational but concise.";
+    private static final int MAX_HISTORY = 12; // Keep last 6 rounds of chat
+    private String systemPrompt =
+        "You are Nex, a helpful assistant. Give short, direct answers in one or two sentences.";
     private final java.util.List<String> pinnedMemories = new java.util.ArrayList<>();
 
     // JNI bridge methods
@@ -74,26 +75,34 @@ public class AIManager {
                 // 1. Add User message to history
                 chatHistory.add(new Message(cleanPrompt, Message.TYPE_USER));
 
-                // 2. Build the full prompt with a simplified, literal template
-                StringBuilder fullPrompt = new StringBuilder("System: " + systemPrompt + "\n");
-                
-                for (String memory : pinnedMemories) {
-                    fullPrompt.append("Fact: ").append(memory).append("\n");
-                }
+                // 2. Build the full prompt using Zephyr template (TinyLlama-1.1B-Chat-v1.0)
+                //    Format: <|system|>\n{msg}</s>\n<|user|>\n{msg}</s>\n<|assistant|>\n
+                StringBuilder fullPrompt = new StringBuilder();
 
+                // System turn — content directly followed by </s>, no extra newline
+                fullPrompt.append("<|system|>\n");
+                fullPrompt.append(systemPrompt);
+                for (String memory : pinnedMemories) {
+                    fullPrompt.append(" ").append(memory).append(".");
+                }
+                fullPrompt.append("</s>\n");
+
+                // Conversation history
                 for (Message m : chatHistory) {
                     if (m.getType() == Message.TYPE_USER) {
-                        fullPrompt.append("User: ").append(m.getText()).append("\n");
+                        fullPrompt.append("<|user|>\n").append(m.getText()).append("</s>\n");
                     } else if (m.getType() == Message.TYPE_AI) {
-                        fullPrompt.append("Nex: ").append(m.getText()).append("\n");
+                        fullPrompt.append("<|assistant|>\n").append(m.getText()).append("</s>\n");
                     }
                 }
-                fullPrompt.append("Nex: ");
+
+                // Start the assistant turn (model generates from here)
+                fullPrompt.append("<|assistant|>\n");
 
                 Log.d(TAG, "Full Prompt: " + fullPrompt);
 
                 // Use the new signature with callback for streaming
-                response = runInferenceNative(fullPrompt.toString(), 256, new ResponseCallback() {
+                response = runInferenceNative(fullPrompt.toString(), 128, new ResponseCallback() {
                     @Override
                     public void onResponse(String response) {
                         // Not used directly in native, but kept for interface
