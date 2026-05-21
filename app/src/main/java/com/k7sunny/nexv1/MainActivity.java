@@ -49,6 +49,7 @@ public class MainActivity extends AppCompatActivity {
     private AIManager aiManager;
     private ModelManager modelManager;
     private HistoryManager historyManager;
+    private MemoryManager memoryManager;
     private String currentSessionId;
 
     private final ActivityResultLauncher<Intent> drawerLauncher = registerForActivityResult(
@@ -90,6 +91,7 @@ public class MainActivity extends AppCompatActivity {
         aiManager = new AIManager();
         modelManager = new ModelManager(this);
         historyManager = new HistoryManager(this);
+        memoryManager = new MemoryManager(this);
         currentSessionId = String.valueOf(System.currentTimeMillis());
 
         // Bind download-related views.
@@ -477,6 +479,14 @@ public class MainActivity extends AppCompatActivity {
     }
 
     // Release resources when the activity is destroyed.
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (aiManager != null && memoryManager != null) {
+            aiManager.setMemories(memoryManager.getPinnedMemoryStrings());
+        }
+    }
 
     @Override
     protected void onDestroy() {

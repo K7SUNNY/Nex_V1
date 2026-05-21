@@ -26,6 +26,7 @@ public class MemoryActivity extends AppCompatActivity {
     private MemoryAdapter recentAdapter;
     private List<Memory> pinnedMemories;
     private List<Memory> recentMemories;
+    private MemoryManager memoryManager;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -48,18 +49,25 @@ public class MemoryActivity extends AppCompatActivity {
         MaterialToolbar toolbar = findViewById(R.id.toolbar);
         toolbar.setNavigationOnClickListener(v -> finish());
 
+        memoryManager = new MemoryManager(this);
         setupRecyclers();
     }
 
     private void setupRecyclers() {
+        List<Memory> allMemories = memoryManager.getAllMemories();
         pinnedMemories = new ArrayList<>();
         recentMemories = new ArrayList<>();
 
-        // Dummy data
-        pinnedMemories.add(new Memory("User preferences", "Nex prefers concise code examples and OLED dark mode themes.", true));
-        
-        recentMemories.add(new Memory("Project architecture", "The app uses a JNI bridge to run llama.cpp for local inference.", false));
-        recentMemories.add(new Memory("Design principles", "Focus on slick, modern, and minimal interface with pure black backgrounds.", false));
+        if (allMemories.isEmpty()) {
+            pinnedMemories.add(new Memory("User preferences", "Nex prefers concise code examples and OLED dark mode themes.", true));
+            recentMemories.add(new Memory("Project architecture", "The app uses a JNI bridge to run llama.cpp for local inference.", false));
+            saveAllToManager();
+        } else {
+            for (Memory m : allMemories) {
+                if (m.isPinned()) pinnedMemories.add(m);
+                else recentMemories.add(m);
+            }
+        }
 
         RecyclerView pinnedRecycler = findViewById(R.id.pinnedRecycler);
         pinnedRecycler.setLayoutManager(new LinearLayoutManager(this));
@@ -70,6 +78,12 @@ public class MemoryActivity extends AppCompatActivity {
         recentRecycler.setLayoutManager(new LinearLayoutManager(this));
         recentAdapter = new MemoryAdapter(recentMemories, this::showMemoryOptions);
         recentRecycler.setAdapter(recentAdapter);
+    }
+
+    private void saveAllToManager() {
+        List<Memory> all = new ArrayList<>(pinnedMemories);
+        all.addAll(recentMemories);
+        memoryManager.saveMemories(all);
     }
 
     private void showMemoryOptions(Memory memory, int position) {
@@ -101,6 +115,7 @@ public class MemoryActivity extends AppCompatActivity {
             }
             pinnedAdapter.notifyDataSetChanged();
             recentAdapter.notifyDataSetChanged();
+            saveAllToManager();
             dialog.dismiss();
         });
 
@@ -120,6 +135,7 @@ public class MemoryActivity extends AppCompatActivity {
                 recentMemories.remove(memory);
                 recentAdapter.notifyDataSetChanged();
             }
+            saveAllToManager();
             dialog.dismiss();
         });
 

@@ -129,9 +129,9 @@ Java_com_k7sunny_nexv1_AIManager_runInferenceNative(JNIEnv* env, jobject, jstrin
     }
 
     common_params_sampling sparams;
-    sparams.temp = 0.2f;
+    sparams.temp = 0.2f; // Slight randomness to prevent repeating the same token
     sparams.top_k = 40;
-    sparams.top_p = 0.9f;
+    sparams.top_p = 0.95f;
     sparams.penalty_repeat = 1.15f;
 
     common_sampler* sampler = common_sampler_init(g_model, sparams);
@@ -158,11 +158,15 @@ Java_com_k7sunny_nexv1_AIManager_runInferenceNative(JNIEnv* env, jobject, jstrin
 
         if (response.find("<|user|>") != std::string::npos ||
             response.find("<|assistant|>") != std::string::npos ||
-            response.find("<|system|>") != std::string::npos) {
+            response.find("<|system|>") != std::string::npos ||
+            response.find("User:") != std::string::npos ||
+            response.find("Instruction:") != std::string::npos) {
             size_t pos;
             if ((pos = response.find("<|user|>")) != std::string::npos) response.erase(pos);
             if ((pos = response.find("<|assistant|>")) != std::string::npos) response.erase(pos);
             if ((pos = response.find("<|system|>")) != std::string::npos) response.erase(pos);
+            if ((pos = response.find("User:")) != std::string::npos) response.erase(pos);
+            if ((pos = response.find("Instruction:")) != std::string::npos) response.erase(pos);
             break;
         }
 

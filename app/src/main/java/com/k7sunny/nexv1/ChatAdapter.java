@@ -1,9 +1,13 @@
 package com.k7sunny.nexv1;
 
+import android.content.ClipData;
+import android.content.ClipboardManager;
+import android.content.Context;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
+import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 import java.util.List;
@@ -36,6 +40,13 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     @Override
     public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
         Message message = messages.get(position);
+        
+        View itemView = holder.itemView;
+        itemView.setOnLongClickListener(v -> {
+            copyToClipboard(v.getContext(), message.getText());
+            return true;
+        });
+
         if (holder instanceof UserViewHolder) {
             ((UserViewHolder) holder).messageText.setText(message.getText());
         } else if (holder instanceof AiViewHolder) {
@@ -52,6 +63,13 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     @Override
     public int getItemCount() {
         return messages.size();
+    }
+
+    private void copyToClipboard(Context context, String text) {
+        ClipboardManager clipboard = (ClipboardManager) context.getSystemService(Context.CLIPBOARD_SERVICE);
+        ClipData clip = ClipData.newPlainText("Nex Message", text);
+        clipboard.setPrimaryClip(clip);
+        Toast.makeText(context, "Copied to clipboard", Toast.LENGTH_SHORT).show();
     }
 
     static class UserViewHolder extends RecyclerView.ViewHolder {

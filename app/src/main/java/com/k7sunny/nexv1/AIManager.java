@@ -17,8 +17,10 @@ public class AIManager {
     private final ExecutorService executorService;
     private final Handler mainHandler;
     private boolean isModelLoaded = false;
-    private final java.util.List<String> chatHistory = new java.util.ArrayList<>();
+    private final java.util.List<Message> chatHistory = new java.util.ArrayList<>();
     private static final int MAX_HISTORY = 6; // Keep last 3 rounds of chat
+    private String systemPrompt = "You are Nex, a friendly digital assistant. Use the facts below. Be conversational but concise.";
+    private final java.util.List<String> pinnedMemories = new java.util.ArrayList<>();
 
     // JNI bridge methods
 
@@ -70,19 +72,25 @@ public class AIManager {
                 String cleanPrompt = prompt.trim();
 
                 // 1. Add User message to history
-                chatHistory.add("<|user|>\n" + cleanPrompt);
+                chatHistory.add(new Message(cleanPrompt, Message.TYPE_USER));
 
-                // 2. Build the full prompt with history
-                // Need to master the system prompt handling and maybe this <|system|> <|user|> <|assistant|> method is not understandable for the model of quantized GGUFs
-                // The model likely treated those as plain text, not special chat tokens.
-
-                StringBuilder fullPrompt = new StringBuilder("<|system|>\nYou are a helpful AI assistant.");
-                for (String entry : chatHistory) {
-                    fullPrompt.append("\n").append(entry);
+                // 2. Build the full prompt with a simplified, literal template
+                StringBuilder fullPrompt = new StringBuilder("System: " + systemPrompt + "\n");
+                
+                for (String memory : pinnedMemories) {
+                    fullPrompt.append("Fact: ").append(memory).append("\n");
                 }
-                fullPrompt.append("\n<|assistant|>\n");
 
-                Log.d(TAG, "Running inference with history.");
+                for (Message m : chatHistory) {
+                    if (m.getType() == Message.TYPE_USER) {
+                        fullPrompt.append("User: ").append(m.getText()).append("\n");
+                    } else if (m.getType() == Message.TYPE_AI) {
+                        fullPrompt.append("Nex: ").append(m.getText()).append("\n");
+                    }
+                }
+                fullPrompt.append("Nex: ");
+
+                Log.d(TAG, "Full Prompt: " + fullPrompt);
 
                 // Use the new signature with callback for streaming
                 response = runInferenceNative(fullPrompt.toString(), 256, new ResponseCallback() {
@@ -101,7 +109,7 @@ public class AIManager {
                     response = "No response generated.";
                 } else {
                     // 3. Add AI response to history
-                    chatHistory.add("<|assistant|>\n" + response.trim());
+                    chatHistory.add(new Message(response.trim(), Message.TYPE_AI));
                 }
 
                 // 4. Keep history lean (sliding window of 3 rounds)
@@ -123,12 +131,9 @@ public class AIManager {
     public void setHistory(java.util.List<Message> messages) {
         executorService.execute(() -> {
             chatHistory.clear();
-            // Convert Message objects back to JNI prompt format
             for (Message m : messages) {
-                if (m.getType() == Message.TYPE_USER) {
-                    chatHistory.add("<|user|>\n" + m.getText());
-                } else if (m.getType() == Message.TYPE_AI) {
-                    chatHistory.add("<|assistant|>\n" + m.getText());
+                if (m.getType() == Message.TYPE_USER || m.getType() == Message.TYPE_AI) {
+                    chatHistory.add(m);
                 }
             }
             // Keep lean
@@ -137,6 +142,15 @@ public class AIManager {
             }
             Log.d(TAG, "Chat history synchronized, size: " + chatHistory.size());
         });
+    }
+
+    public void setSystemPrompt(String prompt) {
+        this.systemPrompt = prompt;
+    }
+
+    public void setMemories(java.util.List<String> memories) {
+        this.pinnedMemories.clear();
+        this.pinnedMemories.addAll(memories);
     }
 
     public void clearHistory() {
