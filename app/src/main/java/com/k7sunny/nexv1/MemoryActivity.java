@@ -59,7 +59,7 @@ public class MemoryActivity extends AppCompatActivity {
         recentMemories = new ArrayList<>();
 
         if (allMemories.isEmpty()) {
-            pinnedMemories.add(new Memory("User preferences", "Nex prefers concise code examples and OLED dark mode themes.", true));
+            pinnedMemories.add(new Memory("User preferences", "I prefer concise code examples and OLED dark mode themes.", true));
             recentMemories.add(new Memory("Project architecture", "The app uses a JNI bridge to run llama.cpp for local inference.", false));
             saveAllToManager();
         } else {

@@ -36,7 +36,9 @@ import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
 
-    private static final String TAG = "MainActivity";
+    private static final String TAG = "NexUI";
+    private static final String TAG_DOWNLOAD = "NexDownload";
+    private static final String TAG_CHAT = "NexChat";
 
     // Polling interval in milliseconds for download progress updates.
     private static final int PROGRESS_POLL_INTERVAL_MS = 500;
@@ -200,11 +202,11 @@ public class MainActivity extends AppCompatActivity {
             currentDownloadId = -1;
 
             if (success) {
-                Log.d(TAG, "Download succeeded, checking model...");
+                Log.d(TAG_DOWNLOAD, "Download succeeded, checking model...");
                 Toast.makeText(context, "Model downloaded!", Toast.LENGTH_SHORT).show();
                 checkModelStatus(); // Load the model and refresh UI state.
             } else {
-                Log.e(TAG, "Download failed or was cancelled");
+                Log.e(TAG_DOWNLOAD, "Download failed or was cancelled");
                 Toast.makeText(context, "Download failed. Please try again.", Toast.LENGTH_SHORT).show();
                 setDownloadIdleState("Download failed. Tap to retry.");
             }
@@ -314,11 +316,11 @@ public class MainActivity extends AppCompatActivity {
         currentDownloadId = modelManager.downloadModel();
 
         if (currentDownloadId != -1) {
-            Log.d(TAG, "Download started with ID: " + currentDownloadId);
+            Log.d(TAG_DOWNLOAD, "Download started with ID: " + currentDownloadId);
             Toast.makeText(this, "Download started", Toast.LENGTH_SHORT).show();
             startProgressPolling(); // Start polling for real-time byte progress.
         } else {
-            Log.e(TAG, "DownloadManager failed to enqueue");
+            Log.e(TAG_DOWNLOAD, "DownloadManager failed to enqueue");
             Toast.makeText(this, "Failed to start download", Toast.LENGTH_SHORT).show();
             setDownloadIdleState("Could not start download. Tap to retry.");
         }
@@ -443,15 +445,14 @@ public class MainActivity extends AppCompatActivity {
         messageList.add(typingMessage);
         chatAdapter.notifyItemInserted(messageList.size() - 1);
         recyclerView.scrollToPosition(messageList.size() - 1);
-        Log.d(TAG, "User message: " + text);
+        Log.d(TAG_CHAT, "User message: " + text);
 
         long startTime = System.currentTimeMillis();
         aiManager.generateResponse(text, new AIManager.ResponseCallback() {
             @Override
             public void onResponse(String response) {
                 long duration = System.currentTimeMillis() - startTime;
-                Log.d(TAG, "AI Raw Response: " + response);
-                Log.d(TAG, "AI Generation Time: " + duration + " ms");
+                Log.d(TAG_CHAT, "AI response (" + duration + "ms): " + response);
                 int index = messageList.indexOf(typingMessage);
                 if (index != -1) {
                     messageList.set(index, new Message(response, Message.TYPE_AI));

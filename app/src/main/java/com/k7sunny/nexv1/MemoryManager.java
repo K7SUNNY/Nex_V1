@@ -38,13 +38,23 @@ public class MemoryManager {
         if (json != null) {
             try {
                 JSONArray array = new JSONArray(json);
+                boolean migrated = false;
                 for (int i = 0; i < array.length(); i++) {
                     JSONObject obj = array.getJSONObject(i);
-                    list.add(new Memory(
-                        obj.getString("title"),
-                        obj.getString("content"),
-                        obj.getBoolean("isPinned")
-                    ));
+                    String title = obj.getString("title");
+                    String content = obj.getString("content");
+                    boolean isPinned = obj.getBoolean("isPinned");
+
+                    // Migrate old third-person default memory to first-person
+                    if ("Nex prefers concise code examples and OLED dark mode themes.".equals(content)) {
+                        content = "I prefer concise code examples and OLED dark mode themes.";
+                        migrated = true;
+                    }
+
+                    list.add(new Memory(title, content, isPinned));
+                }
+                if (migrated) {
+                    saveMemories(list);
                 }
             } catch (Exception e) {
                 e.printStackTrace();

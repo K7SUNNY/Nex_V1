@@ -11,10 +11,29 @@
 #define LOGD(...) __android_log_print(ANDROID_LOG_DEBUG, TAG, __VA_ARGS__)
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, TAG, __VA_ARGS__)
 
+// Dedicated log tags for easier filtering
+#define TAG_MODEL   "NexModel"
+#define TAG_PROMPT  "NexPrompt"
+#define TAG_INFER   "NexInfer"
+#define TAG_CACHE   "NexCache"
+#define LOG_MODEL(...) __android_log_print(ANDROID_LOG_DEBUG, TAG_MODEL, __VA_ARGS__)
+#define LOG_PROMPT(...) __android_log_print(ANDROID_LOG_DEBUG, TAG_PROMPT, __VA_ARGS__)
+#define LOG_INFER(...) __android_log_print(ANDROID_LOG_DEBUG, TAG_INFER, __VA_ARGS__)
+#define LOG_CACHE(...) __android_log_print(ANDROID_LOG_DEBUG, TAG_CACHE, __VA_ARGS__)
+
 static llama_model* g_model = nullptr;
 static llama_context* g_ctx = nullptr;
 static std::string g_last_prompt = "";
 static int g_last_token_count = 0;
+
+// Helper: replace all occurrences of `from` with `to` in a string
+static void replace_all(std::string& str, const std::string& from, const std::string& to) {
+    size_t pos = 0;
+    while ((pos = str.find(from, pos)) != std::string::npos) {
+        str.replace(pos, from.length(), to);
+        pos += to.length();
+    }
+}
 
 extern "C" JNIEXPORT jstring JNICALL
 Java_com_k7sunny_nexv1_AIManager_stringFromJNI(
@@ -27,7 +46,7 @@ Java_com_k7sunny_nexv1_AIManager_stringFromJNI(
 extern "C" JNIEXPORT jboolean JNICALL
 Java_com_k7sunny_nexv1_AIManager_initNative(JNIEnv*, jobject) {
     llama_backend_init();
-    LOGD("Backend initialized");
+    LOG_MODEL("Backend initialized");
     return JNI_TRUE;
 }
 
@@ -35,7 +54,7 @@ extern "C" JNIEXPORT jlong JNICALL
 Java_com_k7sunny_nexv1_AIManager_loadModelNative(JNIEnv* env, jobject, jstring model_path) {
 
     const char* path = env->GetStringUTFChars(model_path, nullptr);
-    LOGD("Loading model from: %s", path);
+    LOG_MODEL("Loading model from: %s", path);
 
     llama_model_params model_params = llama_model_default_params();
     model_params.use_mmap = true;
@@ -49,18 +68,25 @@ Java_com_k7sunny_nexv1_AIManager_loadModelNative(JNIEnv* env, jobject, jstring m
         return 0;
     }
 
+    // Log the chat template embedded in the GGUF
+    const char* model_tmpl = llama_model_chat_template(g_model, nullptr);
+    LOG_MODEL("GGUF chat template: %s", model_tmpl ? model_tmpl : "NONE");
+
+    // Log EOS token info
+    const llama_vocab* vocab = llama_model_get_vocab(g_model);
+    llama_token eos_id = llama_vocab_eos(vocab);
+    LOG_MODEL("EOS token id: %d", eos_id);
+
     llama_context_params ctx_params = llama_context_default_params();
 
     // Optimize for big.LITTLE mobile CPUs.
-    // Most Android phones have 4 big cores and 4 small cores.
-    // Using 4 threads is often much faster than using 6 or 8 because it avoids the small cores.
     int num_threads = (int)std::thread::hardware_concurrency();
     if (num_threads > 4) num_threads = 4;
     if (num_threads < 1) num_threads = 1;
 
-    LOGD("Initializing context with %d threads", num_threads);
+    LOG_MODEL("Initializing context with %d threads", num_threads);
 
-    ctx_params.n_ctx = 2048; // Increased context size
+    ctx_params.n_ctx = 2048;
     ctx_params.n_threads = num_threads;
     ctx_params.n_threads_batch = num_threads;
 
@@ -71,12 +97,18 @@ Java_com_k7sunny_nexv1_AIManager_loadModelNative(JNIEnv* env, jobject, jstring m
         return 0;
     }
 
-    LOGD("Model + Context ready");
+    LOG_MODEL("Model + Context ready");
     return reinterpret_cast<jlong>(g_model);
 }
 
 extern "C" JNIEXPORT jstring JNICALL
-Java_com_k7sunny_nexv1_AIManager_runInferenceNative(JNIEnv* env, jobject, jstring jprompt, jint max_tokens, jobject jcallback) {
+Java_com_k7sunny_nexv1_AIManager_runInferenceNative(
+    JNIEnv* env, jobject,
+    jstring jsystemPrompt,
+    jobjectArray jroles,
+    jobjectArray jcontents,
+    jint max_tokens,
+    jobject jcallback) {
 
     if (!g_model || !g_ctx) {
         return env->NewStringUTF("Error: Model not loaded");
@@ -86,18 +118,84 @@ Java_com_k7sunny_nexv1_AIManager_runInferenceNative(JNIEnv* env, jobject, jstrin
     jclass callbackClass = env->GetObjectClass(jcallback);
     jmethodID onTokenMethod = env->GetMethodID(callbackClass, "onToken", "(Ljava/lang/String;)V");
 
-    // SMART KV CACHE REUSE
-    const char* prompt_cstr = env->GetStringUTFChars(jprompt, nullptr);
-    std::string prompt(prompt_cstr);
-    env->ReleaseStringUTFChars(jprompt, prompt_cstr);
+    // ---- Build structured chat messages ----
+
+    const char* sys_cstr = env->GetStringUTFChars(jsystemPrompt, nullptr);
+    std::string system_prompt(sys_cstr);
+    env->ReleaseStringUTFChars(jsystemPrompt, sys_cstr);
+
+    int msg_count = env->GetArrayLength(jroles);
+
+    // Strings must stay alive while llama_chat_message holds pointers to them
+    std::vector<std::string> role_store;
+    std::vector<std::string> content_store;
+    role_store.reserve(msg_count + 1);
+    content_store.reserve(msg_count + 1);
+
+    // System message first
+    role_store.push_back("system");
+    content_store.push_back(system_prompt);
+
+    // Chat history
+    for (int i = 0; i < msg_count; i++) {
+        jstring jrole = (jstring)env->GetObjectArrayElement(jroles, i);
+        jstring jcontent = (jstring)env->GetObjectArrayElement(jcontents, i);
+
+        const char* role_cstr = env->GetStringUTFChars(jrole, nullptr);
+        const char* content_cstr = env->GetStringUTFChars(jcontent, nullptr);
+
+        role_store.push_back(std::string(role_cstr));
+        content_store.push_back(std::string(content_cstr));
+
+        env->ReleaseStringUTFChars(jrole, role_cstr);
+        env->ReleaseStringUTFChars(jcontent, content_cstr);
+    }
+
+    // Build llama_chat_message array
+    std::vector<llama_chat_message> messages(role_store.size());
+    for (size_t i = 0; i < role_store.size(); i++) {
+        messages[i].role    = role_store[i].c_str();
+        messages[i].content = content_store[i].c_str();
+    }
+
+    // ---- Apply chat template ----
+    // Force "zephyr" by name — the auto-detected template is wrong for this model
+    // (auto-detect sees <|assistant|> + <|user|> without </s> in Jinja → matches GLMEDGE,
+    //  which omits turn separators entirely)
+    const char* tmpl_to_use = "zephyr";
+
+    // First call: get required buffer size
+    int32_t prompt_len = llama_chat_apply_template(
+        tmpl_to_use, messages.data(), messages.size(), true, nullptr, 0);
+
+    if (prompt_len < 0) {
+        LOGE("llama_chat_apply_template('zephyr') failed, code: %d", prompt_len);
+        return env->NewStringUTF("Error: chat template failed");
+    }
+
+    // Second call: fill the buffer
+    std::vector<char> buf(prompt_len + 1, 0);
+    llama_chat_apply_template(
+        tmpl_to_use, messages.data(), messages.size(), true, buf.data(), buf.size());
+
+    std::string prompt(buf.data(), prompt_len);
+
+    // The built-in "zephyr" template uses <|endoftext|> as the turn separator.
+    // But TinyLlama's vocabulary uses </s> (EOS token id 2) instead.
+    // Replace <|endoftext|> with </s> so the tokenizer maps it to the correct EOS token.
+    replace_all(prompt, "<|endoftext|>", "</s>");
+
+    LOG_PROMPT("Formatted prompt (%d chars):\n%s", (int)prompt.size(), prompt.c_str());
+
+    // ---- SMART KV CACHE REUSE ----
 
     int n_past = 0;
     if (!g_last_prompt.empty() && prompt.find(g_last_prompt) == 0) {
         n_past = g_last_token_count;
-        LOGD("Reusing KV cache: %d tokens", n_past);
+        LOG_CACHE("Reusing KV cache: %d tokens", n_past);
     } else {
         llama_memory_clear(llama_get_memory(g_ctx), true);
-        LOGD("Prompt changed significantly, cleared KV cache");
+        LOG_CACHE("Cache cleared — prompt changed");
         n_past = 0;
     }
 
@@ -106,11 +204,11 @@ Java_com_k7sunny_nexv1_AIManager_runInferenceNative(JNIEnv* env, jobject, jstrin
 
     // Tokens we actually need to decode (the ones not in cache)
     std::vector<llama_token> new_tokens;
-    if (n_past < all_tokens.size()) {
+    if (n_past < (int)all_tokens.size()) {
         new_tokens.assign(all_tokens.begin() + n_past, all_tokens.end());
     }
 
-    LOGD("Total tokens: %zu, New to decode: %zu", all_tokens.size(), new_tokens.size());
+    LOG_INFER("Total tokens: %zu, New to decode: %zu", all_tokens.size(), new_tokens.size());
 
     if (!new_tokens.empty()) {
         llama_batch batch = llama_batch_init(new_tokens.size(), 0, 1);
@@ -124,16 +222,17 @@ Java_com_k7sunny_nexv1_AIManager_runInferenceNative(JNIEnv* env, jobject, jstrin
             llama_batch_free(batch);
             return env->NewStringUTF("Error");
         }
-        LOGD("Initial prompt decode took %lld ms", (ggml_time_us() - start_eval) / 1000);
+        LOG_INFER("Prompt decode took %lld ms", (ggml_time_us() - start_eval) / 1000);
         llama_batch_free(batch);
     }
 
     common_params_sampling sparams;
-    sparams.temp           = 0.5f;   // Balanced: not too greedy, not too random
+    sparams.temp           = 0.2f;
     sparams.top_k          = 40;
-    sparams.top_p          = 0.90f;  // Slightly tighter nucleus for focused output
-    sparams.penalty_repeat = 1.3f;   // Stronger anti-repetition
-    sparams.penalty_last_n = 128;    // Penalize repeats within last 128 tokens only
+    sparams.top_p          = 0.90f;
+    sparams.min_p          = 0.05f;
+    sparams.penalty_repeat = 1.15f;
+    sparams.penalty_last_n = 64;
 
     common_sampler* sampler = common_sampler_init(g_model, sparams);
 
@@ -160,7 +259,8 @@ Java_com_k7sunny_nexv1_AIManager_runInferenceNative(JNIEnv* env, jobject, jstrin
         // Check for role-leak / stop patterns — trim at earliest match and stop
         {
             std::vector<std::string> stops = {
-                "<|user|>", "<|assistant|>", "<|system|>", "</s>",
+                "<|user|>", "<|assistant|>", "<|system|>",
+                "<|endoftext|>", "</s>", "<|end|>",
                 "User:", "Instruction:"
             };
             size_t earliest = std::string::npos;
@@ -172,6 +272,7 @@ Java_com_k7sunny_nexv1_AIManager_runInferenceNative(JNIEnv* env, jobject, jstrin
             }
             if (earliest != std::string::npos) {
                 response.erase(earliest);
+                LOG_INFER("Stop pattern hit, trimmed response at pos %zu", earliest);
                 break;
             }
         }
@@ -190,7 +291,7 @@ Java_com_k7sunny_nexv1_AIManager_runInferenceNative(JNIEnv* env, jobject, jstrin
     g_last_prompt = prompt + response;
     g_last_token_count = n_cur;
 
-    LOGD("Response length: %zu", response.length());
+    LOG_INFER("Generated %d tokens, response length: %zu chars", n_predict, response.length());
 
     common_sampler_free(sampler);
     llama_batch_free(run_batch);
@@ -212,5 +313,5 @@ Java_com_k7sunny_nexv1_AIManager_freeNative(JNIEnv*, jobject) {
     }
 
     llama_backend_free();
-    LOGD("Freed all resources");
+    LOG_MODEL("Freed all resources");
 }

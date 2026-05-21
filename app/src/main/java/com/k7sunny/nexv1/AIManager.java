@@ -8,7 +8,9 @@ import java.util.concurrent.Executors;
 
 public class AIManager {
 
-    private static final String TAG = "AIManager";
+    private static final String TAG = "NexAI";
+    private static final String TAG_CHAT = "NexChat";
+    private static final String TAG_MODEL = "NexModel";
 
     static {
         System.loadLibrary("nexv1");
@@ -20,7 +22,7 @@ public class AIManager {
     private final java.util.List<Message> chatHistory = new java.util.ArrayList<>();
     private static final int MAX_HISTORY = 12; // Keep last 6 rounds of chat
     private String systemPrompt =
-        "You are Nex, a helpful assistant. Give short, direct answers in one or two sentences.";
+        "You are Nex, a helpful AI assistant. Always reply directly in the first person. Keep your answers brief, under two sentences.";
     private final java.util.List<String> pinnedMemories = new java.util.ArrayList<>();
 
     // JNI bridge methods
@@ -28,7 +30,7 @@ public class AIManager {
     public native String stringFromJNI();
     public native boolean initNative();
     public native long loadModelNative(String modelPath);
-    public native String runInferenceNative(String prompt, int maxTokens, ResponseCallback callback);
+    public native String runInferenceNative(String systemPrompt, String[] roles, String[] contents, int maxTokens, ResponseCallback callback);
     public native void freeNative();
 
     public interface ResponseCallback {
@@ -41,26 +43,26 @@ public class AIManager {
         this.mainHandler = new Handler(Looper.getMainLooper());
 
         boolean initialized = initNative();
-        Log.d(TAG, "Native backend initialized: " + initialized);
-        Log.d(TAG, "Native bridge test: " + stringFromJNI());
+        Log.d(TAG_MODEL, "Native backend initialized: " + initialized);
+        Log.d(TAG_MODEL, "Native bridge test: " + stringFromJNI());
     }
 
     public void loadModel(String modelPath) {
         if (modelPath == null || modelPath.isEmpty()) {
-            Log.e(TAG, "loadModel called with null or empty path");
+            Log.e(TAG_MODEL, "loadModel called with null or empty path");
             return;
         }
 
         executorService.execute(() -> {
-            Log.d(TAG, "Loading model from: " + modelPath);
+            Log.d(TAG_MODEL, "Loading model from: " + modelPath);
             long modelPtr = loadModelNative(modelPath);
 
             if (modelPtr != 0) {
                 isModelLoaded = true;
-                Log.d(TAG, "Model loaded successfully");
+                Log.d(TAG_MODEL, "Model loaded successfully");
             } else {
                 isModelLoaded = false;
-                Log.e(TAG, "Failed to load model");
+                Log.e(TAG_MODEL, "Failed to load model");
             }
         });
     }
@@ -75,34 +77,39 @@ public class AIManager {
                 // 1. Add User message to history
                 chatHistory.add(new Message(cleanPrompt, Message.TYPE_USER));
 
-                // 2. Build the full prompt using Zephyr template (TinyLlama-1.1B-Chat-v1.0)
-                //    Format: <|system|>\n{msg}</s>\n<|user|>\n{msg}</s>\n<|assistant|>\n
-                StringBuilder fullPrompt = new StringBuilder();
+                // 2. Build message arrays for native template formatting
+                java.util.List<String> roles = new java.util.ArrayList<>();
+                java.util.List<String> contents = new java.util.ArrayList<>();
 
-                // System turn — content directly followed by </s>, no extra newline
-                fullPrompt.append("<|system|>\n");
-                fullPrompt.append(systemPrompt);
-                for (String memory : pinnedMemories) {
-                    fullPrompt.append(" ").append(memory).append(".");
-                }
-                fullPrompt.append("</s>\n");
-
-                // Conversation history
                 for (Message m : chatHistory) {
                     if (m.getType() == Message.TYPE_USER) {
-                        fullPrompt.append("<|user|>\n").append(m.getText()).append("</s>\n");
+                        roles.add("user");
+                        contents.add(m.getText());
                     } else if (m.getType() == Message.TYPE_AI) {
-                        fullPrompt.append("<|assistant|>\n").append(m.getText()).append("</s>\n");
+                        roles.add("assistant");
+                        contents.add(m.getText());
                     }
                 }
 
-                // Start the assistant turn (model generates from here)
-                fullPrompt.append("<|assistant|>\n");
+                // Merge pinned memories into the system prompt
+                String systemWithMemories = systemPrompt;
+                if (!pinnedMemories.isEmpty()) {
+                    StringBuilder sb = new StringBuilder(systemPrompt);
+                    for (String memory : pinnedMemories) {
+                        sb.append(" ").append(memory).append(".");
+                    }
+                    systemWithMemories = sb.toString();
+                }
 
-                Log.d(TAG, "Full Prompt: " + fullPrompt);
+                Log.d(TAG_CHAT, "Sending " + roles.size() + " messages to native | system: " + systemWithMemories);
 
-                // Use the new signature with callback for streaming
-                response = runInferenceNative(fullPrompt.toString(), 128, new ResponseCallback() {
+                // Let native C++ apply the model's chat template via llama_chat_apply_template
+                response = runInferenceNative(
+                    systemWithMemories,
+                    roles.toArray(new String[0]),
+                    contents.toArray(new String[0]),
+                    128,
+                    new ResponseCallback() {
                     @Override
                     public void onResponse(String response) {
                         // Not used directly in native, but kept for interface
@@ -128,7 +135,7 @@ public class AIManager {
                 }
 
             } else {
-                Log.w(TAG, "Model not loaded");
+                Log.w(TAG_MODEL, "Model not loaded — cannot generate");
                 response = "Model is not ready yet.";
             }
 
@@ -149,7 +156,7 @@ public class AIManager {
             while (chatHistory.size() > MAX_HISTORY) {
                 chatHistory.remove(0);
             }
-            Log.d(TAG, "Chat history synchronized, size: " + chatHistory.size());
+            Log.d(TAG_CHAT, "History synced, size: " + chatHistory.size());
         });
     }
 
@@ -165,14 +172,14 @@ public class AIManager {
     public void clearHistory() {
         executorService.execute(() -> {
             chatHistory.clear();
-            Log.d(TAG, "Chat history cleared");
+            Log.d(TAG_CHAT, "Chat history cleared");
         });
     }
 
     public void release() {
         executorService.execute(() -> {
             if (isModelLoaded) {
-                Log.d(TAG, "Freeing native resources");
+                Log.d(TAG_MODEL, "Freeing native resources");
                 freeNative();
                 isModelLoaded = false;
             }
