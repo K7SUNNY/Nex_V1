@@ -16,7 +16,9 @@
         app:navigationIcon="@drawable/ic_menu"
         app:navigationIconTint="@android:color/white"
         app:title="@string/app_name"
-        app:titleTextColor="@android:color/white">
+        app:titleTextColor="@android:color/white"
+        app:buttonGravity="center_vertical"
+        android:gravity="center">
 
         <com.google.android.material.imageview.ShapeableImageView
             android:layout_width="32dp"

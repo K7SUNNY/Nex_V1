@@ -1,58 +1,208 @@
-# Nex V1 Implementation Roadmap
+# Nex V1 — Implementation Roadmap
 
-This document tracks the upcoming features and UI enhancements for the Nex V1 Personal AI Workspace.
+> Living document tracking upcoming features, technical debt, and architecture decisions for the Nex personal AI workspace.
 
-## Immediate Tasks (1-2 Hour Sprint)
+---
 
-### 1. Functional Memory System
-- **Persistence**: Replace dummy data in `MemoryActivity` with `SharedPreferences` or JSON storage.
-- **Context Injection**: Pass "Pinned" memories into the AI system prompt so it "remembers" user preferences.
+## Phase 1 — Chat Experience (High Priority)
 
-### 2. Prompt Engineering
-- **Template Update**: Update `AIManager` to use the correct Qwen2.5/ChatML chat template to prevent rambling.
+These directly impact the core user experience — talking to the AI.
 
-### 3. Quick Actions
-- **Copy to Clipboard**: Add "Copy" functionality to the AI message bubbles or via a long-press menu.
+### 1.1 Stop Generation
+- [ ] Add a **Stop** button (replaces Send while generating) to abort inference mid-stream
+- [ ] Requires native JNI hook: expose a `cancelInference()` method in `native-lib.cpp` that sets an atomic flag checked each token loop
+- [ ] Partial response should be kept in the chat as-is (not discarded)
+- **Files**: `AIManager.java`, `native-lib.cpp`, `MainActivity.java`, `activity_main.xml`
 
-## Current Planned Features
+### 1.2 Regenerate Response
+- [ ] Add a small "Regenerate" button below the last AI message
+- [ ] Removes the current AI response, re-sends the same user prompt
+- [ ] Button should only appear on the most recent AI message, and disappear during generation
+- **Files**: `ChatAdapter.java`, `item_ai_message.xml`, `MainActivity.java`
 
-### 1. Message Actions
-- [ ] **Copy to Clipboard**: Add a button to AI responses to quickly copy text/code.
-- [ ] **Share Message**: Allow sharing specific AI responses to other apps.
-- [ ] **Visual Integration**: Subtle icons appearing on hover or long-press.
-- [ ] **Regenerate response**: Allowing model to regenerate the response. 
+### 1.3 Markdown Rendering
+- [ ] Replace plain `TextView` with a Markdown renderer for AI messages (e.g. [Markwon](https://github.com/noties/markwon))
+- [ ] Support: **bold**, *italic*, `inline code`, code blocks with background, headings, bullet/numbered lists
+- [ ] Code blocks should have a "Copy" button in the top-right corner
+- [ ] User messages stay as plain text (no markdown)
+- **Files**: `ChatAdapter.java`, `item_ai_message.xml`, `build.gradle.kts` (add Markwon dependency)
 
-### 2. Markdown & Rich Text Support
-- [ ] **Formatting**: Support for #Heading, **Bold**, *Italic*, and `Inline Code`.
-- [ ] **Code Blocks**: Syntax highlighting or distinct backgrounds for code snippets.
-- [ ] **Lists**: Proper rendering of bullet points and numbered lists.
+### 1.4 Typing Indicator Animation
+- [ ] Replace the static `"..."` placeholder with an animated three-dot pulse
+- [ ] Use a custom `View` or Lottie animation inside `item_ai_message.xml`
+- [ ] Hide the animation and show the text `TextView` once the first token arrives
+- **Files**: `ChatAdapter.java`, `item_ai_message.xml`
 
-### 3. Advanced Typing Animation
-- [ ] **Pulsing Indicator**: Replace static "..." with a smooth, three-dot pulsing animation.
-- [ ] **Dynamic State**: Better visual feedback while the AI model is processing.
+### 1.5 Scroll-to-Bottom FAB
+- [ ] Show a floating "↓" button when the user has scrolled up during streaming
+- [ ] Tapping it scrolls to bottom and dismisses the button
+- [ ] Tie visibility to the existing `isUserScrolledUp` flag in `MainActivity`
+- **Files**: `MainActivity.java`, `activity_main.xml`
 
-### 4. Haptic Feedback
-- [ ] **Tactile Response**: Add subtle vibrations (haptics) for:
-    - Sending a message.
-    - Receiving the first token of a response.
-    - Interacting with menus and bottom sheets.
+---
 
-### 5. Persistence & History
-- [ ] **Search**: Search through past conversations by keyword.
-- [ ] **Export Chat**: Save conversations as PDF or Markdown files.
+## Phase 2 — Message Actions & Interactions
 
-### 6. Settings & Customization
-- [ ] **Model Selection**: Toggle between different AI model versions.
-- [ ] **System Instructions**: Allow users to set a custom "Persona" or system prompt.
+### 2.1 Visible Copy Button
+- [ ] Add a subtle copy icon below each AI message (currently copy is long-press only, which isn't discoverable)
+- [ ] Toast or snackbar confirmation on tap
+- **Files**: `ChatAdapter.java`, `item_ai_message.xml`
 
-## Completed Enhancements
-- [x] **Copy to Clipboard**: Added long-press action to all messages for quick copying.
-- [x] **Functional Memory System**: Memories are now persistent and injected into AI context.
-- [x] **Prompt Template**: Qwen2.5 (ChatML) chat template implemented to prevent rambling.
-- [x] **Live Updates**: Show the response stream as the model generates tokens.
-- [x] **Auto-Scroll**: Automatically scroll to the bottom during message generation.
-- [x] **Recent Chat Management**: Rename and Delete options via long-press and three-dot menu.
-- [x] **Theme Refinement**: Standardized monochrome selection colors and cursors.
-- [x] **Custom Bottom Sheets**: Modern, rounded-corner sheets for options and renaming.
-- [x] **Basic Chat UI**: Core messaging interface with user and AI message bubbles.
-- [x] **Navigation Drawer**: Side menu for switching between different chat sessions.
+### 2.2 Share Message
+- [ ] Add a share icon next to the copy button on AI messages
+- [ ] Uses Android `Intent.ACTION_SEND` with `text/plain`
+- **Files**: `ChatAdapter.java`, `item_ai_message.xml`
+
+### 2.3 Haptic Feedback
+- [ ] Subtle vibration on:
+  - Sending a message
+  - First token received (response starts)
+  - Long-press copy
+  - Menu interactions
+- [ ] Use `HapticFeedbackConstants` for system-consistent haptics
+- **Files**: `MainActivity.java`, `ChatAdapter.java`
+
+### 2.4 Message Timestamps
+- [ ] Add a subtle, right-aligned timestamp below each message (e.g. "2:30 PM")
+- [ ] Requires adding a `timestamp` field to the `Message` model
+- **Files**: `Message.java`, `ChatAdapter.java`, `item_ai_message.xml`, `item_user_message.xml`
+
+---
+
+## Phase 3 — AI & Model Improvements
+
+### 3.1 Configurable Max Tokens
+- [ ] Currently hardcoded to `256` in `AIManager.java` line 112
+- [ ] Add a slider or segmented control in Settings (e.g. 128 / 256 / 512 / 1024)
+- [ ] Store in `PreferenceManager` and pass to `runInferenceNative()`
+- **Files**: `AIManager.java`, `PreferenceManager.java`, `SettingsActivity.java`, `activity_settings.xml`
+
+### 3.2 Configurable Temperature
+- [ ] Expose temperature parameter in native inference (if not already)
+- [ ] Add a slider in Settings (0.1 – 1.5, default 0.7)
+- [ ] Lower = more focused/deterministic, higher = more creative
+- **Files**: `native-lib.cpp`, `AIManager.java`, `PreferenceManager.java`, `SettingsActivity.java`
+
+### 3.3 Context Window Management
+- [ ] Currently uses a fixed sliding window of 12 messages (`MAX_HISTORY` in `AIManager.java`)
+- [ ] Make this configurable or auto-calculate based on model's context length
+- [ ] Show a subtle indicator when old context is being dropped
+- **Files**: `AIManager.java`, `PreferenceManager.java`
+
+### 3.4 Multi-Model Support
+- [ ] Currently the model selector UI exists but both "Nex Fast" and "Nex Pro" point to the same model
+- [ ] Support downloading and switching between different GGUF models
+- [ ] Store multiple model paths in `ModelManager`
+- [ ] Show model size, quantization level, and capability summary in the selector
+- **Files**: `ModelManager.java`, `MainActivity.java`, `bottom_sheet_model_selection.xml`
+
+---
+
+## Phase 4 — Data & Persistence
+
+### 4.1 Migrate to Room Database
+- [ ] Current storage uses `SharedPreferences` with JSON strings — doesn't scale and risks data loss with large histories
+- [ ] Create Room entities: `ChatSessionEntity`, `MessageEntity`, `MemoryEntity`
+- [ ] Benefits: SQL queries, pagination, full-text search, proper data integrity
+- [ ] Migrate existing SharedPreferences data on first launch
+- **Files**: New `database/` package, `HistoryManager.java`, `MemoryManager.java`
+
+### 4.2 Search Conversations
+- [ ] Add a search bar at the top of the drawer's recent chats list
+- [ ] Filter conversations by title or message content
+- [ ] With Room (4.1), this becomes a simple `LIKE` query
+- **Files**: `DrawerActivity.java`, `activity_drawer.xml`, `HistoryManager.java`
+
+### 4.3 Export Chat
+- [ ] Export a conversation as a `.txt` or `.md` file
+- [ ] Add "Export" option to the chat options bottom sheet
+- [ ] Use Android's `Storage Access Framework` to let the user pick save location
+- **Files**: `DrawerActivity.java`, `bottom_sheet_chat_options.xml`
+
+### 4.4 Unlimited Session History
+- [ ] Currently capped at 10 sessions (`HistoryManager.java` line 24)
+- [ ] With Room (4.1), remove the cap and add pagination in the drawer
+- **Files**: `HistoryManager.java`, `DrawerActivity.java`
+
+### 4.5 Crash-Safe Streaming
+- [ ] If the app is killed mid-generation, the partial AI response is lost
+- [ ] Periodically save partial response to history (e.g. every 20 tokens)
+- [ ] On reload, show the partial response as-is
+- **Files**: `MainActivity.java`, `HistoryManager.java`
+
+---
+
+## Phase 5 — UI/UX Polish
+
+### 5.1 Onboarding Flow
+- [ ] First-launch walkthrough explaining Nex's offline capability
+- [ ] Guide the user through model download before they try chatting
+- [ ] Skip button for returning users
+
+### 5.2 Empty State Improvements
+- [ ] Better empty states in Memory, Account, and Chat History screens
+- [ ] Illustrated placeholders instead of blank screens
+
+### 5.3 Dark/Light Theme Toggle
+- [ ] Currently hardcoded to dark theme
+- [ ] Add a theme toggle in Settings (Dark / Light / System)
+- [ ] Define light color variants in `colors.xml` and a `themes.xml` day/night split
+
+### 5.4 Swipe Actions on Chat History
+- [ ] Swipe-left to delete a conversation in the drawer
+- [ ] Swipe-right to pin/archive (future)
+- [ ] Use `ItemTouchHelper` on the RecyclerView
+- **Files**: `DrawerActivity.java`, `RecentChatAdapter.java`
+
+### 5.5 Input Enhancements
+- [ ] Show character/token count near the input field
+- [ ] Auto-expand input field smoothly as user types multi-line messages
+- [ ] Keyboard "Send" action support (IME action)
+
+---
+
+## Phase 6 — Advanced Features (Long-Term)
+
+### 6.1 Image Input (Multimodal)
+- [ ] Support attaching images to prompts (requires a multimodal GGUF model like LLaVA)
+- [ ] Camera and gallery picker
+- [ ] Image is processed through native layer alongside text prompt
+
+### 6.2 Widgets
+- [ ] Home screen widget for quick prompts
+- [ ] Shows last AI response or allows typing directly
+
+### 6.3 Notification for Background Generation
+- [ ] If the user backgrounds the app while AI is generating, show a notification when complete
+- [ ] Tapping the notification opens the chat with the response
+
+### 6.4 Voice Input
+- [ ] Microphone button in the input bar
+- [ ] Use Android's `SpeechRecognizer` API for speech-to-text
+- [ ] Transcribed text fills the input field for review before sending
+
+### 6.5 Auto-Title Generation
+- [ ] Currently uses the first 30 chars of the user's first message as the session title
+- [ ] After the first AI response, use the model to generate a short descriptive title
+- **Files**: `MainActivity.java`, `AIManager.java`
+
+---
+
+## Completed ✅
+
+| Feature | Notes |
+|---|---|
+| Basic chat UI | User/AI message bubbles with RecyclerView |
+| Token streaming | Real-time token-by-token display via JNI callback |
+| Smart auto-scroll | Scrolls to bottom during streaming, respects user reading position |
+| Efficient streaming updates | Payload-based partial ViewHolder bind, stutter-free manual scrolling |
+| Copy to clipboard | Long-press on any message |
+| Chat history | Save, load, rename, delete conversations (SharedPreferences/JSON) |
+| Navigation drawer | Side menu with recent chats, settings, memory, account |
+| Custom bottom sheets | Modern rounded sheets for options, rename, model selection |
+| Model download | DownloadManager with real-time progress polling |
+| Memory system | Persistent memories with pin/unpin, injected into AI system prompt |
+| Custom persona | User-configurable system prompt via Settings |
+| Model selector UI | Nex Fast / Nex Pro toggle (UI-only, same backend model) |
+| Theme | OLED-black dark theme with Material 3 components |
+| Edge-to-edge | Proper system bar and keyboard inset handling |
