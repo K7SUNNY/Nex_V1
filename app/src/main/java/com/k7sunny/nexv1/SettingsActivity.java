@@ -58,11 +58,15 @@ public class SettingsActivity extends AppCompatActivity {
     }
 
     private void updateUI() {
-        String persona = preferenceManager.getSystemPersona();
-        if (persona.length() > 60) {
-            tvPersonaSummary.setText(persona.substring(0, 57) + "...");
+        if (!preferenceManager.isCustomPersonaSet()) {
+            tvPersonaSummary.setText("Default (Optimized for Nex)");
         } else {
-            tvPersonaSummary.setText(persona);
+            String persona = preferenceManager.getSystemPersona();
+            if (persona.length() > 60) {
+                tvPersonaSummary.setText(persona.substring(0, 57) + "...");
+            } else {
+                tvPersonaSummary.setText(persona);
+            }
         }
     }
 
@@ -71,23 +75,32 @@ public class SettingsActivity extends AppCompatActivity {
         View view = getLayoutInflater().inflate(R.layout.dialog_rename_chat, null);
         dialog.setContentView(view);
 
-        TextView title = (TextView) ((android.view.ViewGroup)view).getChildAt(1); // The textview with "rename_chat" text
+        TextView title = (TextView) ((android.view.ViewGroup)view).getChildAt(1); 
         com.google.android.material.textfield.TextInputEditText input = view.findViewById(R.id.edit_text_rename);
         MaterialButton btnSave = view.findViewById(R.id.btn_save_rename);
 
         title.setText("System Persona");
-        input.setHint("Enter AI persona instructions...");
-        input.setText(preferenceManager.getSystemPersona());
-        input.setSelection(input.getText().length());
+        input.setHint("e.g. Be funny, Reply in Python...");
+        
+        // Only pre-fill if it's a custom one, otherwise leave blank for a fresh start
+        if (preferenceManager.isCustomPersonaSet()) {
+            input.setText(preferenceManager.getSystemPersona());
+            if (input.getText() != null) {
+                input.setSelection(input.getText().length());
+            }
+        }
 
         btnSave.setOnClickListener(v -> {
-            String newPersona = input.getText().toString().trim();
-            if (!newPersona.isEmpty()) {
+            String newPersona = input.getText() != null ? input.getText().toString().trim() : "";
+            if (newPersona.isEmpty()) {
+                preferenceManager.resetSystemPersona();
+                Toast.makeText(this, "Reset to Nex default", Toast.LENGTH_SHORT).show();
+            } else {
                 preferenceManager.setSystemPersona(newPersona);
-                updateUI();
-                dialog.dismiss();
                 Toast.makeText(this, "Persona updated", Toast.LENGTH_SHORT).show();
             }
+            updateUI();
+            dialog.dismiss();
         });
 
         dialog.show();

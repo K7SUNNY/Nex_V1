@@ -473,6 +473,10 @@ public class MainActivity extends AppCompatActivity {
                 int index = messageList.indexOf(typingMessage);
                 if (index != -1) {
                     Message msg = messageList.get(index);
+                    // If it's still marked as typing, change it to AI type on first token
+                    if (msg.getType() == Message.TYPE_TYPING) {
+                        msg.setType(Message.TYPE_AI);
+                    }
                     msg.setText(msg.getText() + token);
                     chatAdapter.notifyItemChanged(index);
                     recyclerView.scrollToPosition(index);

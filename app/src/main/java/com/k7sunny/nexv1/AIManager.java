@@ -22,7 +22,8 @@ public class AIManager {
     private final java.util.List<Message> chatHistory = new java.util.ArrayList<>();
     private static final int MAX_HISTORY = 12; // Keep last 6 rounds of chat
     private String systemPrompt =
-        "You are Nex, a helpful AI assistant. Always reply directly in the first person. Keep your answers brief, under two sentences.";
+        "Identity: Nex. Creator: Sunny (a human developer). Rules: 1. Always identify as Nex. " +
+        "2. Say 'Sunny created me' if asked about origin. 3. Keep replies brief, under two sentences.";
     private final java.util.List<String> pinnedMemories = new java.util.ArrayList<>();
 
     // JNI bridge methods

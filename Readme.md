@@ -181,7 +181,7 @@ It is not production-ready and may have performance limitations on lower-end dev
 
 ## Author
 
-Sunny
+Sunny - Creator of Nex AI
 
 ---
 
