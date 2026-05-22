@@ -52,6 +52,7 @@ public class MainActivity extends AppCompatActivity {
     private ModelManager modelManager;
     private HistoryManager historyManager;
     private MemoryManager memoryManager;
+    private PreferenceManager preferenceManager;
     private String currentSessionId;
 
     private final ActivityResultLauncher<Intent> drawerLauncher = registerForActivityResult(
@@ -94,6 +95,7 @@ public class MainActivity extends AppCompatActivity {
         modelManager = new ModelManager(this);
         historyManager = new HistoryManager(this);
         memoryManager = new MemoryManager(this);
+        preferenceManager = new PreferenceManager(this);
         currentSessionId = String.valueOf(System.currentTimeMillis());
 
         // Bind download-related views.
@@ -484,8 +486,13 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        if (aiManager != null && memoryManager != null) {
-            aiManager.setMemories(memoryManager.getPinnedMemoryStrings());
+        if (aiManager != null) {
+            if (memoryManager != null) {
+                aiManager.setMemories(memoryManager.getPinnedMemoryStrings());
+            }
+            if (preferenceManager != null) {
+                aiManager.setSystemPrompt(preferenceManager.getSystemPersona());
+            }
         }
     }
 
