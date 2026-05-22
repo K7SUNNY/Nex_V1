@@ -108,7 +108,7 @@ public class AIManager {
                     systemWithMemories,
                     roles.toArray(new String[0]),
                     contents.toArray(new String[0]),
-                    128,
+                    256,
                     new ResponseCallback() {
                     @Override
                     public void onResponse(String response) {

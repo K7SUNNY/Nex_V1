@@ -7,9 +7,9 @@ import java.io.File;
 
 public class ModelManager {
 
-    private static final String MODEL_NAME = "model.gguf";
+    private static final String MODEL_NAME = "qwen2.5-0.5b-instruct.gguf";
     private static final String DOWNLOAD_URL =
-            "https://huggingface.co/TheBloke/TinyLlama-1.1B-Chat-v1.0-GGUF/resolve/main/tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf";
+            "https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/qwen2.5-0.5b-instruct-q4_k_m.gguf?download=true";
 
     private final Context context;
 
@@ -68,7 +68,7 @@ public class ModelManager {
     }
 
     private boolean isValidModelFile(File file) {
-        // TinyLlama is roughly 700 MB, so files under 500 MB are treated as invalid.
-        return file != null && file.exists() && file.length() > 500L * 1024L * 1024L;
+        // Qwen2.5-0.5B is roughly 400 MB, so files under 300 MB are treated as invalid.
+        return file != null && file.exists() && file.length() > 300L * 1024L * 1024L;
     }
 }

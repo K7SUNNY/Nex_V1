@@ -9,7 +9,7 @@ This document tracks the upcoming features and UI enhancements for the Nex V1 Pe
 - **Context Injection**: Pass "Pinned" memories into the AI system prompt so it "remembers" user preferences.
 
 ### 2. Prompt Engineering
-- **Template Update**: Update `AIManager` to use the correct TinyLlama chat template (`<|system|>`, `<|user|>`, etc.) to prevent rambling.
+- **Template Update**: Update `AIManager` to use the correct Qwen2.5/ChatML chat template to prevent rambling.
 
 ### 3. Quick Actions
 - **Copy to Clipboard**: Add "Copy" functionality to the AI message bubbles or via a long-press menu.
@@ -48,7 +48,7 @@ This document tracks the upcoming features and UI enhancements for the Nex V1 Pe
 ## Completed Enhancements
 - [x] **Copy to Clipboard**: Added long-press action to all messages for quick copying.
 - [x] **Functional Memory System**: Memories are now persistent and injected into AI context.
-- [x] **Prompt Template**: TinyLlama chat template implemented to prevent rambling.
+- [x] **Prompt Template**: Qwen2.5 (ChatML) chat template implemented to prevent rambling.
 - [x] **Live Updates**: Show the response stream as the model generates tokens.
 - [x] **Auto-Scroll**: Automatically scroll to the bottom during message generation.
 - [x] **Recent Chat Management**: Rename and Delete options via long-press and three-dot menu.

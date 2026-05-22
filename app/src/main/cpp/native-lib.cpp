@@ -159,17 +159,16 @@ Java_com_k7sunny_nexv1_AIManager_runInferenceNative(
     }
 
     // ---- Apply chat template ----
-    // Force "zephyr" by name — the auto-detected template is wrong for this model
-    // (auto-detect sees <|assistant|> + <|user|> without </s> in Jinja → matches GLMEDGE,
-    //  which omits turn separators entirely)
-    const char* tmpl_to_use = "zephyr";
+    // Use the model's built-in chat template (auto-detection).
+    // llama.cpp supports Qwen's ChatML template natively.
+    const char* tmpl_to_use = nullptr;
 
     // First call: get required buffer size
     int32_t prompt_len = llama_chat_apply_template(
         tmpl_to_use, messages.data(), messages.size(), true, nullptr, 0);
 
     if (prompt_len < 0) {
-        LOGE("llama_chat_apply_template('zephyr') failed, code: %d", prompt_len);
+        LOGE("llama_chat_apply_template failed, code: %d", prompt_len);
         return env->NewStringUTF("Error: chat template failed");
     }
 
@@ -179,11 +178,6 @@ Java_com_k7sunny_nexv1_AIManager_runInferenceNative(
         tmpl_to_use, messages.data(), messages.size(), true, buf.data(), buf.size());
 
     std::string prompt(buf.data(), prompt_len);
-
-    // The built-in "zephyr" template uses <|endoftext|> as the turn separator.
-    // But TinyLlama's vocabulary uses </s> (EOS token id 2) instead.
-    // Replace <|endoftext|> with </s> so the tokenizer maps it to the correct EOS token.
-    replace_all(prompt, "<|endoftext|>", "</s>");
 
     LOG_PROMPT("Formatted prompt (%d chars):\n%s", (int)prompt.size(), prompt.c_str());
 
@@ -261,6 +255,7 @@ Java_com_k7sunny_nexv1_AIManager_runInferenceNative(
             std::vector<std::string> stops = {
                 "<|user|>", "<|assistant|>", "<|system|>",
                 "<|endoftext|>", "</s>", "<|end|>",
+                "<|im_start|>", "<|im_end|>",
                 "User:", "Instruction:"
             };
             size_t earliest = std::string::npos;

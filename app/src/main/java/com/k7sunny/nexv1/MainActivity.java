@@ -303,7 +303,7 @@ public class MainActivity extends AppCompatActivity {
             downloadProgress.setVisibility(View.GONE);
             btnDownloadModel.setEnabled(true);
             btnDownloadModel.setText("Download Model");
-            downloadStatusText.setText("Download the core AI engine (~700MB) to start chatting offline.");
+            downloadStatusText.setText("Download the core AI engine (~400MB) to start chatting offline.");
         }
     }
 

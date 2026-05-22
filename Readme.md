@@ -37,7 +37,7 @@ The goal is to create a fast, private, and controllable AI assistant.
     - Optimized for CPU-based inference on mobile devices
 
 ### Model
-- **Base Model:** TinyLlama (or similar small LLM)
+- **Base Model:** Qwen2.5-0.5B-Instruct
 - **Format:** GGUF
 - **Quantization:** Q4_K_M (balanced performance vs memory)
 
@@ -96,7 +96,7 @@ JNI Bridge
 ↓
 llama.cpp (C++)
 ↓
-GGUF Model (TinyLlama)
+GGUF Model (Qwen2.5-0.5B)
 
 ---
 
