@@ -63,6 +63,12 @@ public class MainActivity extends AppCompatActivity {
      */
     private boolean isUserScrolledUp = false;
 
+    /**
+     * True while the user is physically dragging or flinging the RecyclerView.
+     * Suppresses ALL programmatic scrolling to avoid fighting the touch gesture.
+     */
+    private boolean isUserTouching = false;
+
     private final ActivityResultLauncher<Intent> drawerLauncher = registerForActivityResult(
             new ActivityResultContracts.StartActivityForResult(),
             result -> {
@@ -150,6 +156,13 @@ public class MainActivity extends AppCompatActivity {
         // Track whether the user has scrolled up away from the bottom.
         // This prevents auto-scroll from interrupting reading during streaming.
         recyclerView.addOnScrollListener(new RecyclerView.OnScrollListener() {
+            @Override
+            public void onScrollStateChanged(@NonNull RecyclerView rv, int newState) {
+                // Suppress programmatic scrolling while user is dragging or flinging
+                isUserTouching = (newState == RecyclerView.SCROLL_STATE_DRAGGING
+                               || newState == RecyclerView.SCROLL_STATE_SETTLING);
+            }
+
             @Override
             public void onScrolled(@NonNull RecyclerView rv, int dx, int dy) {
                 LinearLayoutManager lm = (LinearLayoutManager) rv.getLayoutManager();
@@ -520,15 +533,33 @@ public class MainActivity extends AppCompatActivity {
     }
 
     /**
-     * Scrolls to the bottom of the chat only if the user hasn't scrolled up.
-     * This prevents the jarring experience of auto-scroll interrupting reading
-     * while still keeping the view pinned to new content during normal streaming.
+     * Scrolls to reveal the bottom of the last chat message, but only when:
+     *  - The user hasn't scrolled up to read older messages
+     *  - The user isn't actively touching/flinging the list
+     *
+     * Uses scrollBy() instead of scrollToPosition() to precisely reveal the
+     * bottom of tall streaming items that grow with each token.
      */
     private void smartScrollToBottom() {
-        if (!isUserScrolledUp && !messageList.isEmpty()) {
-            // Post to ensure scroll happens after layout pass completes
-            recyclerView.post(() -> recyclerView.scrollToPosition(messageList.size() - 1));
-        }
+        if (isUserScrolledUp || isUserTouching || messageList.isEmpty()) return;
+
+        // Post to ensure layout pass has completed before measuring
+        recyclerView.post(() -> {
+            int lastPos = messageList.size() - 1;
+            RecyclerView.ViewHolder vh = recyclerView.findViewHolderForAdapterPosition(lastPos);
+            if (vh != null) {
+                // Item is bound — calculate exact pixels needed to reveal its bottom
+                int itemBottom = vh.itemView.getBottom();
+                int rvVisibleBottom = recyclerView.getHeight() - recyclerView.getPaddingBottom();
+                int scrollNeeded = itemBottom - rvVisibleBottom;
+                if (scrollNeeded > 0) {
+                    recyclerView.scrollBy(0, scrollNeeded);
+                }
+            } else {
+                // Item not yet laid out — fall back to position-based scroll
+                recyclerView.scrollToPosition(lastPos);
+            }
+        });
     }
 
     // Release resources when the activity is destroyed.
