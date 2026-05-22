@@ -10,6 +10,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
+import java.util.Collections;
 import java.util.List;
 
 public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
@@ -40,7 +41,7 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     @Override
     public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
         Message message = messages.get(position);
-        
+
         View itemView = holder.itemView;
         itemView.setOnLongClickListener(v -> {
             copyToClipboard(v.getContext(), message.getText());
@@ -50,14 +51,44 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         if (holder instanceof UserViewHolder) {
             ((UserViewHolder) holder).messageText.setText(message.getText());
         } else if (holder instanceof AiViewHolder) {
-            if (message.getType() == Message.TYPE_TYPING) {
-                ((AiViewHolder) holder).messageText.setText("...");
-                ((AiViewHolder) holder).messageText.setAlpha(0.5f);
-            } else {
-                ((AiViewHolder) holder).messageText.setText(message.getText());
-                ((AiViewHolder) holder).messageText.setAlpha(1.0f);
-            }
+            bindAiHolder((AiViewHolder) holder, message);
         }
+    }
+
+    /**
+     * Payload-based partial bind: only updates the text without re-creating
+     * the entire ViewHolder. Called when notifyItemChanged(pos, payload) is used.
+     */
+    @Override
+    public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position,
+                                 @NonNull List<Object> payloads) {
+        if (!payloads.isEmpty() && holder instanceof AiViewHolder) {
+            // Partial bind — just update text content
+            Message message = messages.get(position);
+            bindAiHolder((AiViewHolder) holder, message);
+        } else {
+            // Full bind fallback
+            super.onBindViewHolder(holder, position, payloads);
+        }
+    }
+
+    private void bindAiHolder(AiViewHolder holder, Message message) {
+        if (message.getType() == Message.TYPE_TYPING) {
+            holder.messageText.setText("...");
+            holder.messageText.setAlpha(0.5f);
+        } else {
+            holder.messageText.setText(message.getText());
+            holder.messageText.setAlpha(1.0f);
+        }
+    }
+
+    /**
+     * Efficiently updates a streaming AI message in-place.
+     * Uses payload-based notification to avoid full ViewHolder rebind,
+     * reducing layout passes from O(views) to O(1) per token.
+     */
+    public void updateStreamingText(int position) {
+        notifyItemChanged(position, "text_update");
     }
 
     @Override

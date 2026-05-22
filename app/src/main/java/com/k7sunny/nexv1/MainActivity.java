@@ -18,6 +18,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
 import androidx.core.graphics.Insets;
@@ -54,6 +55,13 @@ public class MainActivity extends AppCompatActivity {
     private MemoryManager memoryManager;
     private PreferenceManager preferenceManager;
     private String currentSessionId;
+
+    /**
+     * Tracks whether the user has intentionally scrolled up to read older messages.
+     * When true, new tokens from the AI won't force-scroll the view to the bottom,
+     * preserving the user's reading position.
+     */
+    private boolean isUserScrolledUp = false;
 
     private final ActivityResultLauncher<Intent> drawerLauncher = registerForActivityResult(
             new ActivityResultContracts.StartActivityForResult(),
@@ -138,6 +146,23 @@ public class MainActivity extends AppCompatActivity {
         chatAdapter = new ChatAdapter(messageList);
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
         recyclerView.setAdapter(chatAdapter);
+
+        // Track whether the user has scrolled up away from the bottom.
+        // This prevents auto-scroll from interrupting reading during streaming.
+        recyclerView.addOnScrollListener(new RecyclerView.OnScrollListener() {
+            @Override
+            public void onScrolled(@NonNull RecyclerView rv, int dx, int dy) {
+                LinearLayoutManager lm = (LinearLayoutManager) rv.getLayoutManager();
+                if (lm == null) return;
+
+                int lastVisible = lm.findLastVisibleItemPosition();
+                int totalItems = lm.getItemCount();
+
+                // Consider "at bottom" if within 2 items of the end.
+                // This accounts for partially visible items at the edge.
+                isUserScrolledUp = lastVisible < totalItems - 2;
+            }
+        });
 
         setupSuggestions();
 
@@ -387,14 +412,17 @@ public class MainActivity extends AppCompatActivity {
         messageList.clear();
         messageList.addAll(historyManager.getMessages(sessionId));
         chatAdapter.notifyDataSetChanged();
-        
+
         if (messageList.isEmpty()) {
             startNewChat();
         } else {
             if (welcomeContainer != null) welcomeContainer.setVisibility(View.GONE);
             recyclerView.setVisibility(View.VISIBLE);
+
+            // Reset scroll state and jump to bottom for loaded sessions
+            isUserScrolledUp = false;
             recyclerView.scrollToPosition(messageList.size() - 1);
-            
+
             // Sync AI history with loaded messages
             aiManager.setHistory(messageList);
         }
@@ -408,6 +436,7 @@ public class MainActivity extends AppCompatActivity {
         }
         recyclerView.setVisibility(View.GONE);
         currentSessionId = String.valueOf(System.currentTimeMillis());
+        isUserScrolledUp = false;
         // Also clear AI history
         aiManager.clearHistory();
     }
@@ -431,11 +460,14 @@ public class MainActivity extends AppCompatActivity {
         }
         recyclerView.setVisibility(View.VISIBLE);
 
+        // Reset scroll state: user just sent a message, so they expect to see it
+        isUserScrolledUp = false;
+
         Message userMsg = new Message(text, Message.TYPE_USER);
         messageList.add(userMsg);
         chatAdapter.notifyItemInserted(messageList.size() - 1);
         recyclerView.scrollToPosition(messageList.size() - 1);
-        
+
         // Save session and messages
         String title = messageList.get(0).getText();
         if (title.length() > 30) title = title.substring(0, 27) + "...";
@@ -459,8 +491,8 @@ public class MainActivity extends AppCompatActivity {
                 if (index != -1) {
                     messageList.set(index, new Message(response, Message.TYPE_AI));
                     chatAdapter.notifyItemChanged(index);
-                    recyclerView.scrollToPosition(index);
-                    
+                    smartScrollToBottom();
+
                     // Save history after AI response
                     String title = messageList.get(0).getText();
                     if (title.length() > 30) title = title.substring(0, 27) + "...";
@@ -478,11 +510,25 @@ public class MainActivity extends AppCompatActivity {
                         msg.setType(Message.TYPE_AI);
                     }
                     msg.setText(msg.getText() + token);
-                    chatAdapter.notifyItemChanged(index);
-                    recyclerView.scrollToPosition(index);
+
+                    // Use efficient partial-bind update instead of full notifyItemChanged
+                    chatAdapter.updateStreamingText(index);
+                    smartScrollToBottom();
                 }
             }
         });
+    }
+
+    /**
+     * Scrolls to the bottom of the chat only if the user hasn't scrolled up.
+     * This prevents the jarring experience of auto-scroll interrupting reading
+     * while still keeping the view pinned to new content during normal streaming.
+     */
+    private void smartScrollToBottom() {
+        if (!isUserScrolledUp && !messageList.isEmpty()) {
+            // Post to ensure scroll happens after layout pass completes
+            recyclerView.post(() -> recyclerView.scrollToPosition(messageList.size() - 1));
+        }
     }
 
     // Release resources when the activity is destroyed.
