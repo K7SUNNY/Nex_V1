@@ -1,126 +1,109 @@
 package com.k7sunny.nexv1;
 
 import android.content.Context;
-import android.content.SharedPreferences;
-import org.json.JSONArray;
-import org.json.JSONObject;
+import com.k7sunny.nexv1.data.ChatHistoryDao;
+import com.k7sunny.nexv1.data.ChatMessageEntity;
+import com.k7sunny.nexv1.data.ChatSessionEntity;
+import com.k7sunny.nexv1.data.NexDatabase;
 import java.util.ArrayList;
 import java.util.List;
 
 public class HistoryManager {
-    private static final String PREF_NAME = "chat_history";
-    private static final String KEY_SESSIONS = "sessions";
-    private SharedPreferences prefs;
+    private final ChatHistoryDao chatHistoryDao;
 
     public HistoryManager(Context context) {
-        prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
+        NexDatabase db = NexDatabase.getDatabase(context);
+        this.chatHistoryDao = db.chatHistoryDao();
+
+        // Migrate legacy SharedPreferences data if present
+        migrateLegacyData(context);
     }
 
-    public void saveSession(ChatSession session, List<Message> messages) {
-        List<ChatSession> sessions = getSessions();
-        sessions.removeIf(s -> s.getId().equals(session.getId()));
-        sessions.add(0, session);
-        
-        if (sessions.size() > 10) {
-            sessions = sessions.subList(0, 10);
-        }
-        
-        saveSessions(sessions);
-        saveMessages(session.getId(), messages);
-    }
-
-    private void saveMessages(String sessionId, List<Message> messages) {
-        try {
-            JSONArray array = new JSONArray();
-            for (Message m : messages) {
-                JSONObject obj = new JSONObject();
-                obj.put("text", m.getText());
-                obj.put("type", m.getType());
-                array.put(obj);
-            }
-            prefs.edit().putString("msgs_" + sessionId, array.toString()).apply();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
-    public List<Message> getMessages(String sessionId) {
-        List<Message> list = new ArrayList<>();
-        String json = prefs.getString("msgs_" + sessionId, null);
-        if (json != null) {
+    private void migrateLegacyData(Context context) {
+        android.content.SharedPreferences prefs = context.getSharedPreferences("chat_history", Context.MODE_PRIVATE);
+        if (prefs.contains("sessions") && chatHistoryDao.getSessionCount() == 0) {
             try {
-                JSONArray array = new JSONArray(json);
-                for (int i = 0; i < array.length(); i++) {
-                    JSONObject obj = array.getJSONObject(i);
-                    list.add(new Message(
-                        obj.getString("text"),
-                        obj.getInt("type")
-                    ));
+                String sessionsJson = prefs.getString("sessions", null);
+                if (sessionsJson != null) {
+                    org.json.JSONArray array = new org.json.JSONArray(sessionsJson);
+                    for (int i = 0; i < array.length(); i++) {
+                        org.json.JSONObject obj = array.getJSONObject(i);
+                        String sessionId = obj.getString("id");
+                        String title = obj.getString("title");
+                        long timestamp = obj.getLong("timestamp");
+
+                        ChatSessionEntity sessionEntity = new ChatSessionEntity(sessionId, title, timestamp);
+
+                        List<ChatMessageEntity> messageEntities = new ArrayList<>();
+                        String msgsJson = prefs.getString("msgs_" + sessionId, null);
+                        if (msgsJson != null) {
+                            org.json.JSONArray msgsArray = new org.json.JSONArray(msgsJson);
+                            for (int j = 0; j < msgsArray.length(); j++) {
+                                org.json.JSONObject msgObj = msgsArray.getJSONObject(j);
+                                messageEntities.add(new ChatMessageEntity(
+                                    sessionId,
+                                    j,
+                                    msgObj.getString("text"),
+                                    msgObj.getInt("type")
+                                ));
+                            }
+                        }
+
+                        chatHistoryDao.replaceSession(sessionEntity, messageEntities);
+                    }
                 }
+                // Clear the preferences after successful migration
+                prefs.edit().clear().apply();
             } catch (Exception e) {
                 e.printStackTrace();
             }
+        }
+    }
+
+    public void saveSession(ChatSession session, List<Message> messages) {
+        ChatSessionEntity sessionEntity = new ChatSessionEntity(
+            session.getId(),
+            session.getTitle(),
+            session.getTimestamp()
+        );
+
+        List<ChatMessageEntity> messageEntities = new ArrayList<>();
+        for (int i = 0; i < messages.size(); i++) {
+            Message msg = messages.get(i);
+            messageEntities.add(new ChatMessageEntity(
+                session.getId(),
+                i,
+                msg.getText(),
+                msg.getType()
+            ));
+        }
+
+        chatHistoryDao.replaceSession(sessionEntity, messageEntities);
+    }
+
+    public List<Message> getMessages(String sessionId) {
+        List<ChatMessageEntity> entities = chatHistoryDao.getMessages(sessionId);
+        List<Message> list = new ArrayList<>();
+        for (ChatMessageEntity entity : entities) {
+            list.add(new Message(entity.text, entity.type));
         }
         return list;
     }
 
     public List<ChatSession> getSessions() {
+        List<ChatSessionEntity> entities = chatHistoryDao.getSessions();
         List<ChatSession> list = new ArrayList<>();
-        String json = prefs.getString(KEY_SESSIONS, null);
-        if (json != null) {
-            try {
-                JSONArray array = new JSONArray(json);
-                for (int i = 0; i < array.length(); i++) {
-                    JSONObject obj = array.getJSONObject(i);
-                    list.add(new ChatSession(
-                        obj.getString("id"),
-                        obj.getString("title"),
-                        obj.getLong("timestamp")
-                    ));
-                }
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
+        for (ChatSessionEntity entity : entities) {
+            list.add(new ChatSession(entity.id, entity.title, entity.timestamp));
         }
         return list;
     }
 
-    private void saveSessions(List<ChatSession> sessions) {
-        try {
-            JSONArray array = new JSONArray();
-            for (ChatSession s : sessions) {
-                JSONObject obj = new JSONObject();
-                obj.put("id", s.getId());
-                obj.put("title", s.getTitle());
-                obj.put("timestamp", s.getTimestamp());
-                array.put(obj);
-            }
-            prefs.edit().putString(KEY_SESSIONS, array.toString()).apply();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
     public void deleteSession(String sessionId) {
-        List<ChatSession> sessions = getSessions();
-        sessions.removeIf(s -> s.getId().equals(sessionId));
-        saveSessions(sessions);
-        prefs.edit().remove("msgs_" + sessionId).apply();
+        chatHistoryDao.deleteSession(sessionId);
     }
 
     public void renameSession(String sessionId, String newTitle) {
-        List<ChatSession> sessions = getSessions();
-        boolean found = false;
-        for (int i = 0; i < sessions.size(); i++) {
-            ChatSession s = sessions.get(i);
-            if (s.getId().equals(sessionId)) {
-                sessions.set(i, new ChatSession(s.getId(), newTitle, s.getTimestamp()));
-                found = true;
-                break;
-            }
-        }
-        if (found) {
-            saveSessions(sessions);
-        }
+        chatHistoryDao.renameSession(sessionId, newTitle);
     }
 }

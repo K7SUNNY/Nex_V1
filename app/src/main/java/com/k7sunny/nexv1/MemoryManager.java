@@ -1,75 +1,85 @@
 package com.k7sunny.nexv1;
 
 import android.content.Context;
-import android.content.SharedPreferences;
-import org.json.JSONArray;
-import org.json.JSONObject;
+import com.k7sunny.nexv1.data.MemoryDao;
+import com.k7sunny.nexv1.data.MemoryEntity;
+import com.k7sunny.nexv1.data.NexDatabase;
 import java.util.ArrayList;
 import java.util.List;
 
 public class MemoryManager {
-    private static final String PREF_NAME = "nex_memories";
-    private static final String KEY_MEMORIES = "memories";
-    private final SharedPreferences prefs;
+    private final MemoryDao memoryDao;
 
     public MemoryManager(Context context) {
-        this.prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
+        NexDatabase db = NexDatabase.getDatabase(context);
+        this.memoryDao = db.memoryDao();
+
+        // Migrate legacy SharedPreferences data if present
+        migrateLegacyData(context);
     }
 
-    public void saveMemories(List<Memory> memories) {
-        try {
-            JSONArray array = new JSONArray();
-            for (Memory m : memories) {
-                JSONObject obj = new JSONObject();
-                obj.put("title", m.getTitle());
-                obj.put("content", m.getContent());
-                obj.put("isPinned", m.isPinned());
-                array.put(obj);
-            }
-            prefs.edit().putString(KEY_MEMORIES, array.toString()).apply();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
-    public List<Memory> getAllMemories() {
-        List<Memory> list = new ArrayList<>();
-        String json = prefs.getString(KEY_MEMORIES, null);
-        if (json != null) {
+    private void migrateLegacyData(Context context) {
+        android.content.SharedPreferences prefs = context.getSharedPreferences("nex_memories", Context.MODE_PRIVATE);
+        if (prefs.contains("memories") && memoryDao.getMemoryCount() == 0) {
             try {
-                JSONArray array = new JSONArray(json);
-                boolean migrated = false;
-                for (int i = 0; i < array.length(); i++) {
-                    JSONObject obj = array.getJSONObject(i);
-                    String title = obj.getString("title");
-                    String content = obj.getString("content");
-                    boolean isPinned = obj.getBoolean("isPinned");
+                String memoriesJson = prefs.getString("memories", null);
+                if (memoriesJson != null) {
+                    org.json.JSONArray array = new org.json.JSONArray(memoriesJson);
+                    List<MemoryEntity> entities = new ArrayList<>();
+                    for (int i = 0; i < array.length(); i++) {
+                        org.json.JSONObject obj = array.getJSONObject(i);
+                        String title = obj.getString("title");
+                        String content = obj.getString("content");
+                        boolean isPinned = obj.getBoolean("isPinned");
 
-                    // Migrate old third-person default memory to first-person
-                    if ("Nex prefers concise code examples and OLED dark mode themes.".equals(content)) {
-                        content = "I prefer concise code examples and OLED dark mode themes.";
-                        migrated = true;
+                        // Migrate old third-person default memory to first-person
+                        if ("Nex prefers concise code examples and OLED dark mode themes.".equals(content)) {
+                            content = "I prefer concise code examples and OLED dark mode themes.";
+                        }
+
+                        entities.add(new MemoryEntity(title, content, isPinned, i));
                     }
-
-                    list.add(new Memory(title, content, isPinned));
+                    if (!entities.isEmpty()) {
+                        memoryDao.replaceMemories(entities);
+                    }
                 }
-                if (migrated) {
-                    saveMemories(list);
-                }
+                // Clear the preferences after successful migration
+                prefs.edit().clear().apply();
             } catch (Exception e) {
                 e.printStackTrace();
             }
+        }
+    }
+
+    public void saveMemories(List<Memory> memories) {
+        List<MemoryEntity> entities = new ArrayList<>();
+        for (int i = 0; i < memories.size(); i++) {
+            Memory m = memories.get(i);
+            entities.add(new MemoryEntity(m.getTitle(), m.getContent(), m.isPinned(), i));
+        }
+        memoryDao.replaceMemories(entities);
+    }
+
+    public List<Memory> getAllMemories() {
+        List<MemoryEntity> entities = memoryDao.getAllMemories();
+        List<Memory> list = new ArrayList<>();
+        boolean migrated = false;
+        for (MemoryEntity entity : entities) {
+            String content = entity.content;
+            // Migrate old third-person default memory to first-person
+            if ("Nex prefers concise code examples and OLED dark mode themes.".equals(content)) {
+                content = "I prefer concise code examples and OLED dark mode themes.";
+                migrated = true;
+            }
+            list.add(new Memory(entity.title, content, entity.isPinned));
+        }
+        if (migrated) {
+            saveMemories(list);
         }
         return list;
     }
 
     public List<String> getPinnedMemoryStrings() {
-        List<String> pinned = new ArrayList<>();
-        for (Memory m : getAllMemories()) {
-            if (m.isPinned()) {
-                pinned.add(m.getContent());
-            }
-        }
-        return pinned;
+        return memoryDao.getPinnedMemoryStrings();
     }
 }
