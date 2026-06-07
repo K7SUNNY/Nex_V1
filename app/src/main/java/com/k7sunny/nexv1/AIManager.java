@@ -25,13 +25,15 @@ public class AIManager {
         "Identity: Nex. Creator: Sunny (a human developer). Rules: 1. Always identify as Nex. " +
         "2. Say 'Sunny created me' if asked about origin. 3. Keep replies brief, under two sentences.";
     private final java.util.List<String> pinnedMemories = new java.util.ArrayList<>();
+    private int maxTokens = 256;
+    private float temperature = 0.7f;
 
     // JNI bridge methods
 
     public native String stringFromJNI();
     public native boolean initNative();
     public native long loadModelNative(String modelPath);
-    public native String runInferenceNative(String systemPrompt, String[] roles, String[] contents, int maxTokens, ResponseCallback callback);
+    public native String runInferenceNative(String systemPrompt, String[] roles, String[] contents, int maxTokens, float temperature, ResponseCallback callback);
     public native void cancelInferenceNative();
     public native void freeNative();
 
@@ -110,7 +112,8 @@ public class AIManager {
                     systemWithMemories,
                     roles.toArray(new String[0]),
                     contents.toArray(new String[0]),
-                    256,
+                    maxTokens,
+                    temperature,
                     new ResponseCallback() {
                     @Override
                     public void onResponse(String response) {
@@ -169,6 +172,14 @@ public class AIManager {
     public void setMemories(java.util.List<String> memories) {
         this.pinnedMemories.clear();
         this.pinnedMemories.addAll(memories);
+    }
+
+    public void setMaxTokens(int maxTokens) {
+        this.maxTokens = maxTokens;
+    }
+
+    public void setTemperature(float temperature) {
+        this.temperature = temperature;
     }
 
     public void clearHistory() {

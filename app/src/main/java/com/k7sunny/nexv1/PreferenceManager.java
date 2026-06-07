@@ -33,4 +33,20 @@ public class PreferenceManager {
     public String getSystemPersona() {
         return prefs.getString(KEY_SYSTEM_PERSONA, DEFAULT_PERSONA);
     }
+
+    public int getMaxTokens() {
+        return prefs.getInt("max_tokens", 256);
+    }
+
+    public void setMaxTokens(int maxTokens) {
+        prefs.edit().putInt("max_tokens", maxTokens).apply();
+    }
+
+    public float getTemperature() {
+        return prefs.getFloat("temperature", 0.7f);
+    }
+
+    public void setTemperature(float temperature) {
+        prefs.edit().putFloat("temperature", temperature).apply();
+    }
 }

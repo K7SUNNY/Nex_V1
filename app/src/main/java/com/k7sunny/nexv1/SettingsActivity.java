@@ -13,11 +13,16 @@ import androidx.core.view.WindowInsetsCompat;
 import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.bottomsheet.BottomSheetDialog;
 import com.google.android.material.button.MaterialButton;
+import com.google.android.material.slider.Slider;
 
 public class SettingsActivity extends AppCompatActivity {
 
     private PreferenceManager preferenceManager;
     private TextView tvPersonaSummary;
+    private TextView tvMaxTokensVal;
+    private Slider sliderMaxTokens;
+    private TextView tvTemperatureVal;
+    private Slider sliderTemperature;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -27,6 +32,21 @@ public class SettingsActivity extends AppCompatActivity {
 
         preferenceManager = new PreferenceManager(this);
         tvPersonaSummary = findViewById(R.id.tv_persona_summary);
+        tvMaxTokensVal = findViewById(R.id.tv_max_tokens_val);
+        sliderMaxTokens = findViewById(R.id.slider_max_tokens);
+        tvTemperatureVal = findViewById(R.id.tv_temperature_val);
+        sliderTemperature = findViewById(R.id.slider_temperature);
+
+        sliderMaxTokens.addOnChangeListener((slider, value, fromUser) -> {
+            int val = Math.round(value);
+            tvMaxTokensVal.setText(String.valueOf(val));
+            preferenceManager.setMaxTokens(val);
+        });
+
+        sliderTemperature.addOnChangeListener((slider, value, fromUser) -> {
+            tvTemperatureVal.setText(String.format(java.util.Locale.US, "%.2f", value));
+            preferenceManager.setTemperature(value);
+        });
 
         View root = findViewById(R.id.settings_root);
         ViewCompat.setOnApplyWindowInsetsListener(root, (v, insets) -> {
@@ -68,6 +88,17 @@ public class SettingsActivity extends AppCompatActivity {
                 tvPersonaSummary.setText(persona);
             }
         }
+
+        int maxTokens = preferenceManager.getMaxTokens();
+        float temperature = preferenceManager.getTemperature();
+
+        if (tvMaxTokensVal != null) tvMaxTokensVal.setText(String.valueOf(maxTokens));
+        if (sliderMaxTokens != null) sliderMaxTokens.setValue((float) maxTokens);
+
+        if (tvTemperatureVal != null) {
+            tvTemperatureVal.setText(String.format(java.util.Locale.US, "%.2f", temperature));
+        }
+        if (sliderTemperature != null) sliderTemperature.setValue(temperature);
     }
 
     private void showPersonaEditDialog() {

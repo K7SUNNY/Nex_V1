@@ -110,6 +110,7 @@ Java_com_k7sunny_nexv1_AIManager_runInferenceNative(
     jobjectArray jroles,
     jobjectArray jcontents,
     jint max_tokens,
+    jfloat temperature,
     jobject jcallback) {
 
     g_cancel_inference.store(false);
@@ -225,7 +226,7 @@ Java_com_k7sunny_nexv1_AIManager_runInferenceNative(
     }
 
     common_params_sampling sparams;
-    sparams.temp           = 0.2f;
+    sparams.temp           = temperature;
     sparams.top_k          = 40;
     sparams.top_p          = 0.90f;
     sparams.min_p          = 0.05f;

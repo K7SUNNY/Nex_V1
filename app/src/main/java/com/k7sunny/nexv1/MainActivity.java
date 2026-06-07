@@ -585,6 +585,8 @@ public class MainActivity extends AppCompatActivity {
             }
             if (preferenceManager != null) {
                 aiManager.setSystemPrompt(preferenceManager.getSystemPersona());
+                aiManager.setMaxTokens(preferenceManager.getMaxTokens());
+                aiManager.setTemperature(preferenceManager.getTemperature());
             }
         }
     }
