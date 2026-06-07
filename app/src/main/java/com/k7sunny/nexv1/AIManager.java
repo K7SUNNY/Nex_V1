@@ -32,6 +32,7 @@ public class AIManager {
     public native boolean initNative();
     public native long loadModelNative(String modelPath);
     public native String runInferenceNative(String systemPrompt, String[] roles, String[] contents, int maxTokens, ResponseCallback callback);
+    public native void cancelInferenceNative();
     public native void freeNative();
 
     public interface ResponseCallback {
@@ -177,7 +178,12 @@ public class AIManager {
         });
     }
 
+    public void cancelInference() {
+        cancelInferenceNative();
+    }
+
     public void release() {
+        cancelInference();
         executorService.execute(() -> {
             if (isModelLoaded) {
                 Log.d(TAG_MODEL, "Freeing native resources");
@@ -186,6 +192,14 @@ public class AIManager {
             }
         });
         executorService.shutdown();
+        try {
+            if (!executorService.awaitTermination(1, java.util.concurrent.TimeUnit.SECONDS)) {
+                executorService.shutdownNow();
+            }
+        } catch (InterruptedException e) {
+            executorService.shutdownNow();
+            Thread.currentThread().interrupt();
+        }
     }
 
     public boolean isModelLoaded() {

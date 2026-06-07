@@ -2,6 +2,7 @@
 #include <string>
 #include <vector>
 #include <thread>
+#include <atomic>
 #include <android/log.h>
 #include "llama.h"
 #include "common.h"
@@ -25,6 +26,7 @@ static llama_model* g_model = nullptr;
 static llama_context* g_ctx = nullptr;
 static std::string g_last_prompt = "";
 static int g_last_token_count = 0;
+static std::atomic<bool> g_cancel_inference{false};
 
 // Helper: replace all occurrences of `from` with `to` in a string
 static void replace_all(std::string& str, const std::string& from, const std::string& to) {
@@ -109,6 +111,8 @@ Java_com_k7sunny_nexv1_AIManager_runInferenceNative(
     jobjectArray jcontents,
     jint max_tokens,
     jobject jcallback) {
+
+    g_cancel_inference.store(false);
 
     if (!g_model || !g_ctx) {
         return env->NewStringUTF("Error: Model not loaded");
@@ -240,6 +244,11 @@ Java_com_k7sunny_nexv1_AIManager_runInferenceNative(
     llama_batch run_batch = llama_batch_init(1, 0, 1);
 
     while (n_predict < max_tokens) {
+        if (g_cancel_inference.load()) {
+            LOG_INFER("Inference cancelled by user");
+            break;
+        }
+
         if (llama_vocab_is_eog(llama_model_get_vocab(g_model), token)) break;
 
         std::string piece = common_token_to_piece(g_ctx, token);
@@ -309,4 +318,10 @@ Java_com_k7sunny_nexv1_AIManager_freeNative(JNIEnv*, jobject) {
 
     llama_backend_free();
     LOG_MODEL("Freed all resources");
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_k7sunny_nexv1_AIManager_cancelInferenceNative(JNIEnv*, jobject) {
+    g_cancel_inference.store(true);
+    LOG_INFER("cancelInferenceNative called");
 }

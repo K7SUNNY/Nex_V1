@@ -55,6 +55,7 @@ public class MainActivity extends AppCompatActivity {
     private MemoryManager memoryManager;
     private PreferenceManager preferenceManager;
     private String currentSessionId;
+    private boolean isGenerating = false;
 
     /**
      * Tracks whether the user has intentionally scrolled up to read older messages.
@@ -179,7 +180,13 @@ public class MainActivity extends AppCompatActivity {
 
         setupSuggestions();
 
-        sendButton.setOnClickListener(v -> sendMessage());
+        sendButton.setOnClickListener(v -> {
+            if (isGenerating) {
+                cancelGeneration();
+            } else {
+                sendMessage();
+            }
+        });
 
         MaterialButton modelSelector = findViewById(R.id.modelSelector);
         if (modelSelector != null) {
@@ -488,6 +495,9 @@ public class MainActivity extends AppCompatActivity {
 
         messageInput.setText("");
 
+        isGenerating = true;
+        updateSendButtonState();
+
         Message typingMessage = new Message("", Message.TYPE_TYPING);
         messageList.add(typingMessage);
         chatAdapter.notifyItemInserted(messageList.size() - 1);
@@ -498,6 +508,8 @@ public class MainActivity extends AppCompatActivity {
         aiManager.generateResponse(text, new AIManager.ResponseCallback() {
             @Override
             public void onResponse(String response) {
+                isGenerating = false;
+                updateSendButtonState();
                 long duration = System.currentTimeMillis() - startTime;
                 Log.d(TAG_CHAT, "AI response (" + duration + "ms): " + response);
                 int index = messageList.indexOf(typingMessage);
@@ -573,6 +585,25 @@ public class MainActivity extends AppCompatActivity {
             }
             if (preferenceManager != null) {
                 aiManager.setSystemPrompt(preferenceManager.getSystemPersona());
+            }
+        }
+    }
+
+    private void cancelGeneration() {
+        if (isGenerating) {
+            aiManager.cancelInference();
+        }
+    }
+
+    private void updateSendButtonState() {
+        ImageButton sendButton = findViewById(R.id.sendButton);
+        if (sendButton != null) {
+            if (isGenerating) {
+                sendButton.setImageResource(R.drawable.ic_stop);
+                sendButton.setContentDescription("Stop generating");
+            } else {
+                sendButton.setImageResource(R.drawable.ic_send);
+                sendButton.setContentDescription("Send");
             }
         }
     }
