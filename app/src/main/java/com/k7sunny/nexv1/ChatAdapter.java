@@ -4,6 +4,8 @@ import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.Intent;
+import android.os.Handler;
+import android.os.Looper;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -13,13 +15,18 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.appcompat.widget.PopupMenu;
 import androidx.recyclerview.widget.RecyclerView;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 
     private final List<Message> messages;
     private final OnMessageActionListener actionListener;
     private boolean isGenerating = false;
+
+    private final Handler handler = new Handler(Looper.getMainLooper());
+    private final Map<Message, Runnable> pendingDisappears = new HashMap<>();
 
     public interface OnMessageActionListener {
         void onRegenerate(int position);
@@ -71,8 +78,7 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             bindAiHolder((AiViewHolder) holder, message, position);
             itemView.setOnLongClickListener(v -> {
                 if (message.getType() == Message.TYPE_AI) {
-                    message.setActionsVisible(!message.isActionsVisible());
-                    notifyItemChanged(position, "actions_visibility_update");
+                    toggleActionsWithTimeout(message, position);
                 }
                 return true;
             });
@@ -134,6 +140,33 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         }
     }
 
+    private void toggleActionsWithTimeout(Message message, int position) {
+        Runnable pending = pendingDisappears.remove(message);
+        if (pending != null) {
+            handler.removeCallbacks(pending);
+        }
+
+        boolean nextState = !message.isActionsVisible();
+        message.setActionsVisible(nextState);
+        notifyItemChanged(position, "actions_visibility_update");
+
+        if (nextState) {
+            Runnable hideRunnable = new Runnable() {
+                @Override
+                public void run() {
+                    message.setActionsVisible(false);
+                    pendingDisappears.remove(message);
+                    int currentPos = messages.indexOf(message);
+                    if (currentPos != -1) {
+                        notifyItemChanged(currentPos, "actions_visibility_update");
+                    }
+                }
+            };
+            pendingDisappears.put(message, hideRunnable);
+            handler.postDelayed(hideRunnable, 5000); // 5 seconds
+        }
+    }
+
     public void updateStreamingText(int position) {
         notifyItemChanged(position, "text_update");
     }
@@ -141,6 +174,13 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     @Override
     public int getItemCount() {
         return messages.size();
+    }
+
+    @Override
+    public void onDetachedFromRecyclerView(@NonNull RecyclerView recyclerView) {
+        super.onDetachedFromRecyclerView(recyclerView);
+        handler.removeCallbacksAndMessages(null);
+        pendingDisappears.clear();
     }
 
     private void copyToClipboard(Context context, String text) {
