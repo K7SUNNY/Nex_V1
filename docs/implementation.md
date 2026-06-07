@@ -28,15 +28,15 @@ These directly impact the core user experience — talking to the AI.
 - **Files**: `ChatAdapter.java`, `item_ai_message.xml`, `build.gradle.kts` (add Markwon dependency)
 
 ### 1.4 Typing Indicator Animation
-- [ ] Replace the static `"..."` placeholder with an animated three-dot pulse
-- [ ] Use a custom `View` or Lottie animation inside `item_ai_message.xml`
-- [ ] Hide the animation and show the text `TextView` once the first token arrives
+- [x] Replace the static `"..."` placeholder with an animated three-dot pulse
+- [x] Use a custom `View` or Lottie animation inside `item_ai_message.xml`
+- [x] Hide the animation and show the text `TextView` once the first token arrives
 - **Files**: `ChatAdapter.java`, `item_ai_message.xml`
 
 ### 1.5 Scroll-to-Bottom FAB
-- [ ] Show a floating "↓" button when the user has scrolled up during streaming
-- [ ] Tapping it scrolls to bottom and dismisses the button
-- [ ] Tie visibility to the existing `isUserScrolledUp` flag in `MainActivity`
+- [x] Show a floating "↓" button when the user has scrolled up during streaming
+- [x] Tapping it scrolls to bottom and dismisses the button
+- [x] Tie visibility to the existing `isUserScrolledUp` flag in `MainActivity`
 - **Files**: `MainActivity.java`, `activity_main.xml`
 
 ---
@@ -215,3 +215,5 @@ These directly impact the core user experience — talking to the AI.
 | Visible Copy Button | Graphic copy button below AI messages to copy response to clipboard |
 | Share Message | Graphic share button below AI messages to export response text |
 | Delete Message & Pin | Options menu (three dots) under AI messages to delete bubbles or pin to memory |
+| Typing Indicator Animation | Animated bouncing three-dot wave placeholder while waiting for response |
+| Scroll-to-Bottom FAB | Floating button that appears when scrolled up during active chat, smoothly scrolling to bottom when tapped |

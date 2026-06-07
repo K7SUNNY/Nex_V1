@@ -1,5 +1,9 @@
 package com.k7sunny.nexv1;
 
+import android.animation.Animator;
+import android.animation.AnimatorSet;
+import android.animation.ObjectAnimator;
+import android.animation.ValueAnimator;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
@@ -96,16 +100,36 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         }
     }
 
+    @Override
+    public void onViewRecycled(@NonNull RecyclerView.ViewHolder holder) {
+        super.onViewRecycled(holder);
+        if (holder instanceof AiViewHolder) {
+            stopTypingAnimation((AiViewHolder) holder);
+        }
+    }
+
     private void bindAiHolder(AiViewHolder holder, Message message, int position) {
         if (message.getType() == Message.TYPE_TYPING) {
-            holder.messageText.setText("...");
-            holder.messageText.setAlpha(0.5f);
+            if (holder.messageText != null) {
+                holder.messageText.setVisibility(View.GONE);
+            }
+            if (holder.typingIndicator != null) {
+                holder.typingIndicator.setVisibility(View.VISIBLE);
+                startTypingAnimation(holder);
+            }
             if (holder.aiActionContainer != null) {
                 holder.aiActionContainer.setVisibility(View.GONE);
             }
         } else {
-            holder.messageText.setText(message.getText());
-            holder.messageText.setAlpha(1.0f);
+            if (holder.messageText != null) {
+                holder.messageText.setVisibility(View.VISIBLE);
+                holder.messageText.setText(message.getText());
+                holder.messageText.setAlpha(1.0f);
+            }
+            if (holder.typingIndicator != null) {
+                holder.typingIndicator.setVisibility(View.GONE);
+                stopTypingAnimation(holder);
+            }
 
             if (holder.aiActionContainer != null) {
                 boolean isLastMessage = (position == messages.size() - 1);
@@ -138,6 +162,49 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
                 }
             }
         }
+    }
+
+    private void startTypingAnimation(AiViewHolder holder) {
+        if (holder.typingIndicator == null || holder.dot1 == null || holder.dot2 == null || holder.dot3 == null) {
+            return;
+        }
+
+        stopTypingAnimation(holder);
+
+        float bounceHeight = -10f;
+
+        ObjectAnimator anim1 = ObjectAnimator.ofFloat(holder.dot1, "translationY", 0f, bounceHeight, 0f);
+        anim1.setDuration(600);
+        anim1.setRepeatCount(ValueAnimator.INFINITE);
+        anim1.setRepeatMode(ValueAnimator.REVERSE);
+
+        ObjectAnimator anim2 = ObjectAnimator.ofFloat(holder.dot2, "translationY", 0f, bounceHeight, 0f);
+        anim2.setDuration(600);
+        anim2.setRepeatCount(ValueAnimator.INFINITE);
+        anim2.setRepeatMode(ValueAnimator.REVERSE);
+        anim2.setStartDelay(150);
+
+        ObjectAnimator anim3 = ObjectAnimator.ofFloat(holder.dot3, "translationY", 0f, bounceHeight, 0f);
+        anim3.setDuration(600);
+        anim3.setRepeatCount(ValueAnimator.INFINITE);
+        anim3.setRepeatMode(ValueAnimator.REVERSE);
+        anim3.setStartDelay(300);
+
+        AnimatorSet set = new AnimatorSet();
+        set.playTogether(anim1, anim2, anim3);
+        set.start();
+
+        holder.typingAnimator = set;
+    }
+
+    private void stopTypingAnimation(AiViewHolder holder) {
+        if (holder.typingAnimator != null) {
+            holder.typingAnimator.cancel();
+            holder.typingAnimator = null;
+        }
+        if (holder.dot1 != null) holder.dot1.setTranslationY(0f);
+        if (holder.dot2 != null) holder.dot2.setTranslationY(0f);
+        if (holder.dot3 != null) holder.dot3.setTranslationY(0f);
     }
 
     private void toggleActionsWithTimeout(Message message, int position) {
@@ -236,6 +303,11 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         ImageButton btnShare;
         ImageButton btnRegenerate;
         ImageButton btnMore;
+        View typingIndicator;
+        View dot1;
+        View dot2;
+        View dot3;
+        Animator typingAnimator;
 
         AiViewHolder(View itemView) {
             super(itemView);
@@ -245,6 +317,10 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             btnShare = itemView.findViewById(R.id.btnShare);
             btnRegenerate = itemView.findViewById(R.id.btnRegenerate);
             btnMore = itemView.findViewById(R.id.btnMore);
+            typingIndicator = itemView.findViewById(R.id.typingIndicator);
+            dot1 = itemView.findViewById(R.id.dot1);
+            dot2 = itemView.findViewById(R.id.dot2);
+            dot3 = itemView.findViewById(R.id.dot3);
         }
     }
 }

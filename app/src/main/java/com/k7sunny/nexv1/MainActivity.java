@@ -56,6 +56,7 @@ public class MainActivity extends AppCompatActivity {
     private PreferenceManager preferenceManager;
     private String currentSessionId;
     private boolean isGenerating = false;
+    private View fabScrollToBottom;
 
     /**
      * Tracks whether the user has intentionally scrolled up to read older messages.
@@ -169,6 +170,17 @@ public class MainActivity extends AppCompatActivity {
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
         recyclerView.setAdapter(chatAdapter);
 
+        fabScrollToBottom = findViewById(R.id.fabScrollToBottom);
+        if (fabScrollToBottom != null) {
+            fabScrollToBottom.setOnClickListener(v -> {
+                isUserScrolledUp = false;
+                if (messageList != null && !messageList.isEmpty()) {
+                    recyclerView.smoothScrollToPosition(messageList.size() - 1);
+                }
+                fabScrollToBottom.setVisibility(View.GONE);
+            });
+        }
+
         // Track whether the user has scrolled up away from the bottom.
         // This prevents auto-scroll from interrupting reading during streaming.
         recyclerView.addOnScrollListener(new RecyclerView.OnScrollListener() {
@@ -190,6 +202,14 @@ public class MainActivity extends AppCompatActivity {
                 // Consider "at bottom" if within 2 items of the end.
                 // This accounts for partially visible items at the edge.
                 isUserScrolledUp = lastVisible < totalItems - 2;
+
+                if (fabScrollToBottom != null) {
+                    if (isUserScrolledUp && totalItems > 0 && recyclerView.getVisibility() == View.VISIBLE) {
+                        fabScrollToBottom.setVisibility(View.VISIBLE);
+                    } else {
+                        fabScrollToBottom.setVisibility(View.GONE);
+                    }
+                }
             }
         });
 
@@ -494,6 +514,9 @@ public class MainActivity extends AppCompatActivity {
         recyclerView.setVisibility(View.GONE);
         currentSessionId = String.valueOf(System.currentTimeMillis());
         isUserScrolledUp = false;
+        if (fabScrollToBottom != null) {
+            fabScrollToBottom.setVisibility(View.GONE);
+        }
         // Also clear AI history
         aiManager.clearHistory();
     }

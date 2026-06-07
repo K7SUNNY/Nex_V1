@@ -363,4 +363,21 @@
         </LinearLayout>
     </com.google.android.material.card.MaterialCardView>
 
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/fabScrollToBottom"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="16dp"
+        android:layout_marginBottom="16dp"
+        android:visibility="gone"
+        android:contentDescription="Scroll to bottom"
+        app:backgroundTint="#26282B"
+        app:fabCustomSize="40dp"
+        app:maxImageSize="20dp"
+        app:srcCompat="@drawable/ic_arrow_down"
+        app:tint="@android:color/white"
+        app:elevation="4dp"
+        app:layout_constraintBottom_toTopOf="@+id/inputCard"
+        app:layout_constraintEnd_toEndOf="parent" />
+
 </androidx.constraintlayout.widget.ConstraintLayout>
