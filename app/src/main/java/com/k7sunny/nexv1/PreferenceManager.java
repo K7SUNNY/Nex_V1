@@ -49,4 +49,20 @@ public class PreferenceManager {
     public void setTemperature(float temperature) {
         prefs.edit().putFloat("temperature", temperature).apply();
     }
+
+    public boolean isHapticFeedbackEnabled() {
+        return prefs.getBoolean("haptic_feedback", true);
+    }
+
+    public void setHapticFeedbackEnabled(boolean enabled) {
+        prefs.edit().putBoolean("haptic_feedback", enabled).apply();
+    }
+
+    public int getContextWindow() {
+        return prefs.getInt("context_window", 12);
+    }
+
+    public void setContextWindow(int size) {
+        prefs.edit().putInt("context_window", size).apply();
+    }
 }

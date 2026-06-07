@@ -72,6 +72,10 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         Message message = messages.get(position);
         View itemView = holder.itemView;
 
+        PreferenceManager pm = new PreferenceManager(itemView.getContext());
+        boolean hapticsEnabled = pm.isHapticFeedbackEnabled();
+        itemView.setHapticFeedbackEnabled(hapticsEnabled);
+
         if (holder instanceof UserViewHolder) {
             ((UserViewHolder) holder).messageText.setText(message.getText());
             itemView.setOnLongClickListener(v -> {
@@ -139,15 +143,22 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
                     holder.aiActionContainer.setVisibility(View.VISIBLE);
 
                     if (holder.btnCopy != null) {
-                        holder.btnCopy.setOnClickListener(v -> copyToClipboard(v.getContext(), message.getText()));
+                        holder.btnCopy.setOnClickListener(v -> {
+                            triggerHaptic(v, android.view.HapticFeedbackConstants.KEYBOARD_TAP);
+                            copyToClipboard(v.getContext(), message.getText());
+                        });
                     }
 
                     if (holder.btnShare != null) {
-                        holder.btnShare.setOnClickListener(v -> shareText(v.getContext(), message.getText()));
+                        holder.btnShare.setOnClickListener(v -> {
+                            triggerHaptic(v, android.view.HapticFeedbackConstants.KEYBOARD_TAP);
+                            shareText(v.getContext(), message.getText());
+                        });
                     }
 
                     if (holder.btnRegenerate != null) {
                         holder.btnRegenerate.setOnClickListener(v -> {
+                            triggerHaptic(v, android.view.HapticFeedbackConstants.KEYBOARD_TAP);
                             if (actionListener != null) {
                                 actionListener.onRegenerate(position);
                             }
@@ -155,7 +166,10 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
                     }
 
                     if (holder.btnMore != null) {
-                        holder.btnMore.setOnClickListener(v -> showMoreOptions(v.getContext(), holder.btnMore, message, position));
+                        holder.btnMore.setOnClickListener(v -> {
+                            triggerHaptic(v, android.view.HapticFeedbackConstants.KEYBOARD_TAP);
+                            showMoreOptions(v.getContext(), holder.btnMore, message, position);
+                        });
                     }
                 } else {
                     holder.aiActionContainer.setVisibility(View.GONE);
@@ -274,6 +288,7 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         popup.getMenu().add(0, 1, 0, "Pin to Memory");
         popup.getMenu().add(0, 2, 1, "Delete Message");
         popup.setOnMenuItemClickListener(item -> {
+            triggerHaptic(anchor, android.view.HapticFeedbackConstants.KEYBOARD_TAP);
             if (item.getItemId() == 1) {
                 if (actionListener != null) {
                     actionListener.onPinToMemory(message.getText());
@@ -286,6 +301,15 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             return true;
         });
         popup.show();
+    }
+
+    private void triggerHaptic(View view, int type) {
+        if (view != null) {
+            PreferenceManager pm = new PreferenceManager(view.getContext());
+            if (pm.isHapticFeedbackEnabled()) {
+                view.performHapticFeedback(type, android.view.HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING);
+            }
+        }
     }
 
     static class UserViewHolder extends RecyclerView.ViewHolder {

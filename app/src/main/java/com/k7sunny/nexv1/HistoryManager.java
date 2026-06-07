@@ -99,6 +99,16 @@ public class HistoryManager {
         return list;
     }
 
+    public List<ChatSession> searchSessions(String query) {
+        String likeQuery = "%" + query + "%";
+        List<ChatSessionEntity> entities = chatHistoryDao.searchSessions(likeQuery);
+        List<ChatSession> list = new ArrayList<>();
+        for (ChatSessionEntity entity : entities) {
+            list.add(new ChatSession(entity.id, entity.title, entity.timestamp));
+        }
+        return list;
+    }
+
     public void deleteSession(String sessionId) {
         chatHistoryDao.deleteSession(sessionId);
     }

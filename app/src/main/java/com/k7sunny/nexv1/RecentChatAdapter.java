@@ -37,6 +37,9 @@ public class RecentChatAdapter extends RecyclerView.Adapter<RecentChatAdapter.Vi
         holder.btnRecentChat.setText(session.getTitle());
         holder.btnRecentChat.setOnClickListener(v -> listener.onChatClick(session));
         
+        PreferenceManager pm = new PreferenceManager(holder.btnRecentChat.getContext());
+        holder.btnRecentChat.setHapticFeedbackEnabled(pm.isHapticFeedbackEnabled());
+        
         holder.btnRecentChat.setOnLongClickListener(v -> {
             listener.onOptionsClick(session);
             return true;

@@ -27,6 +27,7 @@ public class AIManager {
     private final java.util.List<String> pinnedMemories = new java.util.ArrayList<>();
     private int maxTokens = 256;
     private float temperature = 0.7f;
+    private int contextWindowSize = 12;
 
     // JNI bridge methods
 
@@ -40,6 +41,7 @@ public class AIManager {
     public interface ResponseCallback {
         void onResponse(String response);
         default void onToken(String token) {}
+        default void onContextDropped() {}
     }
 
     public interface TitleCallback {
@@ -137,10 +139,14 @@ public class AIManager {
                     chatHistory.add(new Message(response.trim(), Message.TYPE_AI));
                 }
 
-                // 4. Keep history lean (sliding window of 3 rounds)
-                if (chatHistory.size() > MAX_HISTORY) {
-                    chatHistory.remove(0); // Remove oldest user msg
-                    chatHistory.remove(0); // Remove oldest AI resp
+                // 4. Keep history lean (sliding window based on user preference)
+                boolean dropped = false;
+                while (chatHistory.size() > contextWindowSize) {
+                    chatHistory.remove(0);
+                    dropped = true;
+                }
+                if (dropped) {
+                    mainHandler.post(() -> callback.onContextDropped());
                 }
 
             } else {
@@ -195,11 +201,15 @@ public class AIManager {
                 }
             }
             // Keep lean
-            while (chatHistory.size() > MAX_HISTORY) {
+            while (chatHistory.size() > contextWindowSize) {
                 chatHistory.remove(0);
             }
             Log.d(TAG_CHAT, "History synced, size: " + chatHistory.size());
         });
+    }
+
+    public void setContextWindow(int size) {
+        this.contextWindowSize = size;
     }
 
     public void setSystemPrompt(String prompt) {

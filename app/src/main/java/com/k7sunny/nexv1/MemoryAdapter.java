@@ -36,6 +36,9 @@ public class MemoryAdapter extends RecyclerView.Adapter<MemoryAdapter.ViewHolder
         holder.tvTitle.setText(memory.getTitle());
         holder.tvContent.setText(memory.getContent());
         
+        PreferenceManager pm = new PreferenceManager(holder.card.getContext());
+        holder.card.setHapticFeedbackEnabled(pm.isHapticFeedbackEnabled());
+        
         holder.card.setOnLongClickListener(v -> {
             listener.onMemoryLongClick(memory, position);
             return true;

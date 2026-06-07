@@ -38,6 +38,9 @@ public abstract class ChatHistoryDao {
     @Query("SELECT * FROM chat_sessions ORDER BY timestamp DESC")
     public abstract List<ChatSessionEntity> getSessions();
 
+    @Query("SELECT DISTINCT s.* FROM chat_sessions s LEFT JOIN chat_messages m ON s.id = m.session_id WHERE s.title LIKE :query OR m.text LIKE :query ORDER BY s.timestamp DESC")
+    public abstract List<ChatSessionEntity> searchSessions(String query);
+
     @Query("SELECT * FROM chat_messages WHERE session_id = :sessionId ORDER BY position ASC, id ASC")
     public abstract List<ChatMessageEntity> getMessages(String sessionId);
 

@@ -343,6 +343,46 @@
                             app:trackColorInactive="#1C1C1E"
                             android:layout_marginTop="8dp"/>
                     </LinearLayout>
+
+                    <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#0AFFFFFF" android:layout_marginVertical="12dp"/>
+
+                    <!-- Context Window Size -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical">
+                        <RelativeLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content">
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="History Window Size"
+                                android:textColor="@android:color/white"
+                                android:textSize="16sp"
+                                android:textStyle="bold"/>
+                            <TextView
+                                android:id="@+id/tv_context_window_val"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_alignParentEnd="true"
+                                android:text="12 messages"
+                                android:textColor="#888888"
+                                android:textSize="14sp"/>
+                        </RelativeLayout>
+                        <com.google.android.material.slider.Slider
+                            android:id="@+id/slider_context_window"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:valueFrom="4.0"
+                            android:valueTo="40.0"
+                            android:stepSize="2.0"
+                            android:value="12.0"
+                            app:thumbColor="#007AFF"
+                            app:trackColorActive="#007AFF"
+                            app:trackColorInactive="#1C1C1E"
+                            android:layout_marginTop="8dp"/>
+                    </LinearLayout>
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
@@ -410,6 +450,7 @@
 
                     <!-- Haptic Feedback -->
                     <RelativeLayout
+                        android:id="@+id/layout_haptic_feedback"
                         android:layout_width="match_parent"
                         android:layout_height="72dp"
                         android:paddingHorizontal="16dp"
@@ -434,6 +475,7 @@
                             android:textSize="16sp"
                             android:textStyle="bold"/>
                         <com.google.android.material.materialswitch.MaterialSwitch
+                            android:id="@+id/switch_haptic"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_alignParentEnd="true"

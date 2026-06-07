@@ -23,6 +23,8 @@ public class SettingsActivity extends AppCompatActivity {
     private Slider sliderMaxTokens;
     private TextView tvTemperatureVal;
     private Slider sliderTemperature;
+    private TextView tvContextWindowVal;
+    private Slider sliderContextWindow;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -36,6 +38,8 @@ public class SettingsActivity extends AppCompatActivity {
         sliderMaxTokens = findViewById(R.id.slider_max_tokens);
         tvTemperatureVal = findViewById(R.id.tv_temperature_val);
         sliderTemperature = findViewById(R.id.slider_temperature);
+        tvContextWindowVal = findViewById(R.id.tv_context_window_val);
+        sliderContextWindow = findViewById(R.id.slider_context_window);
 
         sliderMaxTokens.addOnChangeListener((slider, value, fromUser) -> {
             int val = Math.round(value);
@@ -47,6 +51,28 @@ public class SettingsActivity extends AppCompatActivity {
             tvTemperatureVal.setText(String.format(java.util.Locale.US, "%.2f", value));
             preferenceManager.setTemperature(value);
         });
+
+        if (sliderContextWindow != null) {
+            sliderContextWindow.addOnChangeListener((slider, value, fromUser) -> {
+                int val = Math.round(value);
+                if (tvContextWindowVal != null) {
+                    tvContextWindowVal.setText(val + " messages");
+                }
+                preferenceManager.setContextWindow(val);
+            });
+        }
+
+        com.google.android.material.materialswitch.MaterialSwitch switchHaptic = findViewById(R.id.switch_haptic);
+        View layoutHaptic = findViewById(R.id.layout_haptic_feedback);
+        if (switchHaptic != null) {
+            switchHaptic.setChecked(preferenceManager.isHapticFeedbackEnabled());
+            switchHaptic.setOnCheckedChangeListener((btn, isChecked) -> {
+                preferenceManager.setHapticFeedbackEnabled(isChecked);
+            });
+            if (layoutHaptic != null) {
+                layoutHaptic.setOnClickListener(v -> switchHaptic.toggle());
+            }
+        }
 
         View root = findViewById(R.id.settings_root);
         ViewCompat.setOnApplyWindowInsetsListener(root, (v, insets) -> {
@@ -99,6 +125,14 @@ public class SettingsActivity extends AppCompatActivity {
             tvTemperatureVal.setText(String.format(java.util.Locale.US, "%.2f", temperature));
         }
         if (sliderTemperature != null) sliderTemperature.setValue(temperature);
+
+        int contextWindow = preferenceManager.getContextWindow();
+        if (tvContextWindowVal != null) {
+            tvContextWindowVal.setText(contextWindow + " messages");
+        }
+        if (sliderContextWindow != null) {
+            sliderContextWindow.setValue((float) contextWindow);
+        }
     }
 
     private void showPersonaEditDialog() {

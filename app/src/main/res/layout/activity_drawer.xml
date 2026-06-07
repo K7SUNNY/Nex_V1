@@ -72,6 +72,52 @@
         app:strokeColor="#2C2C2E"
         app:strokeWidth="1dp" />
 
+    <!-- Search Bar -->
+    <LinearLayout
+        android:id="@+id/search_bar_container"
+        android:layout_width="match_parent"
+        android:layout_height="44dp"
+        android:layout_marginStart="20dp"
+        android:layout_marginTop="16dp"
+        android:layout_marginEnd="20dp"
+        android:background="@drawable/bg_search_bar"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingHorizontal="12dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/btn_new_chat">
+
+        <ImageView
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:src="@drawable/ic_search"
+            app:tint="#8E8E93" />
+
+        <EditText
+            android:id="@+id/search_input"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:layout_marginStart="8dp"
+            android:background="@null"
+            android:hint="Search chats..."
+            android:textColor="@android:color/white"
+            android:textColorHint="#8E8E93"
+            android:textSize="14sp"
+            android:imeOptions="actionSearch"
+            android:singleLine="true" />
+
+        <ImageButton
+            android:id="@+id/btn_clear_search"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:src="@drawable/ic_close"
+            android:visibility="gone"
+            app:tint="#8E8E93" />
+    </LinearLayout>
+
     <!-- SYSTEM Section (Anchored to Bottom) -->
     <LinearLayout
         android:id="@+id/system_section"
@@ -149,10 +195,10 @@
     <androidx.core.widget.NestedScrollView
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_marginTop="24dp"
+        android:layout_marginTop="8dp"
         android:fillViewport="true"
         app:layout_constraintBottom_toTopOf="@id/system_section"
-        app:layout_constraintTop_toBottomOf="@id/btn_new_chat">
+        app:layout_constraintTop_toBottomOf="@id/search_bar_container">
 
         <LinearLayout
             android:layout_width="match_parent"

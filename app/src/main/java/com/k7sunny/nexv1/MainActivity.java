@@ -149,6 +149,34 @@ public class MainActivity extends AppCompatActivity {
         recyclerView = findViewById(R.id.recyclerView);
         messageInput = findViewById(R.id.messageInput);
         ImageButton sendButton = findViewById(R.id.sendButton);
+        TextView tvCharCount = findViewById(R.id.tv_char_count);
+
+        if (messageInput != null && tvCharCount != null) {
+            messageInput.addTextChangedListener(new android.text.TextWatcher() {
+                @Override
+                public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+
+                @Override
+                public void onTextChanged(CharSequence s, int start, int before, int count) {
+                    updateTokenCount(s.toString());
+                }
+
+                @Override
+                public void afterTextChanged(android.text.Editable s) {}
+            });
+
+            messageInput.setOnEditorActionListener((v, actionId, event) -> {
+                if (actionId == android.view.inputmethod.EditorInfo.IME_ACTION_SEND) {
+                    if (isGenerating) {
+                        cancelGeneration();
+                    } else {
+                        sendMessage();
+                    }
+                    return true;
+                }
+                return false;
+            });
+        }
 
         messageList = new ArrayList<>();
         chatAdapter = new ChatAdapter(messageList, new ChatAdapter.OnMessageActionListener() {
@@ -252,6 +280,7 @@ public class MainActivity extends AppCompatActivity {
 
         // Check model status on startup and update the screen.
         checkModelStatus();
+        updateTokenCount("");
     }
 
     // Handles the callback when DownloadManager finishes a download.
@@ -502,6 +531,7 @@ public class MainActivity extends AppCompatActivity {
 
             // Sync AI history with loaded messages
             aiManager.setHistory(messageList);
+            updateTokenCount("");
         }
     }
 
@@ -519,6 +549,7 @@ public class MainActivity extends AppCompatActivity {
         }
         // Also clear AI history
         aiManager.clearHistory();
+        updateTokenCount("");
     }
 
     /** Resets the download card to idle/error state without hiding it. */
@@ -534,6 +565,9 @@ public class MainActivity extends AppCompatActivity {
     private void sendMessage() {
         String text = messageInput.getText().toString().trim();
         if (text.isEmpty()) return;
+
+        View sendButton = findViewById(R.id.sendButton);
+        triggerHapticFeedback(sendButton != null ? sendButton : messageInput, android.view.HapticFeedbackConstants.KEYBOARD_TAP);
 
         if (welcomeContainer != null) {
             welcomeContainer.setVisibility(View.GONE);
@@ -580,6 +614,7 @@ public class MainActivity extends AppCompatActivity {
                     String title = messageList.get(0).getText();
                     if (title.length() > 30) title = title.substring(0, 27) + "...";
                     historyManager.saveSession(new ChatSession(currentSessionId, title, System.currentTimeMillis()), messageList);
+                    updateTokenCount("");
 
                     // Trigger Auto-Title if this is the first exchange
                     if (messageList.size() == 2) {
@@ -596,6 +631,7 @@ public class MainActivity extends AppCompatActivity {
                     // If it's still marked as typing, change it to AI type on first token
                     if (msg.getType() == Message.TYPE_TYPING) {
                         msg.setType(Message.TYPE_AI);
+                        triggerHapticFeedback(recyclerView, android.view.HapticFeedbackConstants.CONFIRM);
                     }
                     msg.setText(msg.getText() + token);
 
@@ -603,6 +639,11 @@ public class MainActivity extends AppCompatActivity {
                     chatAdapter.updateStreamingText(index);
                     smartScrollToBottom();
                 }
+            }
+
+            @Override
+            public void onContextDropped() {
+                runOnUiThread(() -> Toast.makeText(MainActivity.this, "Older context dropped to fit window", Toast.LENGTH_SHORT).show());
             }
         });
     }
@@ -635,6 +676,7 @@ public class MainActivity extends AppCompatActivity {
         messageList.add(typingMessage);
         chatAdapter.notifyItemInserted(messageList.size() - 1);
         recyclerView.scrollToPosition(messageList.size() - 1);
+        updateTokenCount("");
 
         setGeneratingState(true);
 
@@ -655,6 +697,7 @@ public class MainActivity extends AppCompatActivity {
                     String title = messageList.get(0).getText();
                     if (title.length() > 30) title = title.substring(0, 27) + "...";
                     historyManager.saveSession(new ChatSession(currentSessionId, title, System.currentTimeMillis()), messageList);
+                    updateTokenCount("");
 
                     // Trigger Auto-Title if this is the first exchange
                     if (messageList.size() == 2) {
@@ -670,11 +713,17 @@ public class MainActivity extends AppCompatActivity {
                     Message msg = messageList.get(index);
                     if (msg.getType() == Message.TYPE_TYPING) {
                         msg.setType(Message.TYPE_AI);
+                        triggerHapticFeedback(recyclerView, android.view.HapticFeedbackConstants.CONFIRM);
                     }
                     msg.setText(msg.getText() + token);
                     chatAdapter.updateStreamingText(index);
                     smartScrollToBottom();
                 }
+            }
+
+            @Override
+            public void onContextDropped() {
+                runOnUiThread(() -> Toast.makeText(MainActivity.this, "Older context dropped to fit window", Toast.LENGTH_SHORT).show());
             }
         });
     }
@@ -715,6 +764,7 @@ public class MainActivity extends AppCompatActivity {
                 if (title.length() > 30) title = title.substring(0, 27) + "...";
                 historyManager.saveSession(new ChatSession(currentSessionId, title, System.currentTimeMillis()), messageList);
                 aiManager.setHistory(messageList);
+                updateTokenCount("");
             }
             Toast.makeText(this, "Message deleted", Toast.LENGTH_SHORT).show();
         }
@@ -802,8 +852,10 @@ public class MainActivity extends AppCompatActivity {
                 aiManager.setSystemPrompt(preferenceManager.getSystemPersona());
                 aiManager.setMaxTokens(preferenceManager.getMaxTokens());
                 aiManager.setTemperature(preferenceManager.getTemperature());
+                aiManager.setContextWindow(preferenceManager.getContextWindow());
             }
         }
+        updateTokenCount(messageInput != null ? messageInput.getText().toString() : "");
     }
 
     private void cancelGeneration() {
@@ -835,5 +887,62 @@ public class MainActivity extends AppCompatActivity {
             Log.w(TAG, "Receiver already unregistered");
         }
         aiManager.release(); // Free native model resources.
+    }
+
+    private int estimateContextTokens(String currentInput) {
+        int totalChars = 0;
+
+        // 1. System Prompt Chars
+        if (preferenceManager != null) {
+            totalChars += preferenceManager.getSystemPersona().length();
+        }
+
+        // 2. Pinned Memories Chars
+        if (memoryManager != null) {
+            java.util.List<String> memories = memoryManager.getPinnedMemoryStrings();
+            if (memories != null) {
+                for (String memory : memories) {
+                    totalChars += memory.length() + 2;
+                }
+            }
+        }
+
+        // 3. Active Chat History Chars (respecting context window size)
+        int contextSize = (preferenceManager != null) ? preferenceManager.getContextWindow() : 12;
+        if (messageList != null) {
+            java.util.List<Message> activeMsgs = new java.util.ArrayList<>();
+            for (Message m : messageList) {
+                if (m.getType() == Message.TYPE_USER || m.getType() == Message.TYPE_AI) {
+                    activeMsgs.add(m);
+                }
+            }
+
+            int startIdx = Math.max(0, activeMsgs.size() - contextSize);
+            for (int i = startIdx; i < activeMsgs.size(); i++) {
+                totalChars += activeMsgs.get(i).getText().length();
+            }
+        }
+
+        // 4. Current Input Chars
+        if (currentInput != null) {
+            totalChars += currentInput.length();
+        }
+
+        return (int) Math.ceil(totalChars / 3.8);
+    }
+
+    private void updateTokenCount(String currentInput) {
+        TextView tvCharCount = findViewById(R.id.tv_char_count);
+        if (tvCharCount != null) {
+            int estTokens = estimateContextTokens(currentInput);
+            tvCharCount.setText(estTokens + " / 2048");
+            tvCharCount.setVisibility(View.VISIBLE);
+        }
+    }
+
+    private void triggerHapticFeedback(View view, int type) {
+        if (preferenceManager != null && preferenceManager.isHapticFeedbackEnabled() && view != null) {
+            view.performHapticFeedback(type, android.view.HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING);
+        }
     }
 }

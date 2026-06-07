@@ -88,11 +88,41 @@ public class DrawerActivity extends AppCompatActivity {
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
 
         HistoryManager historyManager = new HistoryManager(this);
-        refreshChats(recyclerView, historyManager);
+
+        EditText searchInput = findViewById(R.id.search_input);
+        ImageButton btnClearSearch = findViewById(R.id.btn_clear_search);
+
+        if (searchInput != null && btnClearSearch != null) {
+            searchInput.addTextChangedListener(new android.text.TextWatcher() {
+                @Override
+                public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+
+                @Override
+                public void onTextChanged(CharSequence s, int start, int before, int count) {
+                    String query = s.toString();
+                    btnClearSearch.setVisibility(query.isEmpty() ? View.GONE : View.VISIBLE);
+                    refreshChats(recyclerView, historyManager, query);
+                }
+
+                @Override
+                public void afterTextChanged(android.text.Editable s) {}
+            });
+
+            btnClearSearch.setOnClickListener(v -> {
+                searchInput.setText("");
+            });
+        }
+
+        refreshChats(recyclerView, historyManager, "");
     }
 
-    private void refreshChats(RecyclerView recyclerView, HistoryManager historyManager) {
-        List<ChatSession> sessions = historyManager.getSessions();
+    private void refreshChats(RecyclerView recyclerView, HistoryManager historyManager, String query) {
+        List<ChatSession> sessions;
+        if (query == null || query.trim().isEmpty()) {
+            sessions = historyManager.getSessions();
+        } else {
+            sessions = historyManager.searchSessions(query);
+        }
         RecentChatAdapter adapter = new RecentChatAdapter(sessions, new RecentChatAdapter.OnChatClickListener() {
             @Override
             public void onChatClick(ChatSession session) {
@@ -104,7 +134,11 @@ public class DrawerActivity extends AppCompatActivity {
 
             @Override
             public void onOptionsClick(ChatSession session) {
-                showChatOptions(session, historyManager, () -> refreshChats(recyclerView, historyManager));
+                showChatOptions(session, historyManager, () -> {
+                    EditText search = findViewById(R.id.search_input);
+                    String q = (search != null) ? search.getText().toString() : "";
+                    refreshChats(recyclerView, historyManager, q);
+                });
             }
         });
         recyclerView.setAdapter(adapter);
