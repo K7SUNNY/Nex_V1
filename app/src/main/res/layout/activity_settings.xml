@@ -83,7 +83,7 @@
                             android:src="@drawable/ic_bolt"
                             android:padding="8dp"
                             android:background="#1C1C1E"
-                            app:tint="@android:color/white"/>
+                            app:tint="@android:color/white" />
 
                         <LinearLayout
                             android:layout_width="wrap_content"
@@ -197,7 +197,7 @@
                             android:layout_width="40dp"
                             android:layout_height="40dp"
                             android:layout_centerVertical="true"
-                            android:src="@drawable/ic_launcher_foreground"
+                            android:src="@drawable/ic_persona"
                             android:padding="8dp"
                             android:background="#1C1C1E"
                             app:tint="@android:color/white"/>
@@ -424,7 +424,7 @@
                             android:layout_width="40dp"
                             android:layout_height="40dp"
                             android:layout_centerVertical="true"
-                            android:src="@drawable/ic_launcher_foreground"
+                            android:src="@drawable/ic_theme"
                             android:padding="8dp"
                             android:background="#1C1C1E"
                             app:tint="@android:color/white"/>
@@ -460,7 +460,7 @@
                             android:layout_width="40dp"
                             android:layout_height="40dp"
                             android:layout_centerVertical="true"
-                            android:src="@drawable/ic_bolt"
+                            android:src="@drawable/ic_vibration"
                             android:padding="8dp"
                             android:background="#1C1C1E"
                             app:tint="@android:color/white"/>
@@ -521,7 +521,7 @@
                             android:layout_width="40dp"
                             android:layout_height="40dp"
                             android:layout_centerVertical="true"
-                            android:src="@drawable/ic_close"
+                            android:src="@drawable/ic_trash"
                             android:padding="8dp"
                             android:background="#1C1C1E"
                             app:tint="#FF453A"/>
