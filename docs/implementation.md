@@ -9,15 +9,15 @@
 These directly impact the core user experience — talking to the AI.
 
 ### 1.1 Stop Generation
-- [ ] Add a **Stop** button (replaces Send while generating) to abort inference mid-stream
-- [ ] Requires native JNI hook: expose a `cancelInference()` method in `native-lib.cpp` that sets an atomic flag checked each token loop
-- [ ] Partial response should be kept in the chat as-is (not discarded)
+- [x] Add a **Stop** button (replaces Send while generating) to abort inference mid-stream
+- [x] Requires native JNI hook: expose a `cancelInference()` method in `native-lib.cpp` that sets an atomic flag checked each token loop
+- [x] Partial response should be kept in the chat as-is (not discarded)
 - **Files**: `AIManager.java`, `native-lib.cpp`, `MainActivity.java`, `activity_main.xml`
 
 ### 1.2 Regenerate Response
-- [ ] Add a small "Regenerate" button below the last AI message
-- [ ] Removes the current AI response, re-sends the same user prompt
-- [ ] Button should only appear on the most recent AI message, and disappear during generation
+- [x] Add a small "Regenerate" button below the last AI message
+- [x] Removes the current AI response, re-sends the same user prompt
+- [x] Button should only appear on the most recent AI message, and disappear during generation
 - **Files**: `ChatAdapter.java`, `item_ai_message.xml`, `MainActivity.java`
 
 ### 1.3 Markdown Rendering
@@ -44,13 +44,13 @@ These directly impact the core user experience — talking to the AI.
 ## Phase 2 — Message Actions & Interactions
 
 ### 2.1 Visible Copy Button
-- [ ] Add a subtle copy icon below each AI message (currently copy is long-press only, which isn't discoverable)
-- [ ] Toast or snackbar confirmation on tap
+- [x] Add a subtle copy icon below each AI message (currently copy is long-press only, which isn't discoverable)
+- [x] Toast or snackbar confirmation on tap
 - **Files**: `ChatAdapter.java`, `item_ai_message.xml`
 
 ### 2.2 Share Message
-- [ ] Add a share icon next to the copy button on AI messages
-- [ ] Uses Android `Intent.ACTION_SEND` with `text/plain`
+- [x] Add a share icon next to the copy button on AI messages
+- [x] Uses Android `Intent.ACTION_SEND` with `text/plain`
 - **Files**: `ChatAdapter.java`, `item_ai_message.xml`
 
 ### 2.3 Haptic Feedback
@@ -72,15 +72,15 @@ These directly impact the core user experience — talking to the AI.
 ## Phase 3 — AI & Model Improvements
 
 ### 3.1 Configurable Max Tokens
-- [ ] Currently hardcoded to `256` in `AIManager.java` line 112
-- [ ] Add a slider or segmented control in Settings (e.g. 128 / 256 / 512 / 1024)
-- [ ] Store in `PreferenceManager` and pass to `runInferenceNative()`
+- [x] Currently, hardcoded to `256` in `AIManager.java` line 112
+- [x] Add a slider or segmented control in Settings (e.g. 128 / 256 / 512 / 1024)
+- [x] Store in `PreferenceManager` and pass to `runInferenceNative()`
 - **Files**: `AIManager.java`, `PreferenceManager.java`, `SettingsActivity.java`, `activity_settings.xml`
 
 ### 3.2 Configurable Temperature
-- [ ] Expose temperature parameter in native inference (if not already)
-- [ ] Add a slider in Settings (0.1 – 1.5, default 0.7)
-- [ ] Lower = more focused/deterministic, higher = more creative
+- [x] Expose temperature parameter in native inference (if not already)
+- [x] Add a slider in Settings (0.1 – 1.5, default 0.7)
+- [x] Lower = more focused/deterministic, higher = more creative
 - **Files**: `native-lib.cpp`, `AIManager.java`, `PreferenceManager.java`, `SettingsActivity.java`
 
 ### 3.3 Context Window Management
@@ -101,10 +101,10 @@ These directly impact the core user experience — talking to the AI.
 ## Phase 4 — Data & Persistence
 
 ### 4.1 Migrate to Room Database
-- [ ] Current storage uses `SharedPreferences` with JSON strings — doesn't scale and risks data loss with large histories
-- [ ] Create Room entities: `ChatSessionEntity`, `MessageEntity`, `MemoryEntity`
-- [ ] Benefits: SQL queries, pagination, full-text search, proper data integrity
-- [ ] Migrate existing SharedPreferences data on first launch
+- [x] Current storage uses `SharedPreferences` with JSON strings — doesn't scale and risks data loss with large histories
+- [x] Create Room entities: `ChatSessionEntity`, `MessageEntity`, `MemoryEntity`
+- [x] Benefits: SQL queries, pagination, full-text search, proper data integrity
+- [x] Migrate existing SharedPreferences data on first launch
 - **Files**: New `database/` package, `HistoryManager.java`, `MemoryManager.java`
 
 ### 4.2 Search Conversations
@@ -182,8 +182,8 @@ These directly impact the core user experience — talking to the AI.
 - [ ] Transcribed text fills the input field for review before sending
 
 ### 6.5 Auto-Title Generation
-- [ ] Currently uses the first 30 chars of the user's first message as the session title
-- [ ] After the first AI response, use the model to generate a short descriptive title
+- [x] Currently uses the first 30 chars of the user's first message as the session title
+- [x] After the first AI response, use the model to generate a short descriptive title
 - **Files**: `MainActivity.java`, `AIManager.java`
 
 ---
@@ -205,4 +205,13 @@ These directly impact the core user experience — talking to the AI.
 | Custom persona | User-configurable system prompt via Settings |
 | Model selector UI | Nex Fast / Nex Pro toggle (UI-only, same backend model) |
 | Theme | OLED-black dark theme with Material 3 components |
+| Room Database Migration | Migrated history storage from JSON-in-SharedPreferences to Room Database with automatic legacy data migration on launch |
+| Stop Generation | Exposes JNI cancellation hook and toggles UI send button to stop active inference |
+| Max Tokens & Temperature | Controls in Settings to dynamically customize inference sampler parameters |
 | Edge-to-edge | Proper system bar and keyboard inset handling |
+| Regenerate Response | Tap graphical "Regenerate" button under response, supporting older messages with history branch truncation |
+| Model Integrity Verification | Background SHA-256 validation of the downloaded GGUF model with SharedPreferences cache |
+| Auto-Title Generation | Asynchronous background llama.cpp inference after first message exchange to set descriptive session title |
+| Visible Copy Button | Graphic copy button below AI messages to copy response to clipboard |
+| Share Message | Graphic share button below AI messages to export response text |
+| Delete Message & Pin | Options menu (three dots) under AI messages to delete bubbles or pin to memory |

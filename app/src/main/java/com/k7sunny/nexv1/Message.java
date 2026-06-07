@@ -7,6 +7,7 @@ public class Message {
 
     private String text;
     private int type;
+    private boolean isActionsVisible = false;
 
     public Message(String text, int type) {
         this.text = text;
@@ -27,5 +28,13 @@ public class Message {
 
     public void setType(int type) {
         this.type = type;
+    }
+
+    public boolean isActionsVisible() {
+        return isActionsVisible;
+    }
+
+    public void setActionsVisible(boolean visible) {
+        this.isActionsVisible = visible;
     }
 }

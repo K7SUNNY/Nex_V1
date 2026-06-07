@@ -150,7 +150,22 @@ public class MainActivity extends AppCompatActivity {
         ImageButton sendButton = findViewById(R.id.sendButton);
 
         messageList = new ArrayList<>();
-        chatAdapter = new ChatAdapter(messageList);
+        chatAdapter = new ChatAdapter(messageList, new ChatAdapter.OnMessageActionListener() {
+            @Override
+            public void onRegenerate(int position) {
+                regenerateResponse(position);
+            }
+
+            @Override
+            public void onPinToMemory(String text) {
+                pinMessageToMemory(text);
+            }
+
+            @Override
+            public void onDeleteMessage(int position) {
+                deleteMessageAt(position);
+            }
+        });
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
         recyclerView.setAdapter(chatAdapter);
 
@@ -333,25 +348,47 @@ public class MainActivity extends AppCompatActivity {
     // Update UI based on whether a valid model exists.
 
     private void checkModelStatus() {
-        String modelPath = modelManager.getValidModelPath();
+        if (modelManager.isModelFilePresentWithCorrectSize()) {
+            if (modelManager.isModelVerified()) {
+                String modelPath = modelManager.getModelPath();
+                downloadModelCard.setVisibility(View.GONE);
+                downloadProgress.setVisibility(View.GONE);
 
-        if (modelPath != null) {
-            // Model is valid, so hide the download card.
-            downloadModelCard.setVisibility(View.GONE);
-            downloadProgress.setVisibility(View.GONE);
+                Log.d(TAG, "Model found and verified, loading: " + modelPath);
+                aiManager.loadModel(modelPath);
 
-            Log.d(TAG, "Model found, loading: " + modelPath);
-            aiManager.loadModel(modelPath);
-
-            Toast.makeText(this, "AI model ready!", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "AI model ready!", Toast.LENGTH_SHORT).show();
+            } else {
+                verifyModelInBackground();
+            }
         } else {
-            // Model is missing, so show the download card.
             downloadModelCard.setVisibility(View.VISIBLE);
             downloadProgress.setVisibility(View.GONE);
             btnDownloadModel.setEnabled(true);
             btnDownloadModel.setText("Download Model");
             downloadStatusText.setText("Download the core AI engine (~400MB) to start chatting offline.");
         }
+    }
+
+    private void verifyModelInBackground() {
+        downloadModelCard.setVisibility(View.VISIBLE);
+        btnDownloadModel.setEnabled(false);
+        downloadProgress.setVisibility(View.VISIBLE);
+        downloadProgress.setIndeterminate(true);
+        downloadStatusText.setText("Verifying AI Model integrity...");
+
+        new Thread(() -> {
+            boolean success = modelManager.verifyModelHash();
+            runOnUiThread(() -> {
+                if (isFinishing() || isDestroyed()) return;
+                if (success) {
+                    checkModelStatus();
+                } else {
+                    Toast.makeText(this, "Verification failed! Corrupted model.", Toast.LENGTH_LONG).show();
+                    setDownloadIdleState("Model verification failed. Please re-download.");
+                }
+            });
+        }).start();
     }
 
     private void startModelDownload() {
@@ -495,8 +532,7 @@ public class MainActivity extends AppCompatActivity {
 
         messageInput.setText("");
 
-        isGenerating = true;
-        updateSendButtonState();
+        setGeneratingState(true);
 
         Message typingMessage = new Message("", Message.TYPE_TYPING);
         messageList.add(typingMessage);
@@ -508,8 +544,7 @@ public class MainActivity extends AppCompatActivity {
         aiManager.generateResponse(text, new AIManager.ResponseCallback() {
             @Override
             public void onResponse(String response) {
-                isGenerating = false;
-                updateSendButtonState();
+                setGeneratingState(false);
                 long duration = System.currentTimeMillis() - startTime;
                 Log.d(TAG_CHAT, "AI response (" + duration + "ms): " + response);
                 int index = messageList.indexOf(typingMessage);
@@ -522,6 +557,11 @@ public class MainActivity extends AppCompatActivity {
                     String title = messageList.get(0).getText();
                     if (title.length() > 30) title = title.substring(0, 27) + "...";
                     historyManager.saveSession(new ChatSession(currentSessionId, title, System.currentTimeMillis()), messageList);
+
+                    // Trigger Auto-Title if this is the first exchange
+                    if (messageList.size() == 2) {
+                        generateAutoTitle(text, response);
+                    }
                 }
             }
 
@@ -539,6 +579,158 @@ public class MainActivity extends AppCompatActivity {
                     // Use efficient partial-bind update instead of full notifyItemChanged
                     chatAdapter.updateStreamingText(index);
                     smartScrollToBottom();
+                }
+            }
+        });
+    }
+
+    private void regenerateResponse(int position) {
+        if (messageList.isEmpty() || isGenerating) return;
+        if (position < 1 || position >= messageList.size()) return;
+
+        Message targetMsg = messageList.get(position);
+        if (targetMsg.getType() != Message.TYPE_AI) return;
+
+        Message userMsg = messageList.get(position - 1);
+        if (userMsg.getType() != Message.TYPE_USER) return;
+
+        String promptText = userMsg.getText();
+
+        // Remove the target AI message and all subsequent messages in the list
+        int originalSize = messageList.size();
+        int numToRemove = originalSize - position;
+        for (int k = 0; k < numToRemove; k++) {
+            messageList.remove(position);
+        }
+        chatAdapter.notifyItemRangeRemoved(position, numToRemove);
+
+        // Sync AI history with messageList (which now ends at the user prompt at position - 1)
+        aiManager.setHistory(messageList);
+
+        // Add typing indicator
+        Message typingMessage = new Message("", Message.TYPE_TYPING);
+        messageList.add(typingMessage);
+        chatAdapter.notifyItemInserted(messageList.size() - 1);
+        recyclerView.scrollToPosition(messageList.size() - 1);
+
+        setGeneratingState(true);
+
+        long startTime = System.currentTimeMillis();
+        aiManager.generateResponse(promptText, new AIManager.ResponseCallback() {
+            @Override
+            public void onResponse(String response) {
+                setGeneratingState(false);
+                long duration = System.currentTimeMillis() - startTime;
+                Log.d(TAG_CHAT, "AI response (" + duration + "ms): " + response);
+                int index = messageList.indexOf(typingMessage);
+                if (index != -1) {
+                    messageList.set(index, new Message(response, Message.TYPE_AI));
+                    chatAdapter.notifyItemChanged(index);
+                    smartScrollToBottom();
+
+                    // Save history after AI response
+                    String title = messageList.get(0).getText();
+                    if (title.length() > 30) title = title.substring(0, 27) + "...";
+                    historyManager.saveSession(new ChatSession(currentSessionId, title, System.currentTimeMillis()), messageList);
+
+                    // Trigger Auto-Title if this is the first exchange
+                    if (messageList.size() == 2) {
+                        generateAutoTitle(promptText, response);
+                    }
+                }
+            }
+
+            @Override
+            public void onToken(String token) {
+                int index = messageList.indexOf(typingMessage);
+                if (index != -1) {
+                    Message msg = messageList.get(index);
+                    if (msg.getType() == Message.TYPE_TYPING) {
+                        msg.setType(Message.TYPE_AI);
+                    }
+                    msg.setText(msg.getText() + token);
+                    chatAdapter.updateStreamingText(index);
+                    smartScrollToBottom();
+                }
+            }
+        });
+    }
+
+    private void pinMessageToMemory(String text) {
+        if (text == null || text.trim().isEmpty()) return;
+        new Thread(() -> {
+            List<Memory> memories = memoryManager.getAllMemories();
+            boolean exists = false;
+            for (Memory m : memories) {
+                if (m.getContent().equalsIgnoreCase(text.trim())) {
+                    exists = true;
+                    break;
+                }
+            }
+            if (!exists) {
+                String title = text.length() > 20 ? text.substring(0, 17) + "..." : text;
+                memories.add(new Memory(title, text.trim(), true));
+                memoryManager.saveMemories(memories);
+                aiManager.setMemories(memoryManager.getPinnedMemoryStrings());
+                runOnUiThread(() -> Toast.makeText(MainActivity.this, "Added to AI memory", Toast.LENGTH_SHORT).show());
+            } else {
+                runOnUiThread(() -> Toast.makeText(MainActivity.this, "Already in memory", Toast.LENGTH_SHORT).show());
+            }
+        }).start();
+    }
+
+    private void deleteMessageAt(int position) {
+        if (position >= 0 && position < messageList.size()) {
+            messageList.remove(position);
+            chatAdapter.notifyItemRemoved(position);
+
+            // Save session history after deleting
+            if (messageList.isEmpty()) {
+                startNewChat();
+            } else {
+                String title = messageList.get(0).getText();
+                if (title.length() > 30) title = title.substring(0, 27) + "...";
+                historyManager.saveSession(new ChatSession(currentSessionId, title, System.currentTimeMillis()), messageList);
+                aiManager.setHistory(messageList);
+            }
+            Toast.makeText(this, "Message deleted", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void setGeneratingState(boolean generating) {
+        this.isGenerating = generating;
+        updateSendButtonState();
+        if (chatAdapter != null) {
+            chatAdapter.setGenerating(generating);
+        }
+    }
+
+    private void generateAutoTitle(String userPrompt, String aiResponse) {
+        aiManager.generateTitle(userPrompt, aiResponse, new AIManager.TitleCallback() {
+            @Override
+            public void onTitleGenerated(String title) {
+                if (title != null && !title.isEmpty()) {
+                    // Sanitize title: remove wrapping quotes, leading/trailing punctuation or "Title:" prefix
+                    String cleanTitle = title.trim();
+                    if (cleanTitle.startsWith("\"") && cleanTitle.endsWith("\"")) {
+                        cleanTitle = cleanTitle.substring(1, cleanTitle.length() - 1);
+                    }
+                    if (cleanTitle.startsWith("'") && cleanTitle.endsWith("'")) {
+                        cleanTitle = cleanTitle.substring(1, cleanTitle.length() - 1);
+                    }
+                    if (cleanTitle.endsWith(".")) {
+                        cleanTitle = cleanTitle.substring(0, cleanTitle.length() - 1);
+                    }
+                    cleanTitle = cleanTitle.trim();
+
+                    if (!cleanTitle.isEmpty()) {
+                        Log.d("NexUI", "Auto-generated title: " + cleanTitle);
+                        // Save session with the new title
+                        historyManager.saveSession(
+                            new ChatSession(currentSessionId, cleanTitle, System.currentTimeMillis()),
+                            messageList
+                        );
+                    }
                 }
             }
         });

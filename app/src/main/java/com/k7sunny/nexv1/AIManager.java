@@ -42,6 +42,10 @@ public class AIManager {
         default void onToken(String token) {}
     }
 
+    public interface TitleCallback {
+        void onTitleGenerated(String title);
+    }
+
     public AIManager() {
         this.executorService = Executors.newSingleThreadExecutor();
         this.mainHandler = new Handler(Looper.getMainLooper());
@@ -146,6 +150,39 @@ public class AIManager {
 
             String finalResponse = response;
             mainHandler.post(() -> callback.onResponse(finalResponse));
+        });
+    }
+
+    public void generateTitle(String userPrompt, String aiResponse, TitleCallback callback) {
+        if (!isModelLoaded) {
+            Log.w(TAG_MODEL, "Model not loaded — cannot generate title");
+            callback.onTitleGenerated(null);
+            return;
+        }
+
+        executorService.execute(() -> {
+            String titleSystemPrompt = "You are a title generator. Write a 3-5 word descriptive title for this conversation based on the exchange. Do not use quotes, punctuation, or any introductory phrases like 'Title:'. Output ONLY the title itself.";
+            String[] roles = new String[]{"user", "assistant"};
+            String[] contents = new String[]{userPrompt, aiResponse};
+
+            String response = runInferenceNative(
+                titleSystemPrompt,
+                roles,
+                contents,
+                16, // maxTokens for title
+                0.3f, // lower temperature for title stability
+                new ResponseCallback() {
+                    @Override
+                    public void onResponse(String response) {
+                    }
+                    @Override
+                    public void onToken(String token) {
+                    }
+                }
+            );
+
+            String finalResponse = (response != null) ? response.trim() : null;
+            mainHandler.post(() -> callback.onTitleGenerated(finalResponse));
         });
     }
 
