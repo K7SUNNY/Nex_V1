@@ -41,6 +41,31 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     public ChatAdapter(List<Message> messages, OnMessageActionListener actionListener) {
         this.messages = messages;
         this.actionListener = actionListener;
+        registerAdapterDataObserver(new RecyclerView.AdapterDataObserver() {
+            @Override
+            public void onItemRangeInserted(int positionStart, int itemCount) {
+                int prevLast = positionStart - 1;
+                if (prevLast >= 0 && prevLast < getItemCount()) {
+                    handler.post(() -> {
+                        if (prevLast < getItemCount()) {
+                            notifyItemChanged(prevLast);
+                        }
+                    });
+                }
+            }
+
+            @Override
+            public void onItemRangeRemoved(int positionStart, int itemCount) {
+                int newLast = getItemCount() - 1;
+                if (newLast >= 0) {
+                    handler.post(() -> {
+                        if (newLast < getItemCount()) {
+                            notifyItemChanged(newLast);
+                        }
+                    });
+                }
+            }
+        });
     }
 
     public void setGenerating(boolean generating) {
