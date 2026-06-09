@@ -97,10 +97,6 @@ public class SettingsActivity extends AppCompatActivity {
         updateUI();
 
         findViewById(R.id.btn_edit_persona).setOnClickListener(v -> showPersonaEditDialog());
-        findViewById(R.id.btn_select_model).setOnClickListener(v -> {
-            // Future: Show model selection (already implemented in MainActivity, could be moved here)
-            Toast.makeText(this, "Model selection coming soon to settings", Toast.LENGTH_SHORT).show();
-        });
     }
 
     private void updateUI() {
