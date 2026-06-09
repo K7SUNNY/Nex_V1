@@ -620,6 +620,9 @@ public class MainActivity extends AppCompatActivity {
                     if (messageList.size() == 2) {
                         generateAutoTitle(text, response);
                     }
+
+                    // Trigger Memory Extraction
+                    checkAndExtractMemory(text, response, messageList.get(index), index);
                 }
             }
 
@@ -703,6 +706,9 @@ public class MainActivity extends AppCompatActivity {
                     if (messageList.size() == 2) {
                         generateAutoTitle(promptText, response);
                     }
+
+                    // Trigger Memory Extraction
+                    checkAndExtractMemory(promptText, response, messageList.get(index), index);
                 }
             }
 
@@ -938,6 +944,44 @@ public class MainActivity extends AppCompatActivity {
             tvCharCount.setText(estTokens + " / 2048");
             tvCharCount.setVisibility(View.VISIBLE);
         }
+    }
+
+    private void checkAndExtractMemory(String userPrompt, String aiResponse, Message aiMsg, int msgIndex) {
+        if (aiManager == null || memoryManager == null) return;
+        aiManager.extractMemory(userPrompt, aiResponse, new AIManager.MemoryCallback() {
+            @Override
+            public void onMemoryExtracted(String title, String content) {
+                if (title != null && content != null) {
+                    new Thread(() -> {
+                        List<Memory> memories = memoryManager.getAllMemories();
+                        boolean exists = false;
+                        for (Memory m : memories) {
+                            if (m.getContent().equalsIgnoreCase(content.trim())) {
+                                exists = true;
+                                break;
+                            }
+                        }
+                        if (!exists) {
+                            Memory newMemory = new Memory(title, content.trim(), false);
+                            memories.add(newMemory);
+                            memoryManager.saveMemories(memories);
+
+                            // Update message visual tag
+                            aiMsg.setMemoryTag("Memory: " + title);
+
+                            // Save history after updating tag to persist it
+                            String sessionTitle = messageList.get(0).getText();
+                            if (sessionTitle.length() > 30) sessionTitle = sessionTitle.substring(0, 27) + "...";
+                            historyManager.saveSession(new ChatSession(currentSessionId, sessionTitle, System.currentTimeMillis()), messageList);
+
+                            runOnUiThread(() -> {
+                                chatAdapter.notifyItemChanged(msgIndex);
+                            });
+                        }
+                    }).start();
+                }
+            }
+        });
     }
 
     private void triggerHapticFeedback(View view, int type) {

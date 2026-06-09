@@ -48,6 +48,10 @@ public class AIManager {
         void onTitleGenerated(String title);
     }
 
+    public interface MemoryCallback {
+        void onMemoryExtracted(String title, String content);
+    }
+
     public AIManager() {
         this.executorService = Executors.newSingleThreadExecutor();
         this.mainHandler = new Handler(Looper.getMainLooper());
@@ -189,6 +193,61 @@ public class AIManager {
 
             String finalResponse = (response != null) ? response.trim() : null;
             mainHandler.post(() -> callback.onTitleGenerated(finalResponse));
+        });
+    }
+
+    public void extractMemory(String userPrompt, String aiResponse, MemoryCallback callback) {
+        if (!isModelLoaded) {
+            Log.w(TAG_MODEL, "Model not loaded — cannot extract memory");
+            callback.onMemoryExtracted(null, null);
+            return;
+        }
+
+        executorService.execute(() -> {
+            String memorySystemPrompt = 
+                "You are a memory processor. Analyze the conversation exchange.\n" +
+                "If the user shares personal details, preferences, interests, or facts about themselves, extract a single memory in the format: \"Category | User [fact/preference]\"\n" +
+                "Example: \"Coding Style | User prefers Kotlin over Java.\"\n" +
+                "Example: \"Pets | User has a dog named Rex.\"\n" +
+                "If there are no personal details to remember, output ONLY \"NONE\". Output no other text, explanation, or punctuation.";
+            String[] roles = new String[]{"user", "assistant"};
+            String[] contents = new String[]{userPrompt, aiResponse};
+
+            String response = runInferenceNative(
+                memorySystemPrompt,
+                roles,
+                contents,
+                32, // maxTokens for memory
+                0.2f, // lower temperature for stability
+                new ResponseCallback() {
+                    @Override
+                    public void onResponse(String response) {}
+                    @Override
+                    public void onToken(String token) {}
+                }
+            );
+
+            if (response != null && !response.trim().isEmpty() && !response.trim().equalsIgnoreCase("NONE")) {
+                String clean = response.trim();
+                int pipeIndex = clean.indexOf('|');
+                String title;
+                String content;
+                if (pipeIndex != -1) {
+                    title = clean.substring(0, pipeIndex).trim();
+                    content = clean.substring(pipeIndex + 1).trim();
+                } else {
+                    title = "Personal Detail";
+                    content = clean;
+                }
+                
+                if (title.length() > 20) title = title.substring(0, 17) + "...";
+                
+                String finalTitle = title;
+                String finalContent = content;
+                mainHandler.post(() -> callback.onMemoryExtracted(finalTitle, finalContent));
+            } else {
+                mainHandler.post(() -> callback.onMemoryExtracted(null, null));
+            }
         });
     }
 

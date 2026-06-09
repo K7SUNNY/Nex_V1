@@ -35,6 +35,8 @@ public class ChatMessageEntity {
 
     public int type;
 
+    public String memoryTag;
+
     public ChatMessageEntity(@NonNull String sessionId, int position, @NonNull String text, int type) {
         this.sessionId = sessionId;
         this.position = position;

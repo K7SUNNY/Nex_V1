@@ -70,12 +70,14 @@ public class HistoryManager {
         List<ChatMessageEntity> messageEntities = new ArrayList<>();
         for (int i = 0; i < messages.size(); i++) {
             Message msg = messages.get(i);
-            messageEntities.add(new ChatMessageEntity(
+            ChatMessageEntity entity = new ChatMessageEntity(
                 session.getId(),
                 i,
                 msg.getText(),
                 msg.getType()
-            ));
+            );
+            entity.memoryTag = msg.getMemoryTag();
+            messageEntities.add(entity);
         }
 
         chatHistoryDao.replaceSession(sessionEntity, messageEntities);
@@ -85,7 +87,9 @@ public class HistoryManager {
         List<ChatMessageEntity> entities = chatHistoryDao.getMessages(sessionId);
         List<Message> list = new ArrayList<>();
         for (ChatMessageEntity entity : entities) {
-            list.add(new Message(entity.text, entity.type));
+            Message msg = new Message(entity.text, entity.type);
+            msg.setMemoryTag(entity.memoryTag);
+            list.add(msg);
         }
         return list;
     }

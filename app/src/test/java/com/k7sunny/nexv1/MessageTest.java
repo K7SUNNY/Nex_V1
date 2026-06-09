@@ -11,6 +11,7 @@ public class MessageTest {
         assertEquals("Hello User", message.getText());
         assertEquals(Message.TYPE_USER, message.getType());
         assertFalse(message.isActionsVisible());
+        assertNull(message.getMemoryTag());
     }
 
     @Test
@@ -19,9 +20,11 @@ public class MessageTest {
         message.setText("New text");
         message.setType(Message.TYPE_AI);
         message.setActionsVisible(true);
+        message.setMemoryTag("Memory: Pets");
 
         assertEquals("New text", message.getText());
         assertEquals(Message.TYPE_AI, message.getType());
         assertTrue(message.isActionsVisible());
+        assertEquals("Memory: Pets", message.getMemoryTag());
     }
 }

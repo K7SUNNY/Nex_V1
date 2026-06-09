@@ -130,6 +130,14 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
                 holder.messageText.setText(message.getText());
                 holder.messageText.setAlpha(1.0f);
             }
+            if (holder.memoryIndicator != null) {
+                if (message.getMemoryTag() != null && !message.getMemoryTag().isEmpty()) {
+                    holder.memoryIndicator.setText("• " + message.getMemoryTag());
+                    holder.memoryIndicator.setVisibility(View.VISIBLE);
+                } else {
+                    holder.memoryIndicator.setVisibility(View.GONE);
+                }
+            }
             if (holder.typingIndicator != null) {
                 holder.typingIndicator.setVisibility(View.GONE);
                 stopTypingAnimation(holder);
@@ -322,6 +330,7 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 
     static class AiViewHolder extends RecyclerView.ViewHolder {
         TextView messageText;
+        TextView memoryIndicator;
         View aiActionContainer;
         ImageButton btnCopy;
         ImageButton btnShare;
@@ -336,6 +345,7 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         AiViewHolder(View itemView) {
             super(itemView);
             messageText = itemView.findViewById(R.id.messageText);
+            memoryIndicator = itemView.findViewById(R.id.memoryIndicator);
             aiActionContainer = itemView.findViewById(R.id.aiActionContainer);
             btnCopy = itemView.findViewById(R.id.btnCopy);
             btnShare = itemView.findViewById(R.id.btnShare);

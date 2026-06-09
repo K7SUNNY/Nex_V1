@@ -8,6 +8,7 @@ public class Message {
     private String text;
     private int type;
     private boolean isActionsVisible = false;
+    private String memoryTag = null;
 
     public Message(String text, int type) {
         this.text = text;
@@ -36,5 +37,13 @@ public class Message {
 
     public void setActionsVisible(boolean visible) {
         this.isActionsVisible = visible;
+    }
+
+    public String getMemoryTag() {
+        return memoryTag;
+    }
+
+    public void setMemoryTag(String memoryTag) {
+        this.memoryTag = memoryTag;
     }
 }

@@ -5,7 +5,7 @@ import androidx.room.Database;
 import androidx.room.Room;
 import androidx.room.RoomDatabase;
 
-@Database(entities = {ChatSessionEntity.class, ChatMessageEntity.class, MemoryEntity.class}, version = 1, exportSchema = false)
+@Database(entities = {ChatSessionEntity.class, ChatMessageEntity.class, MemoryEntity.class}, version = 2, exportSchema = false)
 public abstract class NexDatabase extends RoomDatabase {
     private static volatile NexDatabase INSTANCE;
 

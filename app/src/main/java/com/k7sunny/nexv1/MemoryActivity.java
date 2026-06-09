@@ -59,19 +59,12 @@ public class MemoryActivity extends AppCompatActivity {
         recentMemories = new ArrayList<>();
 
         PreferenceManager pm = new PreferenceManager(this);
-        if (allMemories.isEmpty() && !pm.isMemoryInitialized()) {
-            pinnedMemories.add(new Memory("User preferences", "I prefer concise code examples and OLED dark mode themes.", true));
-            recentMemories.add(new Memory("Project architecture", "The app uses a JNI bridge to run llama.cpp for local inference.", false));
-            saveAllToManager();
+        if (!pm.isMemoryInitialized()) {
             pm.setMemoryInitialized(true);
-        } else {
-            if (!pm.isMemoryInitialized()) {
-                pm.setMemoryInitialized(true);
-            }
-            for (Memory m : allMemories) {
-                if (m.isPinned()) pinnedMemories.add(m);
-                else recentMemories.add(m);
-            }
+        }
+        for (Memory m : allMemories) {
+            if (m.isPinned()) pinnedMemories.add(m);
+            else recentMemories.add(m);
         }
 
         RecyclerView pinnedRecycler = findViewById(R.id.pinnedRecycler);
