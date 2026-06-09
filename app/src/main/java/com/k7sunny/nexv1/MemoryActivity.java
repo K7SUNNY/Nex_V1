@@ -58,11 +58,16 @@ public class MemoryActivity extends AppCompatActivity {
         pinnedMemories = new ArrayList<>();
         recentMemories = new ArrayList<>();
 
-        if (allMemories.isEmpty()) {
+        PreferenceManager pm = new PreferenceManager(this);
+        if (allMemories.isEmpty() && !pm.isMemoryInitialized()) {
             pinnedMemories.add(new Memory("User preferences", "I prefer concise code examples and OLED dark mode themes.", true));
             recentMemories.add(new Memory("Project architecture", "The app uses a JNI bridge to run llama.cpp for local inference.", false));
             saveAllToManager();
+            pm.setMemoryInitialized(true);
         } else {
+            if (!pm.isMemoryInitialized()) {
+                pm.setMemoryInitialized(true);
+            }
             for (Memory m : allMemories) {
                 if (m.isPinned()) pinnedMemories.add(m);
                 else recentMemories.add(m);
@@ -78,12 +83,44 @@ public class MemoryActivity extends AppCompatActivity {
         recentRecycler.setLayoutManager(new LinearLayoutManager(this));
         recentAdapter = new MemoryAdapter(recentMemories, this::showMemoryOptions);
         recentRecycler.setAdapter(recentAdapter);
+
+        updateEmptyState();
     }
 
     private void saveAllToManager() {
         List<Memory> all = new ArrayList<>(pinnedMemories);
         all.addAll(recentMemories);
         memoryManager.saveMemories(all);
+    }
+
+    private void updateEmptyState() {
+        View emptyState = findViewById(R.id.layout_empty_state_memory);
+        View searchBar = findViewById(R.id.search_bar_memory);
+        View tvPinnedLabel = findViewById(R.id.tv_pinned_label);
+        View pinnedRecycler = findViewById(R.id.pinnedRecycler);
+        View tvRecentLabel = findViewById(R.id.tv_recent_label);
+        View recentRecycler = findViewById(R.id.recentRecycler);
+
+        boolean hasPinned = pinnedMemories != null && !pinnedMemories.isEmpty();
+        boolean hasRecent = recentMemories != null && !recentMemories.isEmpty();
+
+        if (!hasPinned && !hasRecent) {
+            if (emptyState != null) emptyState.setVisibility(View.VISIBLE);
+            if (searchBar != null) searchBar.setVisibility(View.GONE);
+            if (tvPinnedLabel != null) tvPinnedLabel.setVisibility(View.GONE);
+            if (pinnedRecycler != null) pinnedRecycler.setVisibility(View.GONE);
+            if (tvRecentLabel != null) tvRecentLabel.setVisibility(View.GONE);
+            if (recentRecycler != null) recentRecycler.setVisibility(View.GONE);
+        } else {
+            if (emptyState != null) emptyState.setVisibility(View.GONE);
+            if (searchBar != null) searchBar.setVisibility(View.VISIBLE);
+            
+            if (tvPinnedLabel != null) tvPinnedLabel.setVisibility(hasPinned ? View.VISIBLE : View.GONE);
+            if (pinnedRecycler != null) pinnedRecycler.setVisibility(hasPinned ? View.VISIBLE : View.GONE);
+            
+            if (tvRecentLabel != null) tvRecentLabel.setVisibility(hasRecent ? View.VISIBLE : View.GONE);
+            if (recentRecycler != null) recentRecycler.setVisibility(hasRecent ? View.VISIBLE : View.GONE);
+        }
     }
 
     private void showMemoryOptions(Memory memory, int position) {
@@ -116,6 +153,7 @@ public class MemoryActivity extends AppCompatActivity {
             pinnedAdapter.notifyDataSetChanged();
             recentAdapter.notifyDataSetChanged();
             saveAllToManager();
+            updateEmptyState();
             dialog.dismiss();
         });
 
@@ -136,6 +174,7 @@ public class MemoryActivity extends AppCompatActivity {
                 recentAdapter.notifyDataSetChanged();
             }
             saveAllToManager();
+            updateEmptyState();
             dialog.dismiss();
         });
 

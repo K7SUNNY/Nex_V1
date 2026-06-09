@@ -123,6 +123,16 @@ public class DrawerActivity extends AppCompatActivity {
         } else {
             sessions = historyManager.searchSessions(query);
         }
+        
+        View emptyState = findViewById(R.id.layout_empty_state_drawer);
+        if (sessions.isEmpty()) {
+            if (emptyState != null) emptyState.setVisibility(View.VISIBLE);
+            recyclerView.setVisibility(View.GONE);
+        } else {
+            if (emptyState != null) emptyState.setVisibility(View.GONE);
+            recyclerView.setVisibility(View.VISIBLE);
+        }
+        
         RecentChatAdapter adapter = new RecentChatAdapter(sessions, new RecentChatAdapter.OnChatClickListener() {
             @Override
             public void onChatClick(ChatSession session) {

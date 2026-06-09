@@ -65,4 +65,12 @@ public class PreferenceManager {
     public void setContextWindow(int size) {
         prefs.edit().putInt("context_window", size).apply();
     }
+
+    public boolean isMemoryInitialized() {
+        return prefs.getBoolean("memory_initialized", false);
+    }
+
+    public void setMemoryInitialized(boolean initialized) {
+        prefs.edit().putBoolean("memory_initialized", initialized).apply();
+    }
 }

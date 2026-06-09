@@ -270,6 +270,42 @@
                 android:layout_marginTop="8dp"
                 android:nestedScrollingEnabled="false" />
 
+            <!-- Empty State Container -->
+            <LinearLayout
+                android:id="@+id/layout_empty_state_drawer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:paddingVertical="32dp"
+                android:visibility="gone"
+                android:layout_marginTop="8dp">
+
+                <ImageView
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:src="@drawable/ic_chat"
+                    app:tint="#333333"
+                    android:layout_marginBottom="12dp"/>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="No recent chats"
+                    android:textColor="#888888"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
+                    android:layout_marginBottom="4dp"/>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Start a conversation to see it here."
+                    android:textColor="#555555"
+                    android:textSize="12sp"
+                    android:gravity="center"/>
+            </LinearLayout>
+
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
 
