@@ -6,12 +6,7 @@ import android.content.SharedPreferences;
 public class PreferenceManager {
     private static final String PREF_NAME = "nex_prefs";
     private static final String KEY_SYSTEM_PERSONA = "system_persona";
-    private static final String DEFAULT_PERSONA_FAST = 
-        "You are the AI assistant named Nex. Sunny created Nex.\n" +
-        "The other person is the User. You are NOT the User.\n" +
-        "If asked who you are: \"I am Nex, a private AI created by Sunny.\"\n" +
-        "If asked who the user is: \"You are the User.\" Do NOT say you are the user.\n" +
-        "Keep answers under two sentences.";
+    private static final String DEFAULT_PERSONA_FAST = "";
 
     private static final String DEFAULT_PERSONA_PRO = 
         "You are Nex, a professional offline AI assistant created by Sunny.\n" +

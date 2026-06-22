@@ -109,10 +109,14 @@ public class AIManager {
                 String systemWithMemories = systemPrompt;
                 if (!pinnedMemories.isEmpty()) {
                     StringBuilder sb = new StringBuilder(systemPrompt);
-                    for (String memory : pinnedMemories) {
-                        sb.append(" ").append(memory).append(".");
+                    if (sb.length() > 0) {
+                        sb.append("\n\n");
                     }
-                    systemWithMemories = sb.toString();
+                    sb.append("User facts and memories for reference:\n");
+                    for (String memory : pinnedMemories) {
+                        sb.append("- ").append(memory).append("\n");
+                    }
+                    systemWithMemories = sb.toString().trim();
                 }
 
                 Log.d(TAG_CHAT, "Sending " + roles.size() + " messages to native | system: " + systemWithMemories);
