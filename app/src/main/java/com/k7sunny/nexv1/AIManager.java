@@ -21,9 +21,7 @@ public class AIManager {
     private boolean isModelLoaded = false;
     private final java.util.List<Message> chatHistory = new java.util.ArrayList<>();
     private static final int MAX_HISTORY = 12; // Keep last 6 rounds of chat
-    private String systemPrompt =
-        "Identity: Nex. Creator: Sunny (a human developer). Rules: 1. Always identify as Nex. " +
-        "2. Say 'Sunny created me' if asked about origin. 3. Keep replies brief, under two sentences.";
+    private String systemPrompt = "";
     private final java.util.List<String> pinnedMemories = new java.util.ArrayList<>();
     private int maxTokens = 256;
     private float temperature = 0.7f;

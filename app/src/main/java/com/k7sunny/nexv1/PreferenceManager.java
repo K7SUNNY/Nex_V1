@@ -13,6 +13,11 @@ public class PreferenceManager {
         "You help with programming, writing, and analytical tasks.\n" +
         "Keep responses concise and accurate.";
 
+    private static final String DEFAULT_PERSONA_ULTRA = 
+        "You are Nex, a highly advanced offline AI assistant created by Sunny.\n" +
+        "You think deeply, formulate structured plans, write robust code, and analyze complex logical queries.\n" +
+        "Format your output beautifully and keep it accurate.";
+
     private final SharedPreferences prefs;
 
     public PreferenceManager(Context context) {
@@ -27,40 +32,34 @@ public class PreferenceManager {
         prefs.edit().putString("selected_model", model).apply();
     }
 
-    public void setSystemPersona(String persona) {
-        boolean isPro = "pro".equals(getSelectedModel());
-        if (isPro) {
-            prefs.edit().putString(KEY_SYSTEM_PERSONA + "_pro", persona).apply();
+    private String getDefaultPersonaForModel(String model) {
+        if ("pro".equals(model)) {
+            return DEFAULT_PERSONA_PRO;
+        } else if ("ultra".equals(model)) {
+            return DEFAULT_PERSONA_ULTRA;
         } else {
-            prefs.edit().putString(KEY_SYSTEM_PERSONA + "_fast", persona).apply();
+            return DEFAULT_PERSONA_FAST;
         }
+    }
+
+    public void setSystemPersona(String persona) {
+        String model = getSelectedModel();
+        prefs.edit().putString(KEY_SYSTEM_PERSONA + "_" + model, persona).apply();
     }
 
     public void resetSystemPersona() {
-        boolean isPro = "pro".equals(getSelectedModel());
-        if (isPro) {
-            prefs.edit().remove(KEY_SYSTEM_PERSONA + "_pro").apply();
-        } else {
-            prefs.edit().remove(KEY_SYSTEM_PERSONA + "_fast").apply();
-        }
+        String model = getSelectedModel();
+        prefs.edit().remove(KEY_SYSTEM_PERSONA + "_" + model).apply();
     }
 
     public boolean isCustomPersonaSet() {
-        boolean isPro = "pro".equals(getSelectedModel());
-        if (isPro) {
-            return prefs.contains(KEY_SYSTEM_PERSONA + "_pro");
-        } else {
-            return prefs.contains(KEY_SYSTEM_PERSONA + "_fast");
-        }
+        String model = getSelectedModel();
+        return prefs.contains(KEY_SYSTEM_PERSONA + "_" + model);
     }
 
     public String getSystemPersona() {
-        boolean isPro = "pro".equals(getSelectedModel());
-        if (isPro) {
-            return prefs.getString(KEY_SYSTEM_PERSONA + "_pro", DEFAULT_PERSONA_PRO);
-        } else {
-            return prefs.getString(KEY_SYSTEM_PERSONA + "_fast", DEFAULT_PERSONA_FAST);
-        }
+        String model = getSelectedModel();
+        return prefs.getString(KEY_SYSTEM_PERSONA + "_" + model, getDefaultPersonaForModel(model));
     }
 
     public int getMaxTokens() {

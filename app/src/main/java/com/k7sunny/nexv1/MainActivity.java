@@ -253,10 +253,13 @@ public class MainActivity extends AppCompatActivity {
 
         MaterialButton modelSelector = findViewById(R.id.modelSelector);
         if (modelSelector != null) {
-            boolean isPro = "pro".equals(preferenceManager.getSelectedModel());
-            if (isPro) {
+            String model = preferenceManager.getSelectedModel();
+            if ("pro".equals(model)) {
                 modelSelector.setText("Nex Pro");
                 modelSelector.setIconResource(R.drawable.app_icon);
+            } else if ("ultra".equals(model)) {
+                modelSelector.setText("Nex Ultra");
+                modelSelector.setIconResource(R.drawable.ic_persona);
             } else {
                 modelSelector.setText(R.string.nex_fast);
                 modelSelector.setIconResource(R.drawable.ic_bolt);
@@ -423,7 +426,10 @@ public class MainActivity extends AppCompatActivity {
             downloadProgress.setVisibility(View.GONE);
             btnDownloadModel.setEnabled(true);
             btnDownloadModel.setText("Download Model");
-            downloadStatusText.setText("Download the core AI engine (~400MB) to start chatting offline.");
+            
+            String modelKey = preferenceManager.getSelectedModel();
+            String sizeStr = "fast".equals(modelKey) ? "~400MB" : ("pro".equals(modelKey) ? "~1.1GB" : "~2.0GB");
+            downloadStatusText.setText("Download the core AI engine (" + sizeStr + ") to start chatting offline.");
         }
     }
 
@@ -494,16 +500,21 @@ public class MainActivity extends AppCompatActivity {
 
         MaterialCardView cardFast = view.findViewById(R.id.card_nex_fast);
         MaterialCardView cardPro = view.findViewById(R.id.card_nex_pro);
+        MaterialCardView cardUltra = view.findViewById(R.id.card_nex_ultra);
         View checkFast = view.findViewById(R.id.check_fast);
         View checkPro = view.findViewById(R.id.check_pro);
+        View checkUltra = view.findViewById(R.id.check_ultra);
 
         MaterialButton modelSelector = findViewById(R.id.modelSelector);
-        boolean isProSelected = "pro".equals(preferenceManager.getSelectedModel());
+        String currentModel = preferenceManager.getSelectedModel();
 
-        checkFast.setVisibility(isProSelected ? View.GONE : View.VISIBLE);
-        checkPro.setVisibility(isProSelected ? View.VISIBLE : View.GONE);
-        cardFast.setStrokeColor(isProSelected ? 0x1AFFFFFF : 0xFF007AFF);
-        cardPro.setStrokeColor(isProSelected ? 0xFF007AFF : 0x1AFFFFFF);
+        checkFast.setVisibility("fast".equals(currentModel) ? View.VISIBLE : View.GONE);
+        checkPro.setVisibility("pro".equals(currentModel) ? View.VISIBLE : View.GONE);
+        checkUltra.setVisibility("ultra".equals(currentModel) ? View.VISIBLE : View.GONE);
+
+        cardFast.setStrokeColor("fast".equals(currentModel) ? 0xFF007AFF : 0x1AFFFFFF);
+        cardPro.setStrokeColor("pro".equals(currentModel) ? 0xFF007AFF : 0x1AFFFFFF);
+        cardUltra.setStrokeColor("ultra".equals(currentModel) ? 0xFF007AFF : 0x1AFFFFFF);
 
         cardFast.setOnClickListener(v -> {
             modelSelector.setText(R.string.nex_fast);
@@ -512,6 +523,7 @@ public class MainActivity extends AppCompatActivity {
             if (aiManager != null) {
                 aiManager.setSystemPrompt(preferenceManager.getSystemPersona());
             }
+            checkModelStatus();
             dialog.dismiss();
         });
 
@@ -522,6 +534,18 @@ public class MainActivity extends AppCompatActivity {
             if (aiManager != null) {
                 aiManager.setSystemPrompt(preferenceManager.getSystemPersona());
             }
+            checkModelStatus();
+            dialog.dismiss();
+        });
+
+        cardUltra.setOnClickListener(v -> {
+            modelSelector.setText("Nex Ultra");
+            modelSelector.setIconResource(R.drawable.ic_persona);
+            preferenceManager.setSelectedModel("ultra");
+            if (aiManager != null) {
+                aiManager.setSystemPrompt(preferenceManager.getSystemPersona());
+            }
+            checkModelStatus();
             dialog.dismiss();
         });
 

@@ -10,15 +10,58 @@ import java.security.MessageDigest;
 
 public class ModelManager {
 
-    private static final String MODEL_NAME = "qwen2.5-0.5b-instruct.gguf";
-    private static final String DOWNLOAD_URL =
-            "https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/qwen2.5-0.5b-instruct-q4_k_m.gguf?download=true";
-    private static final String EXPECTED_SHA256 = "74a4da8c9fdbcd15bd1f6d01d621410d31c6fc00986f5eb687824e7b93d7a9db";
+    public static final String MODEL_FAST = "fast";
+    public static final String MODEL_PRO = "pro";
+    public static final String MODEL_ULTRA = "ultra";
 
     private final Context context;
 
     public ModelManager(Context context) {
         this.context = context.getApplicationContext();
+    }
+
+    private String getCurrentModelKey() {
+        return new PreferenceManager(context).getSelectedModel();
+    }
+
+    private String getModelFileName(String modelKey) {
+        if (MODEL_PRO.equals(modelKey)) {
+            return "qwen2.5-1.5b-instruct-q4_k_m.gguf";
+        } else if (MODEL_ULTRA.equals(modelKey)) {
+            return "llama-3.2-3b-instruct-q4_k_m.gguf";
+        } else {
+            return "qwen2.5-0.5b-instruct.gguf";
+        }
+    }
+
+    private String getModelUrl(String modelKey) {
+        if (MODEL_PRO.equals(modelKey)) {
+            return "https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF/resolve/main/qwen2.5-1.5b-instruct-q4_k_m.gguf?download=true";
+        } else if (MODEL_ULTRA.equals(modelKey)) {
+            return "https://huggingface.co/bartowski/Llama-3.2-3B-Instruct-GGUF/resolve/main/Llama-3.2-3B-Instruct-Q4_K_M.gguf?download=true";
+        } else {
+            return "https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/qwen2.5-0.5b-instruct-q4_k_m.gguf?download=true";
+        }
+    }
+
+    private String getModelExpectedHash(String modelKey) {
+        if (MODEL_PRO.equals(modelKey)) {
+            return "6a1a2eb6d15622bf3c96857206351ba97e1af16c30d7a74ee38970e434e9407e";
+        } else if (MODEL_ULTRA.equals(modelKey)) {
+            return "6c1a2b41161032677be168d354123594c0e6e67d2b9227c84f296ad037c728ff";
+        } else {
+            return "74a4da8c9fdbcd15bd1f6d01d621410d31c6fc00986f5eb687824e7b93d7a9db";
+        }
+    }
+
+    private long getExpectedMinSize(String modelKey) {
+        if (MODEL_PRO.equals(modelKey)) {
+            return 900L * 1024L * 1024L; // ~900 MB
+        } else if (MODEL_ULTRA.equals(modelKey)) {
+            return 1700L * 1024L * 1024L; // ~1.7 GB
+        } else {
+            return 300L * 1024L * 1024L; // ~300 MB
+        }
     }
 
     // Keep the model in one stable app-specific directory.
@@ -31,7 +74,7 @@ public class ModelManager {
     }
 
     private File getModelFile() {
-        return new File(getModelDirectory(), MODEL_NAME);
+        return new File(getModelDirectory(), getModelFileName(getCurrentModelKey()));
     }
 
     public boolean isModelDownloaded() {
@@ -44,9 +87,11 @@ public class ModelManager {
 
     public long downloadModel() {
         File modelFile = getModelFile();
+        String modelKey = getCurrentModelKey();
+        String url = getModelUrl(modelKey);
 
-        DownloadManager.Request request = new DownloadManager.Request(Uri.parse(DOWNLOAD_URL))
-                .setTitle("Downloading Nex AI Model")
+        DownloadManager.Request request = new DownloadManager.Request(Uri.parse(url))
+                .setTitle("Downloading Nex AI Model (" + modelKey.toUpperCase() + ")")
                 .setDescription("Preparing your personal AI workspace...")
                 .setDestinationUri(Uri.fromFile(modelFile))
                 .setAllowedOverMetered(true)
@@ -72,16 +117,18 @@ public class ModelManager {
 
     public boolean isModelFilePresentWithCorrectSize() {
         File file = getModelFile();
-        return file != null && file.exists() && file.length() > 300L * 1024L * 1024L;
+        String modelKey = getCurrentModelKey();
+        return file != null && file.exists() && file.length() > getExpectedMinSize(modelKey);
     }
 
     public boolean isModelVerified() {
         File file = getModelFile();
         if (!isModelFilePresentWithCorrectSize()) return false;
 
+        String modelName = getModelFileName(getCurrentModelKey());
         android.content.SharedPreferences prefs = context.getSharedPreferences("model_prefs", Context.MODE_PRIVATE);
-        boolean verified = prefs.getBoolean("verified_" + MODEL_NAME, false);
-        long verifiedSize = prefs.getLong("verified_size_" + MODEL_NAME, -1);
+        boolean verified = prefs.getBoolean("verified_" + modelName, false);
+        long verifiedSize = prefs.getLong("verified_size_" + modelName, -1);
 
         return verified && verifiedSize == file.length();
     }
@@ -90,13 +137,16 @@ public class ModelManager {
         File file = getModelFile();
         if (!isModelFilePresentWithCorrectSize()) return false;
 
+        String modelKey = getCurrentModelKey();
+        String expectedHash = getModelExpectedHash(modelKey);
         String calculated = calculateSHA256(file);
-        boolean isValid = EXPECTED_SHA256.equalsIgnoreCase(calculated);
+        boolean isValid = expectedHash.equalsIgnoreCase(calculated);
         if (isValid) {
+            String modelName = getModelFileName(modelKey);
             context.getSharedPreferences("model_prefs", Context.MODE_PRIVATE)
                     .edit()
-                    .putBoolean("verified_" + MODEL_NAME, true)
-                    .putLong("verified_size_" + MODEL_NAME, file.length())
+                    .putBoolean("verified_" + modelName, true)
+                    .putLong("verified_size_" + modelName, file.length())
                     .apply();
         }
         return isValid;
