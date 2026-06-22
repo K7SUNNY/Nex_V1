@@ -221,7 +221,7 @@ Java_com_k7sunny_nexv1_AIManager_runInferenceNative(
             llama_batch_free(batch);
             return env->NewStringUTF("Error");
         }
-        LOG_INFER("Prompt decode took %lld ms", (ggml_time_us() - start_eval) / 1000);
+        LOG_INFER("Prompt decode took %lld ms", (long long)((ggml_time_us() - start_eval) / 1000));
         llama_batch_free(batch);
     }
 

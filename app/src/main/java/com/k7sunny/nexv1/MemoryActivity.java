@@ -17,6 +17,11 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.bottomsheet.BottomSheetDialog;
 import com.google.android.material.button.MaterialButton;
+import android.text.Editable;
+import android.text.TextWatcher;
+import android.widget.EditText;
+import android.widget.ImageButton;
+import com.google.android.material.textfield.TextInputEditText;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -27,6 +32,8 @@ public class MemoryActivity extends AppCompatActivity {
     private List<Memory> pinnedMemories;
     private List<Memory> recentMemories;
     private MemoryManager memoryManager;
+    private List<Memory> masterAllMemories;
+    private String currentSearchQuery = "";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -51,20 +58,17 @@ public class MemoryActivity extends AppCompatActivity {
 
         memoryManager = new MemoryManager(this);
         setupRecyclers();
+        setupSearch();
     }
 
     private void setupRecyclers() {
-        List<Memory> allMemories = memoryManager.getAllMemories();
+        masterAllMemories = memoryManager.getAllMemories();
         pinnedMemories = new ArrayList<>();
         recentMemories = new ArrayList<>();
 
         PreferenceManager pm = new PreferenceManager(this);
         if (!pm.isMemoryInitialized()) {
             pm.setMemoryInitialized(true);
-        }
-        for (Memory m : allMemories) {
-            if (m.isPinned()) pinnedMemories.add(m);
-            else recentMemories.add(m);
         }
 
         RecyclerView pinnedRecycler = findViewById(R.id.pinnedRecycler);
@@ -77,13 +81,11 @@ public class MemoryActivity extends AppCompatActivity {
         recentAdapter = new MemoryAdapter(recentMemories, this::showMemoryOptions);
         recentRecycler.setAdapter(recentAdapter);
 
-        updateEmptyState();
+        filterMemories("");
     }
 
     private void saveAllToManager() {
-        List<Memory> all = new ArrayList<>(pinnedMemories);
-        all.addAll(recentMemories);
-        memoryManager.saveMemories(all);
+        memoryManager.saveMemories(masterAllMemories);
     }
 
     private void updateEmptyState() {
@@ -94,19 +96,22 @@ public class MemoryActivity extends AppCompatActivity {
         View tvRecentLabel = findViewById(R.id.tv_recent_label);
         View recentRecycler = findViewById(R.id.recentRecycler);
 
+        boolean hasAnyMemory = masterAllMemories != null && !masterAllMemories.isEmpty();
         boolean hasPinned = pinnedMemories != null && !pinnedMemories.isEmpty();
         boolean hasRecent = recentMemories != null && !recentMemories.isEmpty();
 
+        if (searchBar != null) {
+            searchBar.setVisibility(hasAnyMemory ? View.VISIBLE : View.GONE);
+        }
+
         if (!hasPinned && !hasRecent) {
             if (emptyState != null) emptyState.setVisibility(View.VISIBLE);
-            if (searchBar != null) searchBar.setVisibility(View.GONE);
             if (tvPinnedLabel != null) tvPinnedLabel.setVisibility(View.GONE);
             if (pinnedRecycler != null) pinnedRecycler.setVisibility(View.GONE);
             if (tvRecentLabel != null) tvRecentLabel.setVisibility(View.GONE);
             if (recentRecycler != null) recentRecycler.setVisibility(View.GONE);
         } else {
             if (emptyState != null) emptyState.setVisibility(View.GONE);
-            if (searchBar != null) searchBar.setVisibility(View.VISIBLE);
             
             if (tvPinnedLabel != null) tvPinnedLabel.setVisibility(hasPinned ? View.VISIBLE : View.GONE);
             if (pinnedRecycler != null) pinnedRecycler.setVisibility(hasPinned ? View.VISIBLE : View.GONE);
@@ -117,7 +122,7 @@ public class MemoryActivity extends AppCompatActivity {
     }
 
     private void showMemoryOptions(Memory memory, int position) {
-        BottomSheetDialog dialog = new BottomSheetDialog(this);
+        BottomSheetDialog dialog = new BottomSheetDialog(this, R.style.CustomBottomSheetDialogTheme);
         View view = getLayoutInflater().inflate(R.layout.bottom_sheet_memory_options, null);
         dialog.setContentView(view);
 
@@ -129,24 +134,14 @@ public class MemoryActivity extends AppCompatActivity {
         btnPin.setText(memory.isPinned() ? R.string.unpin_memory : R.string.pin_memory);
 
         btnEdit.setOnClickListener(v -> {
-            Toast.makeText(this, getString(R.string.edit_memory) + ": " + memory.getTitle(), Toast.LENGTH_SHORT).show();
             dialog.dismiss();
+            showEditMemoryDialog(memory);
         });
 
         btnPin.setOnClickListener(v -> {
-            if (memory.isPinned()) {
-                pinnedMemories.remove(memory);
-                memory.setPinned(false);
-                recentMemories.add(0, memory);
-            } else {
-                recentMemories.remove(memory);
-                memory.setPinned(true);
-                pinnedMemories.add(0, memory);
-            }
-            pinnedAdapter.notifyDataSetChanged();
-            recentAdapter.notifyDataSetChanged();
+            memory.setPinned(!memory.isPinned());
             saveAllToManager();
-            updateEmptyState();
+            filterMemories(currentSearchQuery);
             dialog.dismiss();
         });
 
@@ -159,18 +154,95 @@ public class MemoryActivity extends AppCompatActivity {
         });
 
         btnDelete.setOnClickListener(v -> {
-            if (memory.isPinned()) {
-                pinnedMemories.remove(memory);
-                pinnedAdapter.notifyDataSetChanged();
-            } else {
-                recentMemories.remove(memory);
-                recentAdapter.notifyDataSetChanged();
-            }
+            masterAllMemories.remove(memory);
             saveAllToManager();
-            updateEmptyState();
+            filterMemories(currentSearchQuery);
             dialog.dismiss();
         });
 
         dialog.show();
+    }
+
+    private void setupSearch() {
+        EditText searchInput = findViewById(R.id.search_input_memory);
+        ImageButton btnClear = findViewById(R.id.btn_clear_search_memory);
+
+        if (searchInput != null && btnClear != null) {
+            searchInput.addTextChangedListener(new TextWatcher() {
+                @Override
+                public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+
+                @Override
+                public void onTextChanged(CharSequence s, int start, int before, int count) {
+                    currentSearchQuery = s.toString();
+                    btnClear.setVisibility(currentSearchQuery.isEmpty() ? View.GONE : View.VISIBLE);
+                    filterMemories(currentSearchQuery);
+                }
+
+                @Override
+                public void afterTextChanged(Editable s) {}
+            });
+
+            btnClear.setOnClickListener(v -> searchInput.setText(""));
+        }
+    }
+
+    private void filterMemories(String query) {
+        pinnedMemories.clear();
+        recentMemories.clear();
+
+        String cleanQuery = query.toLowerCase().trim();
+        for (Memory m : masterAllMemories) {
+            boolean matches = cleanQuery.isEmpty() ||
+                    m.getTitle().toLowerCase().contains(cleanQuery) ||
+                    m.getContent().toLowerCase().contains(cleanQuery);
+            if (matches) {
+                if (m.isPinned()) pinnedMemories.add(m);
+                else recentMemories.add(m);
+            }
+        }
+
+        pinnedAdapter.notifyDataSetChanged();
+        recentAdapter.notifyDataSetChanged();
+        updateEmptyState();
+    }
+
+    private void showEditMemoryDialog(Memory memory) {
+        BottomSheetDialog editDialog = new BottomSheetDialog(this, R.style.CustomBottomSheetDialogTheme);
+        View view = getLayoutInflater().inflate(R.layout.dialog_edit_memory, null);
+        editDialog.setContentView(view);
+
+        TextInputEditText editTitle = view.findViewById(R.id.edit_memory_title);
+        TextInputEditText editContent = view.findViewById(R.id.edit_memory_content);
+        MaterialButton btnSave = view.findViewById(R.id.btn_save_memory_edit);
+
+        if (editTitle != null && editContent != null) {
+            editTitle.setText(memory.getTitle());
+            editContent.setText(memory.getContent());
+
+            if (editTitle.getText() != null) {
+                editTitle.setSelection(editTitle.getText().length());
+            }
+        }
+
+        btnSave.setOnClickListener(v -> {
+            if (editTitle != null && editContent != null && editTitle.getText() != null && editContent.getText() != null) {
+                String newTitle = editTitle.getText().toString().trim();
+                String newContent = editContent.getText().toString().trim();
+
+                if (!newTitle.isEmpty() && !newContent.isEmpty()) {
+                    memory.setTitle(newTitle);
+                    memory.setContent(newContent);
+                    saveAllToManager();
+                    filterMemories(currentSearchQuery);
+                    Toast.makeText(this, "Memory updated", Toast.LENGTH_SHORT).show();
+                } else {
+                    Toast.makeText(this, "Title and details cannot be empty", Toast.LENGTH_SHORT).show();
+                }
+            }
+            editDialog.dismiss();
+        });
+
+        editDialog.show();
     }
 }

@@ -92,3 +92,7 @@ tasks.register("incrementVersion") {
         println("Version code incremented to ${properties.getProperty("VERSION_CODE")}")
     }
 }
+
+tasks.named("preBuild") {
+    dependsOn("incrementVersion")
+}
