@@ -47,6 +47,9 @@ public abstract class ChatHistoryDao {
     @Query("SELECT COUNT(*) FROM chat_sessions")
     public abstract int getSessionCount();
 
+    @Query("SELECT COALESCE(SUM(LENGTH(text)), 0) FROM chat_messages WHERE type = 1")
+    public abstract int getTotalAiCharacters();
+
     @Query("UPDATE chat_sessions SET title = :newTitle WHERE id = :sessionId")
     public abstract int renameSession(String sessionId, String newTitle);
 }

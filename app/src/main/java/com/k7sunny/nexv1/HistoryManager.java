@@ -120,4 +120,12 @@ public class HistoryManager {
     public void renameSession(String sessionId, String newTitle) {
         chatHistoryDao.renameSession(sessionId, newTitle);
     }
+
+    public int getSessionCount() {
+        return chatHistoryDao.getSessionCount();
+    }
+
+    public int getTotalAiCharacters() {
+        return chatHistoryDao.getTotalAiCharacters();
+    }
 }

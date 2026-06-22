@@ -155,11 +155,12 @@
                             android:textColor="@android:color/white"
                             android:textSize="16sp" />
                         <TextView
+                            android:id="@+id/tv_total_conversations_val"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_alignParentEnd="true"
                             android:layout_centerVertical="true"
-                            android:text="128"
+                            android:text="-"
                             android:textColor="#007AFF"
                             android:textStyle="bold" />
                     </RelativeLayout>
@@ -178,11 +179,12 @@
                             android:textColor="@android:color/white"
                             android:textSize="16sp" />
                         <TextView
+                            android:id="@+id/tv_tokens_generated_val"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_alignParentEnd="true"
                             android:layout_centerVertical="true"
-                            android:text="42.5k"
+                            android:text="-"
                             android:textColor="#007AFF"
                             android:textStyle="bold" />
                     </RelativeLayout>

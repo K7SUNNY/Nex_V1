@@ -2,6 +2,7 @@ package com.k7sunny.nexv1;
 
 import android.os.Bundle;
 import android.view.View;
+import android.widget.TextView;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
@@ -31,5 +32,38 @@ public class AccountActivity extends AppCompatActivity {
 
         MaterialToolbar toolbar = findViewById(R.id.toolbar);
         toolbar.setNavigationOnClickListener(v -> finish());
+
+        loadStatistics();
+    }
+
+    private void loadStatistics() {
+        TextView tvTotalConversations = findViewById(R.id.tv_total_conversations_val);
+        TextView tvTokensGenerated = findViewById(R.id.tv_tokens_generated_val);
+
+        new Thread(() -> {
+            HistoryManager hm = new HistoryManager(this);
+            int sessionCount = hm.getSessionCount();
+            int charCount = hm.getTotalAiCharacters();
+
+            int estTokens = (int) Math.ceil(charCount / 3.8);
+            String tokensStr;
+            if (estTokens >= 1000000) {
+                tokensStr = String.format(java.util.Locale.US, "%.1fM", estTokens / 1000000.0);
+            } else if (estTokens >= 1000) {
+                tokensStr = String.format(java.util.Locale.US, "%.1fk", estTokens / 1000.0);
+            } else {
+                tokensStr = String.valueOf(estTokens);
+            }
+
+            runOnUiThread(() -> {
+                if (isFinishing() || isDestroyed()) return;
+                if (tvTotalConversations != null) {
+                    tvTotalConversations.setText(String.valueOf(sessionCount));
+                }
+                if (tvTokensGenerated != null) {
+                    tvTokensGenerated.setText(tokensStr);
+                }
+            });
+        }).start();
     }
 }
