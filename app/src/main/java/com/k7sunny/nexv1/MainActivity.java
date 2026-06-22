@@ -253,6 +253,14 @@ public class MainActivity extends AppCompatActivity {
 
         MaterialButton modelSelector = findViewById(R.id.modelSelector);
         if (modelSelector != null) {
+            boolean isPro = "pro".equals(preferenceManager.getSelectedModel());
+            if (isPro) {
+                modelSelector.setText("Nex Pro");
+                modelSelector.setIconResource(R.drawable.app_icon);
+            } else {
+                modelSelector.setText(R.string.nex_fast);
+                modelSelector.setIconResource(R.drawable.ic_bolt);
+            }
             modelSelector.setOnClickListener(v -> showModelSelection());
         }
 
@@ -490,23 +498,30 @@ public class MainActivity extends AppCompatActivity {
         View checkPro = view.findViewById(R.id.check_pro);
 
         MaterialButton modelSelector = findViewById(R.id.modelSelector);
-        String currentModel = modelSelector.getText().toString();
-        boolean isPro = currentModel.equals("Nex Pro");
+        boolean isProSelected = "pro".equals(preferenceManager.getSelectedModel());
 
-        checkFast.setVisibility(isPro ? View.GONE : View.VISIBLE);
-        checkPro.setVisibility(isPro ? View.VISIBLE : View.GONE);
-        cardFast.setStrokeColor(isPro ? 0x1AFFFFFF : 0xFF007AFF);
-        cardPro.setStrokeColor(isPro ? 0xFF007AFF : 0x1AFFFFFF);
+        checkFast.setVisibility(isProSelected ? View.GONE : View.VISIBLE);
+        checkPro.setVisibility(isProSelected ? View.VISIBLE : View.GONE);
+        cardFast.setStrokeColor(isProSelected ? 0x1AFFFFFF : 0xFF007AFF);
+        cardPro.setStrokeColor(isProSelected ? 0xFF007AFF : 0x1AFFFFFF);
 
         cardFast.setOnClickListener(v -> {
             modelSelector.setText(R.string.nex_fast);
             modelSelector.setIconResource(R.drawable.ic_bolt);
+            preferenceManager.setSelectedModel("fast");
+            if (aiManager != null) {
+                aiManager.setSystemPrompt(preferenceManager.getSystemPersona());
+            }
             dialog.dismiss();
         });
 
         cardPro.setOnClickListener(v -> {
             modelSelector.setText("Nex Pro");
             modelSelector.setIconResource(R.drawable.app_icon);
+            preferenceManager.setSelectedModel("pro");
+            if (aiManager != null) {
+                aiManager.setSystemPrompt(preferenceManager.getSystemPersona());
+            }
             dialog.dismiss();
         });
 

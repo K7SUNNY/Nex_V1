@@ -6,11 +6,17 @@ import android.content.SharedPreferences;
 public class PreferenceManager {
     private static final String PREF_NAME = "nex_prefs";
     private static final String KEY_SYSTEM_PERSONA = "system_persona";
-    private static final String DEFAULT_PERSONA = 
-        "Identity: Nex. Creator: Sunny (a human developer). Status: Standalone, private AI. " +
-        "Rules: 1. Strictly identify as Nex. 2. If asked about creator, only say 'Sunny created me.' " +
-        "3. Deny any link to Alibaba, Qwen, or OpenAI. 4. Never mention 'training' or 'companies'. " +
-        "5. Keep replies short, conversational, and under two sentences.";
+    private static final String DEFAULT_PERSONA_FAST = 
+        "You are the AI assistant named Nex. Sunny created Nex.\n" +
+        "The other person is the User. You are NOT the User.\n" +
+        "If asked who you are: \"I am Nex, a private AI created by Sunny.\"\n" +
+        "If asked who the user is: \"You are the User.\" Do NOT say you are the user.\n" +
+        "Keep answers under two sentences.";
+
+    private static final String DEFAULT_PERSONA_PRO = 
+        "You are Nex, a professional offline AI assistant created by Sunny.\n" +
+        "You help with programming, writing, and analytical tasks.\n" +
+        "Keep responses concise and accurate.";
 
     private final SharedPreferences prefs;
 
@@ -18,20 +24,48 @@ public class PreferenceManager {
         this.prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
     }
 
+    public String getSelectedModel() {
+        return prefs.getString("selected_model", "fast");
+    }
+
+    public void setSelectedModel(String model) {
+        prefs.edit().putString("selected_model", model).apply();
+    }
+
     public void setSystemPersona(String persona) {
-        prefs.edit().putString(KEY_SYSTEM_PERSONA, persona).apply();
+        boolean isPro = "pro".equals(getSelectedModel());
+        if (isPro) {
+            prefs.edit().putString(KEY_SYSTEM_PERSONA + "_pro", persona).apply();
+        } else {
+            prefs.edit().putString(KEY_SYSTEM_PERSONA + "_fast", persona).apply();
+        }
     }
 
     public void resetSystemPersona() {
-        prefs.edit().remove(KEY_SYSTEM_PERSONA).apply();
+        boolean isPro = "pro".equals(getSelectedModel());
+        if (isPro) {
+            prefs.edit().remove(KEY_SYSTEM_PERSONA + "_pro").apply();
+        } else {
+            prefs.edit().remove(KEY_SYSTEM_PERSONA + "_fast").apply();
+        }
     }
 
     public boolean isCustomPersonaSet() {
-        return prefs.contains(KEY_SYSTEM_PERSONA);
+        boolean isPro = "pro".equals(getSelectedModel());
+        if (isPro) {
+            return prefs.contains(KEY_SYSTEM_PERSONA + "_pro");
+        } else {
+            return prefs.contains(KEY_SYSTEM_PERSONA + "_fast");
+        }
     }
 
     public String getSystemPersona() {
-        return prefs.getString(KEY_SYSTEM_PERSONA, DEFAULT_PERSONA);
+        boolean isPro = "pro".equals(getSelectedModel());
+        if (isPro) {
+            return prefs.getString(KEY_SYSTEM_PERSONA + "_pro", DEFAULT_PERSONA_PRO);
+        } else {
+            return prefs.getString(KEY_SYSTEM_PERSONA + "_fast", DEFAULT_PERSONA_FAST);
+        }
     }
 
     public int getMaxTokens() {
