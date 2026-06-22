@@ -208,10 +208,12 @@ public class AIManager {
         executorService.execute(() -> {
             String memorySystemPrompt = 
                 "You are a memory processor. Analyze the conversation exchange.\n" +
-                "If the user shares personal details, preferences, interests, or facts about themselves, extract a single memory in the format: \"Category | User [fact/preference]\"\n" +
+                "If the user shares personal details, preferences, interests, or facts about themselves, extract a single memory in the format: \"[Topic] | User [fact/preference]\"\n" +
+                "Replace [Topic] with a short category (e.g. Coding Style, Name, Hobbies, Location, Pets, Preference, etc.).\n" +
                 "Example: \"Coding Style | User prefers Kotlin over Java.\"\n" +
                 "Example: \"Pets | User has a dog named Rex.\"\n" +
-                "If there are no personal details to remember, output ONLY \"NONE\". Output no other text, explanation, or punctuation.";
+                "The memory MUST be about the USER, not about the assistant, and it MUST start with \"User \".\n" +
+                "If there are no personal details about the user to remember, output ONLY \"NONE\". Do not extract general questions, AI responses, or conversational filler.";
             String[] roles = new String[]{"user", "assistant"};
             String[] contents = new String[]{userPrompt, aiResponse};
 

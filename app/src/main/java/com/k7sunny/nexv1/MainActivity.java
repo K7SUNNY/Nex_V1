@@ -55,6 +55,7 @@ public class MainActivity extends AppCompatActivity {
     private MemoryManager memoryManager;
     private PreferenceManager preferenceManager;
     private String currentSessionId;
+    private String currentSessionTitle = null;
     private boolean isGenerating = false;
     private View fabScrollToBottom;
 
@@ -554,6 +555,7 @@ public class MainActivity extends AppCompatActivity {
 
     private void loadSession(String sessionId) {
         currentSessionId = sessionId;
+        currentSessionTitle = historyManager.getSessionTitle(sessionId);
         messageList.clear();
         messageList.addAll(historyManager.getMessages(sessionId));
         chatAdapter.notifyDataSetChanged();
@@ -582,6 +584,7 @@ public class MainActivity extends AppCompatActivity {
         }
         recyclerView.setVisibility(View.GONE);
         currentSessionId = String.valueOf(System.currentTimeMillis());
+        currentSessionTitle = null;
         isUserScrolledUp = false;
         if (fabScrollToBottom != null) {
             fabScrollToBottom.setVisibility(View.GONE);
@@ -589,6 +592,20 @@ public class MainActivity extends AppCompatActivity {
         // Also clear AI history
         aiManager.clearHistory();
         updateTokenCount("");
+    }
+
+    private String getActiveSessionTitle() {
+        if (currentSessionTitle != null && !currentSessionTitle.isEmpty()) {
+            return currentSessionTitle;
+        }
+        String defaultTitle = "";
+        if (!messageList.isEmpty()) {
+            defaultTitle = messageList.get(0).getText();
+            if (defaultTitle.length() > 30) {
+                defaultTitle = defaultTitle.substring(0, 27) + "...";
+            }
+        }
+        return defaultTitle;
     }
 
     /** Resets the download card to idle/error state without hiding it. */
@@ -622,8 +639,7 @@ public class MainActivity extends AppCompatActivity {
         recyclerView.scrollToPosition(messageList.size() - 1);
 
         // Save session and messages
-        String title = messageList.get(0).getText();
-        if (title.length() > 30) title = title.substring(0, 27) + "...";
+        String title = getActiveSessionTitle();
         historyManager.saveSession(new ChatSession(currentSessionId, title, System.currentTimeMillis()), messageList);
 
         messageInput.setText("");
@@ -650,8 +666,7 @@ public class MainActivity extends AppCompatActivity {
                     smartScrollToBottom();
 
                     // Save history after AI response
-                    String title = messageList.get(0).getText();
-                    if (title.length() > 30) title = title.substring(0, 27) + "...";
+                    String title = getActiveSessionTitle();
                     historyManager.saveSession(new ChatSession(currentSessionId, title, System.currentTimeMillis()), messageList);
                     updateTokenCount("");
 
@@ -736,8 +751,7 @@ public class MainActivity extends AppCompatActivity {
                     smartScrollToBottom();
 
                     // Save history after AI response
-                    String title = messageList.get(0).getText();
-                    if (title.length() > 30) title = title.substring(0, 27) + "...";
+                    String title = getActiveSessionTitle();
                     historyManager.saveSession(new ChatSession(currentSessionId, title, System.currentTimeMillis()), messageList);
                     updateTokenCount("");
 
@@ -788,7 +802,7 @@ public class MainActivity extends AppCompatActivity {
                 String title = text.length() > 20 ? text.substring(0, 17) + "..." : text;
                 memories.add(new Memory(title, text.trim(), true));
                 memoryManager.saveMemories(memories);
-                aiManager.setMemories(memoryManager.getPinnedMemoryStrings());
+                aiManager.setMemories(memoryManager.getAllMemoryStrings());
                 runOnUiThread(() -> Toast.makeText(MainActivity.this, "Added to AI memory", Toast.LENGTH_SHORT).show());
             } else {
                 runOnUiThread(() -> Toast.makeText(MainActivity.this, "Already in memory", Toast.LENGTH_SHORT).show());
@@ -805,8 +819,7 @@ public class MainActivity extends AppCompatActivity {
             if (messageList.isEmpty()) {
                 startNewChat();
             } else {
-                String title = messageList.get(0).getText();
-                if (title.length() > 30) title = title.substring(0, 27) + "...";
+                String title = getActiveSessionTitle();
                 historyManager.saveSession(new ChatSession(currentSessionId, title, System.currentTimeMillis()), messageList);
                 aiManager.setHistory(messageList);
                 updateTokenCount("");
@@ -843,6 +856,7 @@ public class MainActivity extends AppCompatActivity {
 
                     if (!cleanTitle.isEmpty()) {
                         Log.d("NexUI", "Auto-generated title: " + cleanTitle);
+                        currentSessionTitle = cleanTitle;
                         // Save session with the new title
                         historyManager.saveSession(
                             new ChatSession(currentSessionId, cleanTitle, System.currentTimeMillis()),
@@ -891,7 +905,7 @@ public class MainActivity extends AppCompatActivity {
         super.onResume();
         if (aiManager != null) {
             if (memoryManager != null) {
-                aiManager.setMemories(memoryManager.getPinnedMemoryStrings());
+                aiManager.setMemories(memoryManager.getAllMemoryStrings());
             }
             if (preferenceManager != null) {
                 aiManager.setSystemPrompt(preferenceManager.getSystemPersona());
@@ -942,9 +956,9 @@ public class MainActivity extends AppCompatActivity {
             totalChars += preferenceManager.getSystemPersona().length();
         }
 
-        // 2. Pinned Memories Chars
+        // 2. Memories Chars
         if (memoryManager != null) {
-            java.util.List<String> memories = memoryManager.getPinnedMemoryStrings();
+            java.util.List<String> memories = memoryManager.getAllMemoryStrings();
             if (memories != null) {
                 for (String memory : memories) {
                     totalChars += memory.length() + 2;
@@ -991,27 +1005,54 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onMemoryExtracted(String title, String content) {
                 if (title != null && content != null) {
+                    String cleanTitle = title.trim();
+                    String cleanContent = content.trim();
+
+                    // Stricter filter guards for smaller models (Qwen 0.5B/1.5B):
+                    String titleLower = cleanTitle.toLowerCase();
+                    String contentLower = cleanContent.toLowerCase();
+
+                    // 1. Reject NONE/null placeholders
+                    if (titleLower.equals("none") || contentLower.equals("none") || 
+                        titleLower.contains("category") || titleLower.contains("topic")) {
+                        return;
+                    }
+
+                    // 2. Enforce that the extracted memory is about the User (must contain the word "user")
+                    if (!contentLower.contains("user")) {
+                        return;
+                    }
+
+                    // 3. Prevent direct duplicates of the prompt or response
+                    if (contentLower.contains(aiResponse.toLowerCase().trim()) || 
+                        aiResponse.toLowerCase().contains(contentLower) ||
+                        contentLower.contains(userPrompt.toLowerCase().trim())) {
+                        return;
+                    }
+
                     new Thread(() -> {
                         List<Memory> memories = memoryManager.getAllMemories();
                         boolean exists = false;
                         for (Memory m : memories) {
-                            if (m.getContent().equalsIgnoreCase(content.trim())) {
+                            if (m.getContent().equalsIgnoreCase(cleanContent)) {
                                 exists = true;
                                 break;
                             }
                         }
                         if (!exists) {
-                            Memory newMemory = new Memory(title, content.trim(), false);
+                            Memory newMemory = new Memory(cleanTitle, cleanContent, false);
                             memories.add(newMemory);
                             memoryManager.saveMemories(memories);
 
                             // Update message visual tag
-                            aiMsg.setMemoryTag("Memory: " + title);
+                            aiMsg.setMemoryTag("Memory: " + cleanTitle);
 
                             // Save history after updating tag to persist it
-                            String sessionTitle = messageList.get(0).getText();
-                            if (sessionTitle.length() > 30) sessionTitle = sessionTitle.substring(0, 27) + "...";
+                            String sessionTitle = getActiveSessionTitle();
                             historyManager.saveSession(new ChatSession(currentSessionId, sessionTitle, System.currentTimeMillis()), messageList);
+
+                            // Update AI manager memories context dynamically in memory
+                            aiManager.setMemories(memoryManager.getAllMemoryStrings());
 
                             runOnUiThread(() -> {
                                 chatAdapter.notifyItemChanged(msgIndex);

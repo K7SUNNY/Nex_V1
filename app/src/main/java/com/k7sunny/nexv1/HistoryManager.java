@@ -121,6 +121,10 @@ public class HistoryManager {
         chatHistoryDao.renameSession(sessionId, newTitle);
     }
 
+    public String getSessionTitle(String sessionId) {
+        return chatHistoryDao.getSessionTitle(sessionId);
+    }
+
     public int getSessionCount() {
         return chatHistoryDao.getSessionCount();
     }

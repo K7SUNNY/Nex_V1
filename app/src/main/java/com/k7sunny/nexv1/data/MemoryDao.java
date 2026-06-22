@@ -27,6 +27,9 @@ public abstract class MemoryDao {
     @Query("SELECT content FROM memories WHERE is_pinned = 1 ORDER BY position ASC, id ASC")
     public abstract List<String> getPinnedMemoryStrings();
 
+    @Query("SELECT content FROM memories ORDER BY is_pinned DESC, position ASC, id ASC")
+    public abstract List<String> getAllMemoryStrings();
+
     @Query("SELECT COUNT(*) FROM memories")
     public abstract int getMemoryCount();
 }

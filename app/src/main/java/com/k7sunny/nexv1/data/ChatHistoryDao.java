@@ -50,6 +50,9 @@ public abstract class ChatHistoryDao {
     @Query("SELECT COALESCE(SUM(LENGTH(text)), 0) FROM chat_messages WHERE type = 1")
     public abstract int getTotalAiCharacters();
 
+    @Query("SELECT title FROM chat_sessions WHERE id = :sessionId")
+    public abstract String getSessionTitle(String sessionId);
+
     @Query("UPDATE chat_sessions SET title = :newTitle WHERE id = :sessionId")
     public abstract int renameSession(String sessionId, String newTitle);
 }

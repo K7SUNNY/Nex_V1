@@ -82,4 +82,8 @@ public class MemoryManager {
     public List<String> getPinnedMemoryStrings() {
         return memoryDao.getPinnedMemoryStrings();
     }
+
+    public List<String> getAllMemoryStrings() {
+        return memoryDao.getAllMemoryStrings();
+    }
 }
