@@ -188,3 +188,5 @@ Sunny - Creator of Nex AI
 ## Inspiration
 
 Built as the next evolution after the Spark AI project, focusing on full offline capability and system-level control.
+
+*This app is almost complete*
