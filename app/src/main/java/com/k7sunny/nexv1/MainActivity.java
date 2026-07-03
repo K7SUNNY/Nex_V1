@@ -221,7 +221,7 @@ public class MainActivity extends AppCompatActivity {
             public void onScrollStateChanged(@NonNull RecyclerView rv, int newState) {
                 // Suppress programmatic scrolling while user is dragging or flinging
                 isUserTouching = (newState == RecyclerView.SCROLL_STATE_DRAGGING
-                               || newState == RecyclerView.SCROLL_STATE_SETTLING);
+                        || newState == RecyclerView.SCROLL_STATE_SETTLING);
             }
 
             @Override
@@ -441,7 +441,7 @@ public class MainActivity extends AppCompatActivity {
             downloadProgress.setVisibility(View.GONE);
             btnDownloadModel.setEnabled(true);
             btnDownloadModel.setText("Download Model");
-            
+
             String modelKey = preferenceManager.getSelectedModel();
             String sizeStr = "fast".equals(modelKey) ? "~400MB" : ("pro".equals(modelKey) ? "~1.1GB" : "~2.0GB");
             downloadStatusText.setText("Download the core AI engine (" + sizeStr + ") to start chatting offline.");
@@ -899,8 +899,8 @@ public class MainActivity extends AppCompatActivity {
                         String finalCleanTitle = cleanTitle;
                         dbExecutor.execute(() -> {
                             historyManager.saveSession(
-                                new ChatSession(currentSessionId, finalCleanTitle, System.currentTimeMillis()),
-                                copyListForDb
+                                    new ChatSession(currentSessionId, finalCleanTitle, System.currentTimeMillis()),
+                                    copyListForDb
                             );
                         });
                     }
@@ -1044,66 +1044,104 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    /**
+     * Fires background memory extraction after an AI turn completes, then
+     * persists any newly-extracted memory.
+     *
+     * FIX: previously this method mutated `messageList` / `aiMsg` and read
+     * `getActiveSessionTitle()` directly from the background `dbExecutor`
+     * thread, while every other part of the app treats `messageList` as
+     * UI-thread-owned. That's a data race (intermittent
+     * ConcurrentModificationException / corrupted adapter state), especially
+     * likely while a response is still streaming into the list. It also
+     * trusted a `msgIndex` captured before the async extraction round-trip,
+     * which can go stale (or out of bounds) if the user deletes a message,
+     * regenerates, or switches sessions before extraction finishes.
+     *
+     * Fix: keep all `messageList` reads/writes on the UI thread, only use
+     * `dbExecutor` for the actual Room DB calls, and re-locate the message by
+     * reference (`messageList.indexOf(aiMsg)`) instead of trusting the old
+     * index. Also guards against the session having changed underneath us.
+     */
     private void checkAndExtractMemory(String userPrompt, Message aiMsg, int msgIndex) {
         if (aiManager == null || memoryManager == null) return;
+
+        // Capture which session this response belongs to; if the user
+        // switches or deletes it before extraction finishes, we shouldn't
+        // write the result into whatever session happens to be active later.
+        final String sessionIdAtCallTime = currentSessionId;
 
         aiManager.extractMemory(new AIManager.MemoryCallback() {
             @Override
             public void onMemoryExtracted(String title, String content) {
-                if (title != null && content != null) {
-                    String cleanTitle = title.trim();
-                    String cleanContent = content.trim();
+                if (title == null || content == null) return;
 
-                    // Stricter filter guards for smaller models (Qwen 0.5B/1.5B):
-                    String titleLower = cleanTitle.toLowerCase();
-                    String contentLower = cleanContent.toLowerCase();
+                String cleanTitle = title.trim();
+                String cleanContent = content.trim();
 
-                    // 1. Reject NONE/null placeholders
-                    if (titleLower.equals("none") || contentLower.equals("none") || 
+                // Stricter filter guards for smaller models (Qwen 0.5B/1.5B):
+                String titleLower = cleanTitle.toLowerCase();
+                String contentLower = cleanContent.toLowerCase();
+
+                // 1. Reject NONE/null placeholders
+                if (titleLower.equals("none") || contentLower.equals("none") ||
                         titleLower.contains("category") || titleLower.contains("topic")) {
-                        return;
-                    }
+                    return;
+                }
 
-                    // 2. Enforce that the extracted memory is about the User (must contain the word "user")
-                    if (!contentLower.contains("user")) {
-                        return;
-                    }
+                // 2. Enforce that the extracted memory is about the User (must contain the word "user")
+                if (!contentLower.contains("user")) {
+                    return;
+                }
 
-                    dbExecutor.execute(() -> {
-                        List<Memory> memories = memoryManager.getAllMemories();
-                        boolean exists = false;
-                        for (Memory m : memories) {
-                            if (m.getContent().equalsIgnoreCase(cleanContent)) {
-                                exists = true;
-                                break;
-                            }
+                dbExecutor.execute(() -> {
+                    List<Memory> memories = memoryManager.getAllMemories();
+                    boolean exists = false;
+                    for (Memory m : memories) {
+                        if (m.getContent().equalsIgnoreCase(cleanContent)) {
+                            exists = true;
+                            break;
                         }
-                        if (!exists) {
-                            Memory newMemory = new Memory(cleanTitle, cleanContent, false);
-                            memories.add(newMemory);
-                            memoryManager.saveMemories(memories);
+                    }
+                    if (exists) return;
 
-                            // Update message visual tag
+                    Memory newMemory = new Memory(cleanTitle, cleanContent, false);
+                    memories.add(newMemory);
+                    memoryManager.saveMemories(memories);
+
+                    // Update AI manager memories context dynamically in memory
+                    List<String> memoryStrings = memoryManager.getAllMemoryStrings();
+
+                    runOnUiThread(() -> {
+                        cachedMemories.clear();
+                        cachedMemories.addAll(memoryStrings);
+                        aiManager.setMemories(memoryStrings);
+                        updateTokenCount("");
+
+                        // Re-locate the message by reference instead of trusting
+                        // msgIndex, which may be stale by now (list can have
+                        // shifted due to deletion, regeneration, or a session
+                        // switch while extraction was running).
+                        int freshIndex = messageList.indexOf(aiMsg);
+                        boolean stillSameSession = sessionIdAtCallTime.equals(currentSessionId);
+
+                        if (freshIndex != -1 && stillSameSession) {
+                            // Update message visual tag (now safely on the UI thread)
                             aiMsg.setMemoryTag("Memory: " + cleanTitle);
+                            chatAdapter.notifyItemChanged(freshIndex);
 
-                            // Save history after updating tag to persist it (off-thread with list copy)
+                            // Save history after updating tag to persist it
                             String sessionTitle = getActiveSessionTitle();
                             List<Message> copyListForDb = new ArrayList<>(messageList);
-                            historyManager.saveSession(new ChatSession(currentSessionId, sessionTitle, System.currentTimeMillis()), copyListForDb);
-
-                            // Update AI manager memories context dynamically in memory
-                            List<String> memoryStrings = memoryManager.getAllMemoryStrings();
-
-                            runOnUiThread(() -> {
-                                cachedMemories.clear();
-                                cachedMemories.addAll(memoryStrings);
-                                aiManager.setMemories(memoryStrings);
-                                updateTokenCount("");
-                                chatAdapter.notifyItemChanged(msgIndex);
-                            });
+                            dbExecutor.execute(() -> historyManager.saveSession(
+                                    new ChatSession(sessionIdAtCallTime, sessionTitle, System.currentTimeMillis()),
+                                    copyListForDb));
                         }
+                        // If the message is gone or the session changed, the
+                        // memory itself is still saved above — we just skip the
+                        // now-invalid UI tag update / session write.
                     });
-                }
+                });
             }
         });
     }
