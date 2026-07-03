@@ -51,7 +51,14 @@ public class AIManager {
     }
 
     public AIManager() {
-        this.executorService = Executors.newSingleThreadExecutor();
+        this.executorService = Executors.newSingleThreadExecutor(runnable -> {
+            Thread thread = new Thread(() -> {
+                android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_FOREGROUND);
+                runnable.run();
+            }, "nex-inference-thread");
+            thread.setPriority(Thread.MAX_PRIORITY);
+            return thread;
+        });
         this.mainHandler = new Handler(Looper.getMainLooper());
 
         boolean initialized = initNative();
@@ -198,7 +205,7 @@ public class AIManager {
         });
     }
 
-    public void extractMemory(String userPrompt, String aiResponse, MemoryCallback callback) {
+    public void extractMemory(MemoryCallback callback) {
         if (!isModelLoaded) {
             Log.w(TAG_MODEL, "Model not loaded — cannot extract memory");
             callback.onMemoryExtracted(null, null);
@@ -208,14 +215,34 @@ public class AIManager {
         executorService.execute(() -> {
             String memorySystemPrompt = 
                 "You are a memory processor. Analyze the conversation exchange.\n" +
-                "If the user shares personal details, preferences, interests, or facts about themselves, extract a single memory in the format: \"[Topic] | User [fact/preference]\"\n" +
+                "If the user asks to store or remember personal details, preferences, interests, or facts, extract a single memory in the format: \"[Topic] | User [fact/preference]\"\n" +
                 "Replace [Topic] with a short category (e.g. Coding Style, Name, Hobbies, Location, Pets, Preference, etc.).\n" +
                 "Example: \"Coding Style | User prefers Kotlin over Java.\"\n" +
                 "Example: \"Pets | User has a dog named Rex.\"\n" +
-                "The memory MUST be about the USER, not about the assistant, and it MUST start with \"User \".\n" +
-                "If there are no personal details about the user to remember, output ONLY \"NONE\". Do not extract general questions, AI responses, or conversational filler.";
-            String[] roles = new String[]{"user", "assistant"};
-            String[] contents = new String[]{userPrompt, aiResponse};
+                "The memory MUST be about the USER, and it MUST start with \"User \".\n" +
+                "If there are no personal details about the user to remember, output ONLY \"NONE\". Do not extract general questions or conversational filler.";
+
+            java.util.List<Message> contextMsgs = new java.util.ArrayList<>();
+            synchronized (chatHistory) {
+                int size = chatHistory.size();
+                int start = Math.max(0, size - 4);
+                for (int i = start; i < size; i++) {
+                    contextMsgs.add(chatHistory.get(i));
+                }
+            }
+
+            if (contextMsgs.isEmpty()) {
+                mainHandler.post(() -> callback.onMemoryExtracted(null, null));
+                return;
+            }
+
+            String[] roles = new String[contextMsgs.size()];
+            String[] contents = new String[contextMsgs.size()];
+            for (int i = 0; i < contextMsgs.size(); i++) {
+                Message msg = contextMsgs.get(i);
+                roles[i] = (msg.getType() == Message.TYPE_USER) ? "user" : "assistant";
+                contents[i] = msg.getText();
+            }
 
             String response = runInferenceNative(
                 memorySystemPrompt,

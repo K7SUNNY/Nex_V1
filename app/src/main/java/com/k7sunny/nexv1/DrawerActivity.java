@@ -26,8 +26,11 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class DrawerActivity extends AppCompatActivity {
+    private final ExecutorService dbExecutor = Executors.newSingleThreadExecutor();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -117,41 +120,44 @@ public class DrawerActivity extends AppCompatActivity {
     }
 
     private void refreshChats(RecyclerView recyclerView, HistoryManager historyManager, String query) {
-        List<ChatSession> sessions;
-        if (query == null || query.trim().isEmpty()) {
-            sessions = historyManager.getSessions();
-        } else {
-            sessions = historyManager.searchSessions(query);
-        }
-        
-        View emptyState = findViewById(R.id.layout_empty_state_drawer);
-        if (sessions.isEmpty()) {
-            if (emptyState != null) emptyState.setVisibility(View.VISIBLE);
-            recyclerView.setVisibility(View.GONE);
-        } else {
-            if (emptyState != null) emptyState.setVisibility(View.GONE);
-            recyclerView.setVisibility(View.VISIBLE);
-        }
-        
-        RecentChatAdapter adapter = new RecentChatAdapter(sessions, new RecentChatAdapter.OnChatClickListener() {
-            @Override
-            public void onChatClick(ChatSession session) {
-                Intent data = new Intent();
-                data.putExtra("session_id", session.getId());
-                setResult(RESULT_OK, data);
-                finish();
+        dbExecutor.execute(() -> {
+            List<ChatSession> sessions;
+            if (query == null || query.trim().isEmpty()) {
+                sessions = historyManager.getSessions();
+            } else {
+                sessions = historyManager.searchSessions(query);
             }
+            runOnUiThread(() -> {
+                View emptyState = findViewById(R.id.layout_empty_state_drawer);
+                if (sessions.isEmpty()) {
+                    if (emptyState != null) emptyState.setVisibility(View.VISIBLE);
+                    recyclerView.setVisibility(View.GONE);
+                } else {
+                    if (emptyState != null) emptyState.setVisibility(View.GONE);
+                    recyclerView.setVisibility(View.VISIBLE);
+                }
 
-            @Override
-            public void onOptionsClick(ChatSession session) {
-                showChatOptions(session, historyManager, () -> {
-                    EditText search = findViewById(R.id.search_input);
-                    String q = (search != null) ? search.getText().toString() : "";
-                    refreshChats(recyclerView, historyManager, q);
+                RecentChatAdapter adapter = new RecentChatAdapter(sessions, new RecentChatAdapter.OnChatClickListener() {
+                    @Override
+                    public void onChatClick(ChatSession session) {
+                        Intent data = new Intent();
+                        data.putExtra("session_id", session.getId());
+                        setResult(RESULT_OK, data);
+                        finish();
+                    }
+
+                    @Override
+                    public void onOptionsClick(ChatSession session) {
+                        showChatOptions(session, historyManager, () -> {
+                            EditText search = findViewById(R.id.search_input);
+                            String q = (search != null) ? search.getText().toString() : "";
+                            refreshChats(recyclerView, historyManager, q);
+                        });
+                    }
                 });
-            }
+                recyclerView.setAdapter(adapter);
+            });
         });
-        recyclerView.setAdapter(adapter);
     }
 
     private void showChatOptions(ChatSession session, HistoryManager historyManager, Runnable onRefresh) {
@@ -175,8 +181,10 @@ public class DrawerActivity extends AppCompatActivity {
                 .setTitle(R.string.delete)
                 .setMessage("Are you sure you want to delete this chat?")
                 .setPositiveButton(R.string.delete, (d, which) -> {
-                    historyManager.deleteSession(session.getId());
-                    onRefresh.run();
+                    dbExecutor.execute(() -> {
+                        historyManager.deleteSession(session.getId());
+                        runOnUiThread(onRefresh);
+                    });
                 })
                 .setNegativeButton(android.R.string.cancel, null)
                 .show();
@@ -199,14 +207,22 @@ public class DrawerActivity extends AppCompatActivity {
             if (input.getText() != null) {
                 String newTitle = input.getText().toString().trim();
                 if (!newTitle.isEmpty()) {
-                    historyManager.renameSession(session.getId(), newTitle);
-                    onComplete.run();
+                    dbExecutor.execute(() -> {
+                        historyManager.renameSession(session.getId(), newTitle);
+                        runOnUiThread(onComplete);
+                    });
                 }
             }
             dialog.dismiss();
         });
 
         dialog.show();
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        dbExecutor.shutdown();
     }
 
     @Override

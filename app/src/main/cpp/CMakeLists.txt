@@ -19,6 +19,7 @@ FetchContent_Declare(
     GIT_REPOSITORY https://github.com/ggerganov/llama.cpp.git
     GIT_TAG        master
     GIT_SHALLOW    TRUE
+    GIT_CONFIG     core.longpaths=true
 )
 FetchContent_MakeAvailable(llama_cpp)
 

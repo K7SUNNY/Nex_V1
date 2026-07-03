@@ -24,9 +24,11 @@ import android.widget.ImageButton;
 import com.google.android.material.textfield.TextInputEditText;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class MemoryActivity extends AppCompatActivity {
-
+    private final ExecutorService dbExecutor = Executors.newSingleThreadExecutor();
     private MemoryAdapter pinnedAdapter;
     private MemoryAdapter recentAdapter;
     private List<Memory> pinnedMemories;
@@ -62,7 +64,6 @@ public class MemoryActivity extends AppCompatActivity {
     }
 
     private void setupRecyclers() {
-        masterAllMemories = memoryManager.getAllMemories();
         pinnedMemories = new ArrayList<>();
         recentMemories = new ArrayList<>();
 
@@ -81,11 +82,21 @@ public class MemoryActivity extends AppCompatActivity {
         recentAdapter = new MemoryAdapter(recentMemories, this::showMemoryOptions);
         recentRecycler.setAdapter(recentAdapter);
 
-        filterMemories("");
+        dbExecutor.execute(() -> {
+            List<Memory> memories = memoryManager.getAllMemories();
+            runOnUiThread(() -> {
+                masterAllMemories = memories;
+                filterMemories("");
+            });
+        });
     }
 
     private void saveAllToManager() {
-        memoryManager.saveMemories(masterAllMemories);
+        if (masterAllMemories == null) return;
+        List<Memory> copyList = new ArrayList<>(masterAllMemories);
+        dbExecutor.execute(() -> {
+            memoryManager.saveMemories(copyList);
+        });
     }
 
     private void updateEmptyState() {
@@ -191,6 +202,8 @@ public class MemoryActivity extends AppCompatActivity {
         pinnedMemories.clear();
         recentMemories.clear();
 
+        if (masterAllMemories == null) return;
+
         String cleanQuery = query.toLowerCase().trim();
         for (Memory m : masterAllMemories) {
             boolean matches = cleanQuery.isEmpty() ||
@@ -244,5 +257,11 @@ public class MemoryActivity extends AppCompatActivity {
         });
 
         editDialog.show();
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        dbExecutor.shutdown();
     }
 }

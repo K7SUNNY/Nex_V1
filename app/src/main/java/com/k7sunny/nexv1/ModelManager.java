@@ -87,6 +87,13 @@ public class ModelManager {
 
     public long downloadModel() {
         File modelFile = getModelFile();
+        if (modelFile.exists()) {
+            try {
+                modelFile.delete();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
         String modelKey = getCurrentModelKey();
         String url = getModelUrl(modelKey);
 

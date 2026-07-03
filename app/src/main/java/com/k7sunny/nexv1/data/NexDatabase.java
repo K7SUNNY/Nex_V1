@@ -18,7 +18,6 @@ public abstract class NexDatabase extends RoomDatabase {
                 if (INSTANCE == null) {
                     INSTANCE = Room.databaseBuilder(context.getApplicationContext(),
                                     NexDatabase.class, "nex_database")
-                            .allowMainThreadQueries()
                             .fallbackToDestructiveMigration()
                             .build();
                 }

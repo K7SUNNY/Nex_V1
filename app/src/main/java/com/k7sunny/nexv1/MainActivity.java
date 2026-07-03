@@ -34,6 +34,8 @@ import com.google.android.material.card.MaterialCardView;
 import com.google.android.material.progressindicator.LinearProgressIndicator;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -54,6 +56,8 @@ public class MainActivity extends AppCompatActivity {
     private HistoryManager historyManager;
     private MemoryManager memoryManager;
     private PreferenceManager preferenceManager;
+    private final ExecutorService dbExecutor = Executors.newSingleThreadExecutor();
+    private final List<String> cachedMemories = new ArrayList<>();
     private String currentSessionId;
     private String currentSessionTitle = null;
     private boolean isGenerating = false;
@@ -312,11 +316,16 @@ public class MainActivity extends AppCompatActivity {
             Cursor cursor = dm.query(query);
 
             boolean success = false;
+            int reason = -1;
             if (cursor != null && cursor.moveToFirst()) {
                 int statusCol = cursor.getColumnIndex(DownloadManager.COLUMN_STATUS);
+                int reasonCol = cursor.getColumnIndex(DownloadManager.COLUMN_REASON);
                 if (statusCol != -1) {
                     int status = cursor.getInt(statusCol);
                     success = (status == DownloadManager.STATUS_SUCCESSFUL);
+                }
+                if (reasonCol != -1) {
+                    reason = cursor.getInt(reasonCol);
                 }
                 cursor.close();
             }
@@ -329,9 +338,9 @@ public class MainActivity extends AppCompatActivity {
                 Toast.makeText(context, "Model downloaded!", Toast.LENGTH_SHORT).show();
                 checkModelStatus(); // Load the model and refresh UI state.
             } else {
-                Log.e(TAG_DOWNLOAD, "Download failed or was cancelled");
-                Toast.makeText(context, "Download failed. Please try again.", Toast.LENGTH_SHORT).show();
-                setDownloadIdleState("Download failed. Tap to retry.");
+                Log.e(TAG_DOWNLOAD, "Download failed or was cancelled, reason: " + reason);
+                Toast.makeText(context, "Download failed (reason: " + reason + "). Please try again.", Toast.LENGTH_SHORT).show();
+                setDownloadIdleState("Download failed (reason: " + reason + "). Tap to retry.");
             }
         }
     };
@@ -364,10 +373,15 @@ public class MainActivity extends AppCompatActivity {
                         int status = cursor.getInt(statusCol);
 
                         if (status == DownloadManager.STATUS_FAILED) {
+                            int reasonCol = cursor.getColumnIndex(DownloadManager.COLUMN_REASON);
+                            int reason = -1;
+                            if (reasonCol != -1) {
+                                reason = cursor.getInt(reasonCol);
+                            }
                             cursor.close();
                             stopProgressPolling();
                             currentDownloadId = -1;
-                            setDownloadIdleState("Download failed. Tap to retry.");
+                            setDownloadIdleState("Download failed (reason: " + reason + "). Tap to retry.");
                             return;
                         }
 
@@ -555,25 +569,31 @@ public class MainActivity extends AppCompatActivity {
 
     private void loadSession(String sessionId) {
         currentSessionId = sessionId;
-        currentSessionTitle = historyManager.getSessionTitle(sessionId);
-        messageList.clear();
-        messageList.addAll(historyManager.getMessages(sessionId));
-        chatAdapter.notifyDataSetChanged();
+        dbExecutor.execute(() -> {
+            String title = historyManager.getSessionTitle(sessionId);
+            List<Message> messages = historyManager.getMessages(sessionId);
+            runOnUiThread(() -> {
+                currentSessionTitle = title;
+                messageList.clear();
+                messageList.addAll(messages);
+                chatAdapter.notifyDataSetChanged();
 
-        if (messageList.isEmpty()) {
-            startNewChat();
-        } else {
-            if (welcomeContainer != null) welcomeContainer.setVisibility(View.GONE);
-            recyclerView.setVisibility(View.VISIBLE);
+                if (messageList.isEmpty()) {
+                    startNewChat();
+                } else {
+                    if (welcomeContainer != null) welcomeContainer.setVisibility(View.GONE);
+                    recyclerView.setVisibility(View.VISIBLE);
 
-            // Reset scroll state and jump to bottom for loaded sessions
-            isUserScrolledUp = false;
-            recyclerView.scrollToPosition(messageList.size() - 1);
+                    // Reset scroll state and jump to bottom for loaded sessions
+                    isUserScrolledUp = false;
+                    recyclerView.scrollToPosition(messageList.size() - 1);
 
-            // Sync AI history with loaded messages
-            aiManager.setHistory(messageList);
-            updateTokenCount("");
-        }
+                    // Sync AI history with loaded messages
+                    aiManager.setHistory(messageList);
+                    updateTokenCount("");
+                }
+            });
+        });
     }
 
     private void startNewChat() {
@@ -638,9 +658,12 @@ public class MainActivity extends AppCompatActivity {
         chatAdapter.notifyItemInserted(messageList.size() - 1);
         recyclerView.scrollToPosition(messageList.size() - 1);
 
-        // Save session and messages
+        // Save session and messages (asynchronously on background thread with copy of list)
         String title = getActiveSessionTitle();
-        historyManager.saveSession(new ChatSession(currentSessionId, title, System.currentTimeMillis()), messageList);
+        List<Message> copyListForDb = new ArrayList<>(messageList);
+        dbExecutor.execute(() -> {
+            historyManager.saveSession(new ChatSession(currentSessionId, title, System.currentTimeMillis()), copyListForDb);
+        });
 
         messageInput.setText("");
 
@@ -665,9 +688,12 @@ public class MainActivity extends AppCompatActivity {
                     chatAdapter.notifyItemChanged(index);
                     smartScrollToBottom();
 
-                    // Save history after AI response
+                    // Save history after AI response (asynchronously on background thread with copy of list)
                     String title = getActiveSessionTitle();
-                    historyManager.saveSession(new ChatSession(currentSessionId, title, System.currentTimeMillis()), messageList);
+                    List<Message> copyListForDb2 = new ArrayList<>(messageList);
+                    dbExecutor.execute(() -> {
+                        historyManager.saveSession(new ChatSession(currentSessionId, title, System.currentTimeMillis()), copyListForDb2);
+                    });
                     updateTokenCount("");
 
                     // Trigger Auto-Title if this is the first exchange
@@ -676,7 +702,7 @@ public class MainActivity extends AppCompatActivity {
                     }
 
                     // Trigger Memory Extraction
-                    checkAndExtractMemory(text, response, messageList.get(index), index);
+                    checkAndExtractMemory(text, messageList.get(index), index);
                 }
             }
 
@@ -750,9 +776,12 @@ public class MainActivity extends AppCompatActivity {
                     chatAdapter.notifyItemChanged(index);
                     smartScrollToBottom();
 
-                    // Save history after AI response
+                    // Save history after AI response (asynchronously on background thread with copy of list)
                     String title = getActiveSessionTitle();
-                    historyManager.saveSession(new ChatSession(currentSessionId, title, System.currentTimeMillis()), messageList);
+                    List<Message> copyListForDb = new ArrayList<>(messageList);
+                    dbExecutor.execute(() -> {
+                        historyManager.saveSession(new ChatSession(currentSessionId, title, System.currentTimeMillis()), copyListForDb);
+                    });
                     updateTokenCount("");
 
                     // Trigger Auto-Title if this is the first exchange
@@ -761,7 +790,7 @@ public class MainActivity extends AppCompatActivity {
                     }
 
                     // Trigger Memory Extraction
-                    checkAndExtractMemory(promptText, response, messageList.get(index), index);
+                    checkAndExtractMemory(promptText, messageList.get(index), index);
                 }
             }
 
@@ -789,7 +818,7 @@ public class MainActivity extends AppCompatActivity {
 
     private void pinMessageToMemory(String text) {
         if (text == null || text.trim().isEmpty()) return;
-        new Thread(() -> {
+        dbExecutor.execute(() -> {
             List<Memory> memories = memoryManager.getAllMemories();
             boolean exists = false;
             for (Memory m : memories) {
@@ -802,12 +831,17 @@ public class MainActivity extends AppCompatActivity {
                 String title = text.length() > 20 ? text.substring(0, 17) + "..." : text;
                 memories.add(new Memory(title, text.trim(), true));
                 memoryManager.saveMemories(memories);
-                aiManager.setMemories(memoryManager.getAllMemoryStrings());
-                runOnUiThread(() -> Toast.makeText(MainActivity.this, "Added to AI memory", Toast.LENGTH_SHORT).show());
+                List<String> memoryStrings = memoryManager.getAllMemoryStrings();
+                runOnUiThread(() -> {
+                    cachedMemories.clear();
+                    cachedMemories.addAll(memoryStrings);
+                    aiManager.setMemories(memoryStrings);
+                    Toast.makeText(MainActivity.this, "Added to AI memory", Toast.LENGTH_SHORT).show();
+                });
             } else {
                 runOnUiThread(() -> Toast.makeText(MainActivity.this, "Already in memory", Toast.LENGTH_SHORT).show());
             }
-        }).start();
+        });
     }
 
     private void deleteMessageAt(int position) {
@@ -820,7 +854,10 @@ public class MainActivity extends AppCompatActivity {
                 startNewChat();
             } else {
                 String title = getActiveSessionTitle();
-                historyManager.saveSession(new ChatSession(currentSessionId, title, System.currentTimeMillis()), messageList);
+                List<Message> copyListForDb = new ArrayList<>(messageList);
+                dbExecutor.execute(() -> {
+                    historyManager.saveSession(new ChatSession(currentSessionId, title, System.currentTimeMillis()), copyListForDb);
+                });
                 aiManager.setHistory(messageList);
                 updateTokenCount("");
             }
@@ -857,11 +894,15 @@ public class MainActivity extends AppCompatActivity {
                     if (!cleanTitle.isEmpty()) {
                         Log.d("NexUI", "Auto-generated title: " + cleanTitle);
                         currentSessionTitle = cleanTitle;
-                        // Save session with the new title
-                        historyManager.saveSession(
-                            new ChatSession(currentSessionId, cleanTitle, System.currentTimeMillis()),
-                            messageList
-                        );
+                        // Save session with the new title (asynchronously on background thread with copy of list)
+                        List<Message> copyListForDb = new ArrayList<>(messageList);
+                        String finalCleanTitle = cleanTitle;
+                        dbExecutor.execute(() -> {
+                            historyManager.saveSession(
+                                new ChatSession(currentSessionId, finalCleanTitle, System.currentTimeMillis()),
+                                copyListForDb
+                            );
+                        });
                     }
                 }
             }
@@ -905,7 +946,15 @@ public class MainActivity extends AppCompatActivity {
         super.onResume();
         if (aiManager != null) {
             if (memoryManager != null) {
-                aiManager.setMemories(memoryManager.getAllMemoryStrings());
+                dbExecutor.execute(() -> {
+                    List<String> memories = memoryManager.getAllMemoryStrings();
+                    runOnUiThread(() -> {
+                        cachedMemories.clear();
+                        cachedMemories.addAll(memories);
+                        aiManager.setMemories(memories);
+                        updateTokenCount(messageInput != null ? messageInput.getText().toString() : "");
+                    });
+                });
             }
             if (preferenceManager != null) {
                 aiManager.setSystemPrompt(preferenceManager.getSystemPersona());
@@ -946,6 +995,7 @@ public class MainActivity extends AppCompatActivity {
             Log.w(TAG, "Receiver already unregistered");
         }
         aiManager.release(); // Free native model resources.
+        dbExecutor.shutdown(); // Shutdown database thread executor.
     }
 
     private int estimateContextTokens(String currentInput) {
@@ -956,14 +1006,9 @@ public class MainActivity extends AppCompatActivity {
             totalChars += preferenceManager.getSystemPersona().length();
         }
 
-        // 2. Memories Chars
-        if (memoryManager != null) {
-            java.util.List<String> memories = memoryManager.getAllMemoryStrings();
-            if (memories != null) {
-                for (String memory : memories) {
-                    totalChars += memory.length() + 2;
-                }
-            }
+        // 2. Memories Chars (Read from memory cache instead of querying DB on UI thread)
+        for (String memory : cachedMemories) {
+            totalChars += memory.length() + 2;
         }
 
         // 3. Active Chat History Chars (respecting context window size)
@@ -999,9 +1044,10 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private void checkAndExtractMemory(String userPrompt, String aiResponse, Message aiMsg, int msgIndex) {
+    private void checkAndExtractMemory(String userPrompt, Message aiMsg, int msgIndex) {
         if (aiManager == null || memoryManager == null) return;
-        aiManager.extractMemory(userPrompt, aiResponse, new AIManager.MemoryCallback() {
+
+        aiManager.extractMemory(new AIManager.MemoryCallback() {
             @Override
             public void onMemoryExtracted(String title, String content) {
                 if (title != null && content != null) {
@@ -1023,14 +1069,7 @@ public class MainActivity extends AppCompatActivity {
                         return;
                     }
 
-                    // 3. Prevent direct duplicates of the prompt or response
-                    if (contentLower.contains(aiResponse.toLowerCase().trim()) || 
-                        aiResponse.toLowerCase().contains(contentLower) ||
-                        contentLower.contains(userPrompt.toLowerCase().trim())) {
-                        return;
-                    }
-
-                    new Thread(() -> {
+                    dbExecutor.execute(() -> {
                         List<Memory> memories = memoryManager.getAllMemories();
                         boolean exists = false;
                         for (Memory m : memories) {
@@ -1047,18 +1086,23 @@ public class MainActivity extends AppCompatActivity {
                             // Update message visual tag
                             aiMsg.setMemoryTag("Memory: " + cleanTitle);
 
-                            // Save history after updating tag to persist it
+                            // Save history after updating tag to persist it (off-thread with list copy)
                             String sessionTitle = getActiveSessionTitle();
-                            historyManager.saveSession(new ChatSession(currentSessionId, sessionTitle, System.currentTimeMillis()), messageList);
+                            List<Message> copyListForDb = new ArrayList<>(messageList);
+                            historyManager.saveSession(new ChatSession(currentSessionId, sessionTitle, System.currentTimeMillis()), copyListForDb);
 
                             // Update AI manager memories context dynamically in memory
-                            aiManager.setMemories(memoryManager.getAllMemoryStrings());
+                            List<String> memoryStrings = memoryManager.getAllMemoryStrings();
 
                             runOnUiThread(() -> {
+                                cachedMemories.clear();
+                                cachedMemories.addAll(memoryStrings);
+                                aiManager.setMemories(memoryStrings);
+                                updateTokenCount("");
                                 chatAdapter.notifyItemChanged(msgIndex);
                             });
                         }
-                    }).start();
+                    });
                 }
             }
         });

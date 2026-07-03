@@ -52,8 +52,23 @@ Java_com_k7sunny_nexv1_AIManager_initNative(JNIEnv*, jobject) {
     return JNI_TRUE;
 }
 
+static void free_resources() {
+    if (g_ctx) {
+        llama_free(g_ctx);
+        g_ctx = nullptr;
+    }
+    if (g_model) {
+        llama_model_free(g_model);
+        g_model = nullptr;
+    }
+    g_last_prompt = "";
+    g_last_token_count = 0;
+}
+
 extern "C" JNIEXPORT jlong JNICALL
 Java_com_k7sunny_nexv1_AIManager_loadModelNative(JNIEnv* env, jobject, jstring model_path) {
+    // Free existing resources first to prevent memory leaks when switching models
+    free_resources();
 
     const char* path = env->GetStringUTFChars(model_path, nullptr);
     LOG_MODEL("Loading model from: %s", path);
@@ -91,6 +106,7 @@ Java_com_k7sunny_nexv1_AIManager_loadModelNative(JNIEnv* env, jobject, jstring m
     ctx_params.n_ctx = 2048;
     ctx_params.n_threads = num_threads;
     ctx_params.n_threads_batch = num_threads;
+    ctx_params.flash_attn_type = LLAMA_FLASH_ATTN_TYPE_ENABLED; // Speed up prompt evaluation and reduce memory bandwidth usage
 
     g_ctx = llama_init_from_model(g_model, ctx_params);
 
@@ -196,6 +212,8 @@ Java_com_k7sunny_nexv1_AIManager_runInferenceNative(
         llama_memory_clear(llama_get_memory(g_ctx), true);
         LOG_CACHE("Cache cleared — prompt changed");
         n_past = 0;
+        g_last_prompt = "";
+        g_last_token_count = 0;
     }
 
     std::vector<llama_token> all_tokens = common_tokenize(g_ctx, prompt, true, true);
@@ -306,17 +324,7 @@ Java_com_k7sunny_nexv1_AIManager_runInferenceNative(
 
 extern "C" JNIEXPORT void JNICALL
 Java_com_k7sunny_nexv1_AIManager_freeNative(JNIEnv*, jobject) {
-
-    if (g_ctx) {
-        llama_free(g_ctx);
-        g_ctx = nullptr;
-    }
-
-    if (g_model) {
-        llama_model_free(g_model);
-        g_model = nullptr;
-    }
-
+    free_resources();
     llama_backend_free();
     LOG_MODEL("Freed all resources");
 }
