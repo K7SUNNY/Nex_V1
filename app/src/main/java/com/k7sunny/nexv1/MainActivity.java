@@ -65,6 +65,20 @@ public class MainActivity extends AppCompatActivity {
     private View fabScrollToBottom;
 
     /**
+     * FIX (title-generation bug #1/#2/#3/#7): title/drift generation runs
+     * asynchronously on the AI inference thread. Without these guards, if the
+     * user switches chats (or manually renames the chat) while a request is
+     * still in flight, the eventual callback would silently overwrite the
+     * WRONG session's title in the database — a real data-corruption bug.
+     * `titleGenerationSessionId` records which session a request belongs to
+     * so the callback can detect and discard stale results, and
+     * `titleGenerationInFlight` prevents firing overlapping requests for the
+     * same session.
+     */
+    private boolean titleGenerationInFlight = false;
+    private String titleGenerationSessionId = null;
+
+    /**
      * Tracks whether the user has intentionally scrolled up to read older messages.
      * When true, new tokens from the AI won't force-scroll the view to the bottom,
      * preserving the user's reading position.
@@ -90,6 +104,14 @@ public class MainActivity extends AppCompatActivity {
                     }
                     // If no session ID, it's a "New Chat" request
                     startNewChat();
+                } else {
+                    // FIX (title-generation bug #6): the drawer may have been
+                    // used to rename the CURRENTLY open session without
+                    // switching away from it (no session_id result is sent in
+                    // that case). Refresh our in-memory title from the DB so
+                    // a later auto-save doesn't clobber the rename with a
+                    // stale in-memory title.
+                    refreshSessionTitleIfManual();
                 }
             }
     );
@@ -845,12 +867,36 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    /**
+     * FIX: this method used to read `currentSessionId` and write via
+     * `updateAndSaveSessionTitle` from INSIDE the async AI callback, which
+     * meant that if the user switched chats (or manually renamed the chat)
+     * while the request was in flight, the result could silently get saved
+     * against the WRONG session — corrupting that session's title/messages
+     * in the database. See `applyGeneratedTitle` for the fix: it captures
+     * the session id up front and re-validates before writing anything.
+     *
+     * Also fixes a duplicate-request bug: previously nothing stopped
+     * multiple overlapping `generateTitle`/`detectTopicDrift` calls from
+     * being queued back-to-back for the same session (e.g. rapid sends
+     * while eligible). `titleGenerationInFlight` guards against that.
+     */
     private void generateAutoTitle() {
         if (conversationAnalyzer == null) return;
 
+        // Capture which session this request is for. This is re-checked
+        // before any write happens, once the async AI call resolves.
+        final String sessionIdAtCallTime = currentSessionId;
+
         // Never overwrite manual titles
-        if (preferenceManager.isSessionTitleManual(currentSessionId)) {
-            Log.d("NexUI", "Skipping auto-title generation: session title was manually set.");
+        if (preferenceManager.isSessionTitleManual(sessionIdAtCallTime)) {
+            Log.d(TAG, "Skipping auto-title generation: session title was manually set.");
+            return;
+        }
+
+        // Avoid firing overlapping title/drift requests for the same session.
+        if (titleGenerationInFlight && sessionIdAtCallTime.equals(titleGenerationSessionId)) {
+            Log.d(TAG, "Skipping auto-title generation: a request is already in flight for this session.");
             return;
         }
 
@@ -859,44 +905,98 @@ public class MainActivity extends AppCompatActivity {
 
         // Check if eligible for initial title or drift re-evaluation
         final boolean isInitial = (currentSessionTitle == null || currentSessionTitle.isEmpty());
-        boolean eligible = isInitial 
-            ? conversationAnalyzer.isEligibleForInitialTitle(snapshot)
-            : conversationAnalyzer.isEligibleForDriftCheck(snapshot);
+        boolean eligible = isInitial
+                ? conversationAnalyzer.isEligibleForInitialTitle(snapshot)
+                : conversationAnalyzer.isEligibleForDriftCheck(snapshot);
 
         if (!eligible) {
             return;
         }
 
+        titleGenerationInFlight = true;
+        titleGenerationSessionId = sessionIdAtCallTime;
+
         if (isInitial) {
             // Generate initial title
             conversationAnalyzer.generateTitle(snapshot, title -> {
+                titleGenerationInFlight = false;
                 if (title != null && !title.isEmpty()) {
-                    updateAndSaveSessionTitle(title, snapshot);
+                    applyGeneratedTitle(sessionIdAtCallTime, title, snapshot);
                 }
             });
         } else {
             // Check for topic drift
             conversationAnalyzer.detectTopicDrift(snapshot, currentSessionTitle, drifted -> {
                 if (drifted) {
-                    Log.d("NexUI", "Topic drift detected! Regenerating title.");
+                    Log.d(TAG, "Topic drift detected! Regenerating title.");
                     conversationAnalyzer.generateTitle(snapshot, title -> {
+                        titleGenerationInFlight = false;
                         if (title != null && !title.isEmpty()) {
-                            updateAndSaveSessionTitle(title, snapshot);
+                            applyGeneratedTitle(sessionIdAtCallTime, title, snapshot);
                         }
                     });
+                } else {
+                    titleGenerationInFlight = false;
                 }
             });
         }
     }
 
-    private void updateAndSaveSessionTitle(String title, List<Message> messages) {
+    /**
+     * Applies an AI-generated title to a session, but only after re-verifying
+     * that:
+     *  - the app is still showing the SAME session the title was generated
+     *    for (the user may have switched chats or started a new one while
+     *    the async AI call was running), and
+     *  - the session hasn't been manually renamed while the request was in
+     *    flight (which should always win over an auto-generated title).
+     *
+     * If either check fails, the result is discarded instead of being
+     * written — this is what prevents the async callback from corrupting an
+     * unrelated session's title/messages in the database.
+     */
+    private void applyGeneratedTitle(String sessionIdAtCallTime, String title, List<Message> messages) {
+        boolean stillSameSession = sessionIdAtCallTime.equals(currentSessionId);
+        boolean stillNotManual = !preferenceManager.isSessionTitleManual(sessionIdAtCallTime);
+
+        if (!stillSameSession || !stillNotManual) {
+            Log.d(TAG, "Discarding stale/obsolete generated title for session " + sessionIdAtCallTime
+                    + " (sameSession=" + stillSameSession + ", notManual=" + stillNotManual + ")");
+            return;
+        }
+
         currentSessionTitle = title;
-        Log.d("NexUI", "New session title set: " + title);
+        Log.d(TAG, "New session title set: " + title);
         dbExecutor.execute(() -> {
             historyManager.saveSession(
-                new ChatSession(currentSessionId, title, System.currentTimeMillis()),
-                messages
+                    new ChatSession(sessionIdAtCallTime, title, System.currentTimeMillis()),
+                    messages
             );
+        });
+    }
+
+    /**
+     * FIX: if the user renames the currently-open session from the drawer
+     * (without switching to a different chat), `MainActivity`'s in-memory
+     * `currentSessionTitle` previously stayed stale until the next full
+     * reload. The next message sent would then re-save the session using
+     * the stale title, silently reverting the manual rename. This re-syncs
+     * from the database whenever we return to the foreground.
+     */
+    private void refreshSessionTitleIfManual() {
+        if (currentSessionId == null) return;
+        final String sessionId = currentSessionId;
+        if (!preferenceManager.isSessionTitleManual(sessionId)) return;
+
+        dbExecutor.execute(() -> {
+            String dbTitle = historyManager.getSessionTitle(sessionId);
+            if (dbTitle != null) {
+                runOnUiThread(() -> {
+                    if (sessionId.equals(currentSessionId)) {
+                        currentSessionTitle = dbTitle;
+                    }
+                });
+            }
         });
     }
 
@@ -954,8 +1054,12 @@ public class MainActivity extends AppCompatActivity {
                 aiManager.setContextWindow(preferenceManager.getContextWindow());
             }
         }
-        
+
         updateModelSelectorButton();
+
+        // FIX: catches the case where the active session's title was renamed
+        // (e.g. from the drawer) without switching away from it.
+        refreshSessionTitleIfManual();
 
         if (preferenceManager != null) {
             long activeId = preferenceManager.getActiveDownloadId();

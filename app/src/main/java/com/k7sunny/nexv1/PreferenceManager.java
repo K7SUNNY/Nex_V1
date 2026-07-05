@@ -8,15 +8,15 @@ public class PreferenceManager {
     private static final String KEY_SYSTEM_PERSONA = "system_persona";
     private static final String DEFAULT_PERSONA_FAST = "";
 
-    private static final String DEFAULT_PERSONA_PRO = 
-        "You are Nex, a professional offline AI assistant created by Sunny.\n" +
-        "You help with programming, writing, and analytical tasks.\n" +
-        "Keep responses concise and accurate.";
+    private static final String DEFAULT_PERSONA_PRO =
+            "You are Nex, a professional offline AI assistant created by Sunny.\n" +
+                    "You help with programming, writing, and analytical tasks.\n" +
+                    "Keep responses concise and accurate.";
 
-    private static final String DEFAULT_PERSONA_ULTRA = 
-        "You are Nex, a highly advanced offline AI assistant created by Sunny.\n" +
-        "You think deeply, formulate structured plans, write robust code, and analyze complex logical queries.\n" +
-        "Format your output beautifully and keep it accurate.";
+    private static final String DEFAULT_PERSONA_ULTRA =
+            "You are Nex, a highly advanced offline AI assistant created by Sunny.\n" +
+                    "You think deeply, formulate structured plans, write robust code, and analyze complex logical queries.\n" +
+                    "Format your output beautifully and keep it accurate.";
 
     private final SharedPreferences prefs;
 
@@ -116,5 +116,17 @@ public class PreferenceManager {
 
     public void setSessionTitleManual(String sessionId, boolean manual) {
         prefs.edit().putBoolean("manual_title_" + sessionId, manual).apply();
+    }
+
+    /**
+     * FIX: per-session preference keys (currently just the manual-title flag)
+     * were never cleaned up when a session was deleted, leaking entries in
+     * SharedPreferences indefinitely. Call this whenever a chat session is
+     * permanently deleted.
+     */
+    public void clearSessionData(String sessionId) {
+        prefs.edit()
+                .remove("manual_title_" + sessionId)
+                .apply();
     }
 }

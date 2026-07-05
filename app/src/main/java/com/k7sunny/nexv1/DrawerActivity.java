@@ -174,16 +174,21 @@ public class DrawerActivity extends AppCompatActivity {
         view.findViewById(R.id.btn_delete).setOnClickListener(v -> {
             dialog.dismiss();
             new AlertDialog.Builder(this)
-                .setTitle(R.string.delete)
-                .setMessage("Are you sure you want to delete this chat?")
-                .setPositiveButton(R.string.delete, (d, which) -> {
-                    dbExecutor.execute(() -> {
-                        historyManager.deleteSession(session.getId());
-                        runOnUiThread(onRefresh);
-                    });
-                })
-                .setNegativeButton(android.R.string.cancel, null)
-                .show();
+                    .setTitle(R.string.delete)
+                    .setMessage("Are you sure you want to delete this chat?")
+                    .setPositiveButton(R.string.delete, (d, which) -> {
+                        dbExecutor.execute(() -> {
+                            historyManager.deleteSession(session.getId());
+                            // FIX: previously the "manual_title_<id>" preference
+                            // entry (and any other per-session prefs) was never
+                            // removed when a session was deleted, leaking entries
+                            // in SharedPreferences indefinitely.
+                            new PreferenceManager(DrawerActivity.this).clearSessionData(session.getId());
+                            runOnUiThread(onRefresh);
+                        });
+                    })
+                    .setNegativeButton(android.R.string.cancel, null)
+                    .show();
         });
 
         dialog.show();
