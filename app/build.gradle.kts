@@ -39,7 +39,11 @@ abstract class GitVersionValueSource : ValueSource<String, ValueSourceParameters
             }
 
             val dirtyStatus = runCommand(listOf("git", "status", "--porcelain"))
-            val suffix = if (dirtyStatus.isNotEmpty()) " ~ dirty" else ""
+            val isDirty = dirtyStatus.lines().any { line ->
+                val trimmed = line.trim()
+                trimmed.isNotEmpty() && !trimmed.endsWith("version.properties")
+            }
+            val suffix = if (isDirty) " ~ dirty" else ""
 
             return "1.${minor.trim()}.${patch.trim()}$suffix"
         } catch (e: Exception) {
