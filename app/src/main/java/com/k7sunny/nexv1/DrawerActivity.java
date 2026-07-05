@@ -77,12 +77,8 @@ public class DrawerActivity extends AppCompatActivity {
 
     private void setupVersionInfo() {
         TextView tvVersion = findViewById(R.id.tv_app_version);
-        try {
-            PackageInfo pInfo = getPackageManager().getPackageInfo(getPackageName(), 0);
-            String version = pInfo.versionName;
-            tvVersion.setText(getString(R.string.app_version, version));
-        } catch (Exception e) {
-            tvVersion.setText(getString(R.string.app_version, "1.0"));
+        if (tvVersion != null) {
+            tvVersion.setText("Version " + BuildConfig.VERSION_NAME);
         }
     }
 

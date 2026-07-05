@@ -1,9 +1,81 @@
 import java.util.Properties
 import java.io.FileInputStream
+import java.io.ByteArrayOutputStream
+import java.io.File
+import org.gradle.api.provider.ValueSource
+import org.gradle.api.provider.ValueSourceParameters
+import org.gradle.process.ExecOperations
+import javax.inject.Inject
 
 plugins {
     alias(libs.plugins.android.application)
 }
+
+abstract class GitVersionValueSource : ValueSource<String, ValueSourceParameters.None> {
+    @get:Inject
+    abstract val execOperations: ExecOperations
+
+    override fun obtain(): String {
+        try {
+            val gitCheck = runCommand(listOf("git", "rev-parse", "--is-inside-work-tree"))
+            if (gitCheck != "true") {
+                return getFallbackVersion()
+            }
+
+            val commitMsg = runCommand(listOf("git", "log", "--grep=Stage [0-9]\\+", "-n", "1", "--pretty=format:%s"))
+            val commitHash = runCommand(listOf("git", "log", "--grep=Stage [0-9]\\+", "-n", "1", "--pretty=format:%H"))
+
+            val minor: String
+            val patch: String
+
+            if (commitMsg.isEmpty() || commitHash.isEmpty()) {
+                minor = "0"
+                patch = runCommand(listOf("git", "rev-list", "HEAD", "--count"))
+            } else {
+                val regex = Regex("\\bStage\\s+(\\d+)\\b")
+                val match = regex.find(commitMsg)
+                minor = match?.groupValues?.get(1) ?: "0"
+                patch = runCommand(listOf("git", "rev-list", "${commitHash.trim()}..HEAD", "--count"))
+            }
+
+            val dirtyStatus = runCommand(listOf("git", "status", "--porcelain"))
+            val suffix = if (dirtyStatus.isNotEmpty()) " ~ dirty" else ""
+
+            return "1.${minor.trim()}.${patch.trim()}$suffix"
+        } catch (e: Exception) {
+            return getFallbackVersion()
+        }
+    }
+
+    private fun runCommand(cmd: List<String>): String {
+        val output = ByteArrayOutputStream()
+        val result = execOperations.exec {
+            commandLine(cmd)
+            standardOutput = output
+            errorOutput = ByteArrayOutputStream()
+            isIgnoreExitValue = true
+        }
+        return if (result.exitValue == 0) output.toString().trim() else ""
+    }
+
+    private fun getFallbackVersion(): String {
+        try {
+            val file = File("app/version.properties")
+            val rootFile = File("version.properties")
+            val finalFile = if (file.exists()) file else if (rootFile.exists()) rootFile else null
+            if (finalFile != null) {
+                val props = Properties()
+                finalFile.inputStream().use { props.load(it) }
+                return props.getProperty("VERSION_NAME", "1.0.0")
+            }
+        } catch (e: Exception) {
+            // Ignore
+        }
+        return "1.0.0"
+    }
+}
+
+val gitVersionProvider = providers.of(GitVersionValueSource::class.java) {}
 
 val versionPropsFile = file("version.properties")
 val versionProps = Properties()
@@ -42,9 +114,7 @@ android {
 
     buildTypes {
         release {
-            // ADD THIS LINE:
             signingConfig = signingConfigs.getByName("debug")
-
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
@@ -64,6 +134,15 @@ android {
     }
     buildFeatures {
         viewBinding = true
+        buildConfig = true
+    }
+}
+
+androidComponents {
+    onVariants { variant ->
+        variant.outputs.forEach { output ->
+            output.versionName.set(gitVersionProvider)
+        }
     }
 }
 

@@ -23,6 +23,8 @@ import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsCompat;
 import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.bottomsheet.BottomSheetDialog;
+import androidx.recyclerview.widget.RecyclerView;
+import java.util.List;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.card.MaterialCardView;
 import com.google.android.material.progressindicator.LinearProgressIndicator;
@@ -35,13 +37,7 @@ public class SettingsActivity extends AppCompatActivity {
     private ModelManager modelManager;
     private long currentDownloadId = -1;
 
-    // UI elements for model selection
-    private View layoutModelFast;
-    private View layoutModelPro;
-    private View layoutModelUltra;
-    private ImageView checkModelFast;
-    private ImageView checkModelPro;
-    private ImageView checkModelUltra;
+    private ModelAdapter modelAdapter;
 
     // UI elements for download status
     private MaterialCardView cardDownloadManager;
@@ -80,13 +76,19 @@ public class SettingsActivity extends AppCompatActivity {
         tvContextWindowVal = findViewById(R.id.tv_context_window_val);
         sliderContextWindow = findViewById(R.id.slider_context_window);
 
-        // Bind model selection views
-        layoutModelFast = findViewById(R.id.layout_model_fast);
-        layoutModelPro = findViewById(R.id.layout_model_pro);
-        layoutModelUltra = findViewById(R.id.layout_model_ultra);
-        checkModelFast = findViewById(R.id.check_model_fast);
-        checkModelPro = findViewById(R.id.check_model_pro);
-        checkModelUltra = findViewById(R.id.check_model_ultra);
+        // Set up model selection RecyclerView
+        RecyclerView recyclerModels = findViewById(R.id.recycler_settings_models);
+        recyclerModels.setLayoutManager(new androidx.recyclerview.widget.LinearLayoutManager(this));
+
+        List<ModelItem> modelItems = new java.util.ArrayList<>();
+        modelItems.add(new ModelItem("fast", "Nex Fast", "~450MB", "Optimized for speed and efficiency.", R.drawable.ic_bolt));
+        modelItems.add(new ModelItem("pro", "Nex Pro", "~1.1GB", "Smart and conversational model.", R.drawable.app_icon));
+        modelItems.add(new ModelItem("ultra", "Nex Ultra", "~2.0GB", "Deep reasoning and advanced coding.", R.drawable.ic_persona));
+
+        modelAdapter = new ModelAdapter(modelItems, preferenceManager.getSelectedModel(), item -> {
+            selectModel(item.getKey());
+        });
+        recyclerModels.setAdapter(modelAdapter);
 
         // Bind download views
         cardDownloadManager = findViewById(R.id.card_download_manager);
@@ -94,10 +96,6 @@ public class SettingsActivity extends AppCompatActivity {
         tvDownloadStatus = findViewById(R.id.tv_download_status);
         pbDownloadProgress = findViewById(R.id.pb_download_progress);
         btnActionDownload = findViewById(R.id.btn_action_download);
-
-        layoutModelFast.setOnClickListener(v -> selectModel("fast"));
-        layoutModelPro.setOnClickListener(v -> selectModel("pro"));
-        layoutModelUltra.setOnClickListener(v -> selectModel("ultra"));
 
         btnActionDownload.setOnClickListener(v -> {
             if (currentDownloadId == -1) {
@@ -219,11 +217,9 @@ public class SettingsActivity extends AppCompatActivity {
     }
 
     private void updateModelSelectionUI() {
-        String currentModel = preferenceManager.getSelectedModel();
-        
-        checkModelFast.setVisibility("fast".equals(currentModel) ? View.VISIBLE : View.GONE);
-        checkModelPro.setVisibility("pro".equals(currentModel) ? View.VISIBLE : View.GONE);
-        checkModelUltra.setVisibility("ultra".equals(currentModel) ? View.VISIBLE : View.GONE);
+        if (modelAdapter != null) {
+            modelAdapter.updateSelection(preferenceManager.getSelectedModel());
+        }
     }
 
     private void updateDownloadCardUI() {

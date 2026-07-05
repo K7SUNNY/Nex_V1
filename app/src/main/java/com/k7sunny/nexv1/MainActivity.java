@@ -452,7 +452,7 @@ public class MainActivity extends AppCompatActivity {
             btnDownloadModel.setText("Download Model");
 
             String modelKey = preferenceManager.getSelectedModel();
-            String sizeStr = "fast".equals(modelKey) ? "~400MB" : ("pro".equals(modelKey) ? "~1.1GB" : "~2.0GB");
+            String sizeStr = "fast".equals(modelKey) ? "~450MB" : ("pro".equals(modelKey) ? "~1.1GB" : "~2.0GB");
             downloadStatusText.setText("Download the core AI engine (" + sizeStr + ") to start chatting offline.");
         }
     }
@@ -523,56 +523,24 @@ public class MainActivity extends AppCompatActivity {
         View view = getLayoutInflater().inflate(R.layout.bottom_sheet_model_selection, null);
         dialog.setContentView(view);
 
-        MaterialCardView cardFast = view.findViewById(R.id.card_nex_fast);
-        MaterialCardView cardPro = view.findViewById(R.id.card_nex_pro);
-        MaterialCardView cardUltra = view.findViewById(R.id.card_nex_ultra);
-        View checkFast = view.findViewById(R.id.check_fast);
-        View checkPro = view.findViewById(R.id.check_pro);
-        View checkUltra = view.findViewById(R.id.check_ultra);
+        androidx.recyclerview.widget.RecyclerView recycler = view.findViewById(R.id.recycler_model_selection);
+        recycler.setLayoutManager(new androidx.recyclerview.widget.LinearLayoutManager(this));
 
-        MaterialButton modelSelector = findViewById(R.id.modelSelector);
-        String currentModel = preferenceManager.getSelectedModel();
+        List<ModelItem> modelItems = new java.util.ArrayList<>();
+        modelItems.add(new ModelItem("fast", "Nex Fast", "~450MB", "Optimized for speed and efficiency.", R.drawable.ic_bolt));
+        modelItems.add(new ModelItem("pro", "Nex Pro", "~1.1GB", "Smart and conversational model.", R.drawable.app_icon));
+        modelItems.add(new ModelItem("ultra", "Nex Ultra", "~2.0GB", "Deep reasoning and advanced coding.", R.drawable.ic_persona));
 
-        checkFast.setVisibility("fast".equals(currentModel) ? View.VISIBLE : View.GONE);
-        checkPro.setVisibility("pro".equals(currentModel) ? View.VISIBLE : View.GONE);
-        checkUltra.setVisibility("ultra".equals(currentModel) ? View.VISIBLE : View.GONE);
-
-        cardFast.setStrokeColor("fast".equals(currentModel) ? 0xFF007AFF : 0x1AFFFFFF);
-        cardPro.setStrokeColor("pro".equals(currentModel) ? 0xFF007AFF : 0x1AFFFFFF);
-        cardUltra.setStrokeColor("ultra".equals(currentModel) ? 0xFF007AFF : 0x1AFFFFFF);
-
-        cardFast.setOnClickListener(v -> {
-            modelSelector.setText(R.string.nex_fast);
-            modelSelector.setIconResource(R.drawable.ic_bolt);
-            preferenceManager.setSelectedModel("fast");
+        ModelAdapter adapter = new ModelAdapter(modelItems, preferenceManager.getSelectedModel(), item -> {
+            preferenceManager.setSelectedModel(item.getKey());
             if (aiManager != null) {
                 aiManager.setSystemPrompt(preferenceManager.getSystemPersona());
             }
+            updateModelSelectorButton();
             checkModelStatus();
             dialog.dismiss();
         });
-
-        cardPro.setOnClickListener(v -> {
-            modelSelector.setText("Nex Pro");
-            modelSelector.setIconResource(R.drawable.app_icon);
-            preferenceManager.setSelectedModel("pro");
-            if (aiManager != null) {
-                aiManager.setSystemPrompt(preferenceManager.getSystemPersona());
-            }
-            checkModelStatus();
-            dialog.dismiss();
-        });
-
-        cardUltra.setOnClickListener(v -> {
-            modelSelector.setText("Nex Ultra");
-            modelSelector.setIconResource(R.drawable.ic_persona);
-            preferenceManager.setSelectedModel("ultra");
-            if (aiManager != null) {
-                aiManager.setSystemPrompt(preferenceManager.getSystemPersona());
-            }
-            checkModelStatus();
-            dialog.dismiss();
-        });
+        recycler.setAdapter(adapter);
 
         dialog.show();
     }
