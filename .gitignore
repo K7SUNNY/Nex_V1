@@ -17,3 +17,8 @@ secrets.xml
 
 # Logs
 *.log
+
+#Debugs reports
+Debug_report.md
+
+captures/

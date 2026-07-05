@@ -101,4 +101,12 @@ public class PreferenceManager {
     public void setMemoryInitialized(boolean initialized) {
         prefs.edit().putBoolean("memory_initialized", initialized).apply();
     }
+
+    public long getActiveDownloadId() {
+        return prefs.getLong("active_download_id", -1);
+    }
+
+    public void setActiveDownloadId(long id) {
+        prefs.edit().putLong("active_download_id", id).apply();
+    }
 }

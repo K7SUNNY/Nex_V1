@@ -81,11 +81,40 @@ public class ModelManager {
         return isValidModelFile(getModelFile());
     }
 
+    public void cleanupCorruptedModel() {
+        String modelKey = getCurrentModelKey();
+        File file = getModelFile();
+        String modelName = getModelFileName(modelKey);
+        if (file.exists()) {
+            boolean isSizeOk = isModelFilePresentWithCorrectSize();
+            boolean isVerified = isModelVerified();
+            if (!isSizeOk || !isVerified) {
+                try {
+                    file.delete();
+                    android.util.Log.d("ModelManager", "Cleaned up broken/corrupted model file: " + modelName);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+                context.getSharedPreferences("model_prefs", Context.MODE_PRIVATE)
+                        .edit()
+                        .remove("verified_" + modelName)
+                        .remove("verified_size_" + modelName)
+                        .apply();
+            }
+        }
+    }
+
+    public boolean isModelFileCorrupted() {
+        File file = getModelFile();
+        return file.exists() && (!isModelFilePresentWithCorrectSize() || !isModelVerified());
+    }
+
     public String getModelPath() {
         return getModelFile().getAbsolutePath();
     }
 
     public long downloadModel() {
+        cleanupCorruptedModel();
         File modelFile = getModelFile();
         if (modelFile.exists()) {
             try {

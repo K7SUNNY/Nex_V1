@@ -258,17 +258,7 @@ public class MainActivity extends AppCompatActivity {
 
         MaterialButton modelSelector = findViewById(R.id.modelSelector);
         if (modelSelector != null) {
-            String model = preferenceManager.getSelectedModel();
-            if ("pro".equals(model)) {
-                modelSelector.setText("Nex Pro");
-                modelSelector.setIconResource(R.drawable.app_icon);
-            } else if ("ultra".equals(model)) {
-                modelSelector.setText("Nex Ultra");
-                modelSelector.setIconResource(R.drawable.ic_persona);
-            } else {
-                modelSelector.setText(R.string.nex_fast);
-                modelSelector.setIconResource(R.drawable.ic_bolt);
-            }
+            updateModelSelectorButton();
             modelSelector.setOnClickListener(v -> showModelSelection());
         }
 
@@ -297,6 +287,23 @@ public class MainActivity extends AppCompatActivity {
         // Check model status on startup and update the screen.
         checkModelStatus();
         updateTokenCount("");
+    }
+
+    private void updateModelSelectorButton() {
+        MaterialButton modelSelector = findViewById(R.id.modelSelector);
+        if (modelSelector != null) {
+            String model = preferenceManager.getSelectedModel();
+            if ("pro".equals(model)) {
+                modelSelector.setText("Nex Pro");
+                modelSelector.setIconResource(R.drawable.app_icon);
+            } else if ("ultra".equals(model)) {
+                modelSelector.setText("Nex Ultra");
+                modelSelector.setIconResource(R.drawable.ic_persona);
+            } else {
+                modelSelector.setText(R.string.nex_fast);
+                modelSelector.setIconResource(R.drawable.ic_bolt);
+            }
+        }
     }
 
     // Handles the callback when DownloadManager finishes a download.
@@ -332,6 +339,7 @@ public class MainActivity extends AppCompatActivity {
 
             // Clear the active download ID in either case.
             currentDownloadId = -1;
+            preferenceManager.setActiveDownloadId(-1);
 
             if (success) {
                 Log.d(TAG_DOWNLOAD, "Download succeeded, checking model...");
@@ -381,6 +389,7 @@ public class MainActivity extends AppCompatActivity {
                             cursor.close();
                             stopProgressPolling();
                             currentDownloadId = -1;
+                            preferenceManager.setActiveDownloadId(-1);
                             setDownloadIdleState("Download failed (reason: " + reason + "). Tap to retry.");
                             return;
                         }
@@ -479,6 +488,7 @@ public class MainActivity extends AppCompatActivity {
 
         if (currentDownloadId != -1) {
             Log.d(TAG_DOWNLOAD, "Download started with ID: " + currentDownloadId);
+            preferenceManager.setActiveDownloadId(currentDownloadId);
             Toast.makeText(this, "Download started", Toast.LENGTH_SHORT).show();
             startProgressPolling(); // Start polling for real-time byte progress.
         } else {
@@ -963,6 +973,26 @@ public class MainActivity extends AppCompatActivity {
                 aiManager.setContextWindow(preferenceManager.getContextWindow());
             }
         }
+        
+        updateModelSelectorButton();
+
+        if (preferenceManager != null) {
+            long activeId = preferenceManager.getActiveDownloadId();
+            if (activeId != -1) {
+                if (currentDownloadId == -1) {
+                    currentDownloadId = activeId;
+                    startProgressPolling();
+                }
+            } else {
+                if (currentDownloadId != -1) {
+                    stopProgressPolling();
+                    currentDownloadId = -1;
+                }
+            }
+        }
+
+        checkModelStatus();
+
         updateTokenCount(messageInput != null ? messageInput.getText().toString() : "");
     }
 
