@@ -56,6 +56,7 @@ public class MainActivity extends AppCompatActivity {
     private HistoryManager historyManager;
     private MemoryManager memoryManager;
     private PreferenceManager preferenceManager;
+    private ConversationAnalyzer conversationAnalyzer;
     private final ExecutorService dbExecutor = Executors.newSingleThreadExecutor();
     private final List<String> cachedMemories = new ArrayList<>();
     private String currentSessionId;
@@ -117,6 +118,7 @@ public class MainActivity extends AppCompatActivity {
         historyManager = new HistoryManager(this);
         memoryManager = new MemoryManager(this);
         preferenceManager = new PreferenceManager(this);
+        conversationAnalyzer = new ConversationAnalyzer(this, aiManager);
         currentSessionId = String.valueOf(System.currentTimeMillis());
 
         // Bind download-related views.
@@ -596,14 +598,10 @@ public class MainActivity extends AppCompatActivity {
         if (currentSessionTitle != null && !currentSessionTitle.isEmpty()) {
             return currentSessionTitle;
         }
-        String defaultTitle = "";
-        if (!messageList.isEmpty()) {
-            defaultTitle = messageList.get(0).getText();
-            if (defaultTitle.length() > 30) {
-                defaultTitle = defaultTitle.substring(0, 27) + "...";
-            }
+        if (conversationAnalyzer != null && !messageList.isEmpty()) {
+            return conversationAnalyzer.generateFallbackTitle(messageList.get(0).getText());
         }
-        return defaultTitle;
+        return "";
     }
 
     /** Resets the download card to idle/error state without hiding it. */
@@ -674,10 +672,8 @@ public class MainActivity extends AppCompatActivity {
                     });
                     updateTokenCount("");
 
-                    // Trigger Auto-Title if this is the first exchange
-                    if (messageList.size() == 2) {
-                        generateAutoTitle(text, response);
-                    }
+                    // Trigger Auto-Title logic (initial or drift check)
+                    generateAutoTitle();
 
                     // Trigger Memory Extraction
                     checkAndExtractMemory(text, messageList.get(index), index);
@@ -762,10 +758,8 @@ public class MainActivity extends AppCompatActivity {
                     });
                     updateTokenCount("");
 
-                    // Trigger Auto-Title if this is the first exchange
-                    if (messageList.size() == 2) {
-                        generateAutoTitle(promptText, response);
-                    }
+                    // Trigger Auto-Title logic (initial or drift check)
+                    generateAutoTitle();
 
                     // Trigger Memory Extraction
                     checkAndExtractMemory(promptText, messageList.get(index), index);
@@ -851,39 +845,58 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private void generateAutoTitle(String userPrompt, String aiResponse) {
-        aiManager.generateTitle(userPrompt, aiResponse, new AIManager.TitleCallback() {
-            @Override
-            public void onTitleGenerated(String title) {
-                if (title != null && !title.isEmpty()) {
-                    // Sanitize title: remove wrapping quotes, leading/trailing punctuation or "Title:" prefix
-                    String cleanTitle = title.trim();
-                    if (cleanTitle.startsWith("\"") && cleanTitle.endsWith("\"")) {
-                        cleanTitle = cleanTitle.substring(1, cleanTitle.length() - 1);
-                    }
-                    if (cleanTitle.startsWith("'") && cleanTitle.endsWith("'")) {
-                        cleanTitle = cleanTitle.substring(1, cleanTitle.length() - 1);
-                    }
-                    if (cleanTitle.endsWith(".")) {
-                        cleanTitle = cleanTitle.substring(0, cleanTitle.length() - 1);
-                    }
-                    cleanTitle = cleanTitle.trim();
+    private void generateAutoTitle() {
+        if (conversationAnalyzer == null) return;
 
-                    if (!cleanTitle.isEmpty()) {
-                        Log.d("NexUI", "Auto-generated title: " + cleanTitle);
-                        currentSessionTitle = cleanTitle;
-                        // Save session with the new title (asynchronously on background thread with copy of list)
-                        List<Message> copyListForDb = new ArrayList<>(messageList);
-                        String finalCleanTitle = cleanTitle;
-                        dbExecutor.execute(() -> {
-                            historyManager.saveSession(
-                                    new ChatSession(currentSessionId, finalCleanTitle, System.currentTimeMillis()),
-                                    copyListForDb
-                            );
-                        });
-                    }
+        // Never overwrite manual titles
+        if (preferenceManager.isSessionTitleManual(currentSessionId)) {
+            Log.d("NexUI", "Skipping auto-title generation: session title was manually set.");
+            return;
+        }
+
+        // Get a snapshot copy of the message list
+        final List<Message> snapshot = new ArrayList<>(messageList);
+
+        // Check if eligible for initial title or drift re-evaluation
+        final boolean isInitial = (currentSessionTitle == null || currentSessionTitle.isEmpty());
+        boolean eligible = isInitial 
+            ? conversationAnalyzer.isEligibleForInitialTitle(snapshot)
+            : conversationAnalyzer.isEligibleForDriftCheck(snapshot);
+
+        if (!eligible) {
+            return;
+        }
+
+        if (isInitial) {
+            // Generate initial title
+            conversationAnalyzer.generateTitle(snapshot, title -> {
+                if (title != null && !title.isEmpty()) {
+                    updateAndSaveSessionTitle(title, snapshot);
                 }
-            }
+            });
+        } else {
+            // Check for topic drift
+            conversationAnalyzer.detectTopicDrift(snapshot, currentSessionTitle, drifted -> {
+                if (drifted) {
+                    Log.d("NexUI", "Topic drift detected! Regenerating title.");
+                    conversationAnalyzer.generateTitle(snapshot, title -> {
+                        if (title != null && !title.isEmpty()) {
+                            updateAndSaveSessionTitle(title, snapshot);
+                        }
+                    });
+                }
+            });
+        }
+    }
+
+    private void updateAndSaveSessionTitle(String title, List<Message> messages) {
+        currentSessionTitle = title;
+        Log.d("NexUI", "New session title set: " + title);
+        dbExecutor.execute(() -> {
+            historyManager.saveSession(
+                new ChatSession(currentSessionId, title, System.currentTimeMillis()),
+                messages
+            );
         });
     }
 

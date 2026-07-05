@@ -172,36 +172,36 @@ public class AIManager {
         });
     }
 
-    public void generateTitle(String userPrompt, String aiResponse, TitleCallback callback) {
+    public void runShortInference(
+        String systemPrompt,
+        String[] roles,
+        String[] contents,
+        int maxTokens,
+        float temperature,
+        ResponseCallback callback
+    ) {
         if (!isModelLoaded) {
-            Log.w(TAG_MODEL, "Model not loaded — cannot generate title");
-            callback.onTitleGenerated(null);
+            Log.w(TAG_MODEL, "Model not loaded — cannot run short inference");
+            mainHandler.post(() -> callback.onResponse(null));
             return;
         }
 
         executorService.execute(() -> {
-            String titleSystemPrompt = "You are a title generator. Write a 3-5 word descriptive title for this conversation based on the exchange. Do not use quotes, punctuation, or any introductory phrases like 'Title:'. Output ONLY the title itself.";
-            String[] roles = new String[]{"user", "assistant"};
-            String[] contents = new String[]{userPrompt, aiResponse};
-
             String response = runInferenceNative(
-                titleSystemPrompt,
+                systemPrompt,
                 roles,
                 contents,
-                16, // maxTokens for title
-                0.3f, // lower temperature for title stability
+                maxTokens,
+                temperature,
                 new ResponseCallback() {
                     @Override
-                    public void onResponse(String response) {
-                    }
+                    public void onResponse(String r) {}
                     @Override
-                    public void onToken(String token) {
-                    }
+                    public void onToken(String token) {}
                 }
             );
-
             String finalResponse = (response != null) ? response.trim() : null;
-            mainHandler.post(() -> callback.onTitleGenerated(finalResponse));
+            mainHandler.post(() -> callback.onResponse(finalResponse));
         });
     }
 

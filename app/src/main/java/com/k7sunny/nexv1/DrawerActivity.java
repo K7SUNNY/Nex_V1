@@ -205,6 +205,7 @@ public class DrawerActivity extends AppCompatActivity {
                 if (!newTitle.isEmpty()) {
                     dbExecutor.execute(() -> {
                         historyManager.renameSession(session.getId(), newTitle);
+                        new PreferenceManager(DrawerActivity.this).setSessionTitleManual(session.getId(), true);
                         runOnUiThread(onComplete);
                     });
                 }

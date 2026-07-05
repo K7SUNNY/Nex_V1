@@ -109,4 +109,12 @@ public class PreferenceManager {
     public void setActiveDownloadId(long id) {
         prefs.edit().putLong("active_download_id", id).apply();
     }
+
+    public boolean isSessionTitleManual(String sessionId) {
+        return prefs.getBoolean("manual_title_" + sessionId, false);
+    }
+
+    public void setSessionTitleManual(String sessionId, boolean manual) {
+        prefs.edit().putBoolean("manual_title_" + sessionId, manual).apply();
+    }
 }
