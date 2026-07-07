@@ -2,7 +2,6 @@ package com.k7sunny.nexv1;
 
 import android.content.Context;
 import android.util.Log;
-import java.util.ArrayList;
 import java.util.List;
 
 public class ConversationAnalyzer {
@@ -30,6 +29,10 @@ public class ConversationAnalyzer {
         // We now cap how many recent messages are sent for these lightweight
         // classification-style calls.
         public static final int MAX_CONTEXT_MESSAGES = 10;
+
+        // Each transcript line is capped so 10 messages can never come close
+        // to the native n_ctx (2048 tokens) even with a verbose conversation.
+        public static final int TRANSCRIPT_MSG_CHAR_LIMIT = 300;
 
         // Delayed title triggers
         public static final int TRIGGER_MIN_USER_MESSAGES = 2; // Generate title after 2 user messages
@@ -70,6 +73,39 @@ public class ConversationAnalyzer {
         return messages.subList(start, messages.size());
     }
 
+    /**
+     * Renders the (windowed) conversation as a plain-text transcript.
+     *
+     * FIX (root cause of bad titles): title/drift used to replay the whole
+     * conversation as multi-turn chat history with the instruction hidden in
+     * the system prompt. The chat template then ends with a fresh assistant
+     * turn, so a small model (Qwen 0.5B/1.5B) simply CONTINUES the
+     * conversation — it answers the user's last message instead of emitting
+     * a title or a YES/NO verdict. Embedding the transcript inside a single
+     * user message, with the instruction as the LAST thing the model reads,
+     * makes it behave like a classifier instead of a chat participant.
+     */
+    private String buildTranscript(List<Message> messages) {
+        StringBuilder sb = new StringBuilder();
+        for (Message m : windowMessages(messages)) {
+            String speaker;
+            if (m.getType() == Message.TYPE_USER) {
+                speaker = "User";
+            } else if (m.getType() == Message.TYPE_AI) {
+                speaker = "Assistant";
+            } else {
+                continue;
+            }
+            String text = (m.getText() == null) ? "" : m.getText().trim();
+            if (text.isEmpty()) continue;
+            if (text.length() > Config.TRANSCRIPT_MSG_CHAR_LIMIT) {
+                text = text.substring(0, Config.TRANSCRIPT_MSG_CHAR_LIMIT) + "...";
+            }
+            sb.append(speaker).append(": ").append(text).append("\n");
+        }
+        return sb.toString().trim();
+    }
+
     // --- TitleGenerator (Section 10) ---
     public void generateTitle(List<Message> messages, TitleCallback callback) {
         if (!aiManager.isModelLoaded()) {
@@ -78,44 +114,24 @@ public class ConversationAnalyzer {
             return;
         }
 
-        // Section 3: Stricter and more deterministic prompt
-        String titleSystemPrompt =
-                "Generate a concise conversation title.\n\n" +
-                        "Requirements:\n" +
-                        "- 2–6 words\n" +
-                        "- Use Title Case\n" +
-                        "- No quotation marks\n" +
-                        "- No emojis\n" +
-                        "- No introductory text (do NOT output 'Title:', 'Topic:', etc.)\n" +
-                        "- No punctuation unless required\n" +
-                        "- Focus on the primary discussion topic, not just the first message.\n" +
-                        "- Return only the title.";
-
-        List<Message> windowed = windowMessages(messages);
-
-        // Build list of message roles and contents
-        List<String> rolesList = new ArrayList<>();
-        List<String> contentsList = new ArrayList<>();
-
-        for (Message m : windowed) {
-            if (m.getType() == Message.TYPE_USER) {
-                rolesList.add("user");
-                contentsList.add(m.getText());
-            } else if (m.getType() == Message.TYPE_AI) {
-                rolesList.add("assistant");
-                contentsList.add(m.getText());
-            }
-        }
-
-        if (rolesList.isEmpty()) {
+        String transcript = buildTranscript(messages);
+        if (transcript.isEmpty()) {
             callback.onTitleGenerated(null);
             return;
         }
 
+        String titleSystemPrompt = "You write short, clean titles for chat conversations.";
+
+        String instruction =
+                "Here is a conversation:\n\n" +
+                        transcript + "\n\n" +
+                        "Write a short title (2-6 words) describing the main topic of this conversation.\n" +
+                        "Reply with ONLY the title text. No quotes, no emojis, no explanation.";
+
         aiManager.runShortInference(
                 titleSystemPrompt,
-                rolesList.toArray(new String[0]),
-                contentsList.toArray(new String[0]),
+                new String[]{"user"},
+                new String[]{instruction},
                 Config.MAX_GENERATION_TOKENS,
                 Config.AI_TEMPERATURE,
                 new AIManager.ResponseCallback() {
@@ -159,6 +175,18 @@ public class ConversationAnalyzer {
 
         String clean = title.trim();
 
+        // FIX: small models often add an explanation on a second line
+        // ("Planning Your Day\n\nThis title reflects..."). Previously any
+        // newline caused validateTitle() to reject the WHOLE response and no
+        // title was ever set. Keep the first non-empty line instead.
+        for (String line : clean.split("\\r?\\n")) {
+            String candidate = line.trim();
+            if (!candidate.isEmpty()) {
+                clean = candidate;
+                break;
+            }
+        }
+
         // Remove surrounding quotes
         if (clean.startsWith("\"") && clean.endsWith("\"")) {
             clean = clean.substring(1, clean.length() - 1);
@@ -183,6 +211,17 @@ public class ConversationAnalyzer {
 
         // Collapse multiple spaces into one
         clean = clean.replaceAll("\\s+", " ");
+
+        // FIX: overlong output used to be rejected outright by validateTitle()
+        // (with MAX_GENERATION_TOKENS=24 the model regularly overruns 40
+        // chars), so many conversations never got a title at all. Truncate at
+        // a word boundary instead of discarding.
+        if (clean.length() > Config.MAX_TITLE_LENGTH) {
+            String cut = clean.substring(0, Config.MAX_TITLE_LENGTH);
+            int lastSpace = cut.lastIndexOf(' ');
+            clean = (lastSpace > 10) ? cut.substring(0, lastSpace) : cut;
+            clean = clean.replaceAll("[\\p{Punct}\\s]+$", "");
+        }
 
         return clean.trim();
     }
@@ -221,30 +260,26 @@ public class ConversationAnalyzer {
             return;
         }
 
-        String driftPrompt =
-                "Analyze the conversation history. Has the primary subject or topic of discussion changed significantly from the current title: \"" + currentTitle + "\"?\n\n" +
-                        "Reply with YES if the topic has shifted to a completely different subject, or NO if the conversation is still generally on the same topic.\n" +
-                        "Output ONLY 'YES' or 'NO'.";
-
-        List<Message> windowed = windowMessages(messages);
-
-        List<String> rolesList = new ArrayList<>();
-        List<String> contentsList = new ArrayList<>();
-
-        for (Message m : windowed) {
-            if (m.getType() == Message.TYPE_USER) {
-                rolesList.add("user");
-                contentsList.add(m.getText());
-            } else if (m.getType() == Message.TYPE_AI) {
-                rolesList.add("assistant");
-                contentsList.add(m.getText());
-            }
+        String transcript = buildTranscript(messages);
+        if (transcript.isEmpty()) {
+            callback.onDriftDetected(false);
+            return;
         }
 
+        // Same single-user-message structure as generateTitle — see
+        // buildTranscript() for why the instruction must come last.
+        String driftSystemPrompt = "You are a strict classifier. You reply with only YES or NO.";
+
+        String instruction =
+                "Current chat title: \"" + currentTitle + "\"\n\n" +
+                        "Conversation:\n" + transcript + "\n\n" +
+                        "Has the conversation moved on to a completely different subject than the title?\n" +
+                        "Reply with ONLY 'YES' or 'NO'.";
+
         aiManager.runShortInference(
-                driftPrompt,
-                rolesList.toArray(new String[0]),
-                contentsList.toArray(new String[0]),
+                driftSystemPrompt,
+                new String[]{"user"},
+                new String[]{instruction},
                 Config.DRIFT_MAX_TOKENS,
                 Config.DRIFT_TEMPERATURE,
                 new AIManager.ResponseCallback() {

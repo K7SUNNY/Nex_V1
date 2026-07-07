@@ -574,8 +574,21 @@ public class MainActivity extends AppCompatActivity {
         dbExecutor.execute(() -> {
             String title = historyManager.getSessionTitle(sessionId);
             List<Message> messages = historyManager.getMessages(sessionId);
+            boolean manual = preferenceManager.isSessionTitleManual(sessionId);
             runOnUiThread(() -> {
-                currentSessionTitle = title;
+                // FIX (reopened sessions never got an AI title): sendMessage()
+                // persists a FALLBACK title (truncated first message) from the
+                // very first save, so the DB title is non-empty long before an
+                // AI title exists. Treating that fallback as a real title made
+                // isInitial=false forever after a session reload, so reopened
+                // chats only ever got drift checks against a garbage title.
+                // Detect the fallback and keep the in-memory title null so the
+                // initial AI title can still be generated.
+                if (!manual && isFallbackTitle(title, messages)) {
+                    currentSessionTitle = null;
+                } else {
+                    currentSessionTitle = title;
+                }
                 messageList.clear();
                 messageList.addAll(messages);
                 chatAdapter.notifyDataSetChanged();
@@ -624,6 +637,20 @@ public class MainActivity extends AppCompatActivity {
             return conversationAnalyzer.generateFallbackTitle(messageList.get(0).getText());
         }
         return "";
+    }
+
+    /**
+     * True if the stored title is just the auto-derived fallback (truncated
+     * first user message) rather than an AI-generated or manual title.
+     */
+    private boolean isFallbackTitle(String title, List<Message> messages) {
+        if (title == null || title.isEmpty()) return true;
+        for (Message m : messages) {
+            if (m.getType() == Message.TYPE_USER) {
+                return title.equals(conversationAnalyzer.generateFallbackTitle(m.getText()));
+            }
+        }
+        return false;
     }
 
     /** Resets the download card to idle/error state without hiding it. */
@@ -919,9 +946,9 @@ public class MainActivity extends AppCompatActivity {
         if (isInitial) {
             // Generate initial title
             conversationAnalyzer.generateTitle(snapshot, title -> {
-                titleGenerationInFlight = false;
+                clearInFlightFlag(sessionIdAtCallTime);
                 if (title != null && !title.isEmpty()) {
-                    applyGeneratedTitle(sessionIdAtCallTime, title, snapshot);
+                    applyGeneratedTitle(sessionIdAtCallTime, title);
                 }
             });
         } else {
@@ -930,15 +957,28 @@ public class MainActivity extends AppCompatActivity {
                 if (drifted) {
                     Log.d(TAG, "Topic drift detected! Regenerating title.");
                     conversationAnalyzer.generateTitle(snapshot, title -> {
-                        titleGenerationInFlight = false;
+                        clearInFlightFlag(sessionIdAtCallTime);
                         if (title != null && !title.isEmpty()) {
-                            applyGeneratedTitle(sessionIdAtCallTime, title, snapshot);
+                            applyGeneratedTitle(sessionIdAtCallTime, title);
                         }
                     });
                 } else {
-                    titleGenerationInFlight = false;
+                    clearInFlightFlag(sessionIdAtCallTime);
                 }
             });
+        }
+    }
+
+    /**
+     * FIX (in-flight flag clobber): if the user switched to session B while
+     * session A's title request was still running, B's request would set the
+     * flag, and A's late callback would then blindly clear it — allowing a
+     * second overlapping request for B. Only the request that currently owns
+     * the flag may clear it.
+     */
+    private void clearInFlightFlag(String sessionIdAtCallTime) {
+        if (sessionIdAtCallTime.equals(titleGenerationSessionId)) {
+            titleGenerationInFlight = false;
         }
     }
 
@@ -954,25 +994,35 @@ public class MainActivity extends AppCompatActivity {
      * If either check fails, the result is discarded instead of being
      * written — this is what prevents the async callback from corrupting an
      * unrelated session's title/messages in the database.
+     *
+     * FIX (title-generation data loss): this used to call saveSession() with
+     * the message SNAPSHOT captured when the request was queued. Title
+     * inference takes seconds on-device; any message the user sent in the
+     * meantime was already saved by sendMessage(), and replaceSession() then
+     * deleted it again when the stale snapshot was written back. It also
+     * bumped the session timestamp, reordering the drawer list. We now do a
+     * title-only UPDATE via renameSession().
      */
-    private void applyGeneratedTitle(String sessionIdAtCallTime, String title, List<Message> messages) {
+    private void applyGeneratedTitle(String sessionIdAtCallTime, String title) {
         boolean stillSameSession = sessionIdAtCallTime.equals(currentSessionId);
-        boolean stillNotManual = !preferenceManager.isSessionTitleManual(sessionIdAtCallTime);
 
-        if (!stillSameSession || !stillNotManual) {
-            Log.d(TAG, "Discarding stale/obsolete generated title for session " + sessionIdAtCallTime
-                    + " (sameSession=" + stillSameSession + ", notManual=" + stillNotManual + ")");
+        // A manual rename that happened while the request was in flight
+        // always wins over an auto-generated title.
+        if (preferenceManager.isSessionTitleManual(sessionIdAtCallTime)) {
+            Log.d(TAG, "Discarding generated title for session " + sessionIdAtCallTime
+                    + ": session was manually renamed while request was in flight");
             return;
         }
 
-        currentSessionTitle = title;
-        Log.d(TAG, "New session title set: " + title);
-        dbExecutor.execute(() -> {
-            historyManager.saveSession(
-                    new ChatSession(sessionIdAtCallTime, title, System.currentTimeMillis()),
-                    messages
-            );
-        });
+        // The title was generated from a snapshot of THIS session's messages,
+        // so it's still valid even if the user has since switched chats — the
+        // rename-only write below can't touch any other session's data. Only
+        // the in-memory title of the visible chat must be guarded.
+        if (stillSameSession) {
+            currentSessionTitle = title;
+        }
+        Log.d(TAG, "New session title set for " + sessionIdAtCallTime + ": " + title);
+        dbExecutor.execute(() -> historyManager.renameSession(sessionIdAtCallTime, title));
     }
 
     /**

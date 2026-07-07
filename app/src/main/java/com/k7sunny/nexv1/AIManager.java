@@ -18,7 +18,10 @@ public class AIManager {
 
     private final ExecutorService executorService;
     private final Handler mainHandler;
-    private boolean isModelLoaded = false;
+    // Written on the inference thread (loadModel/release) and read from the
+    // UI thread (title/drift/memory triggers) — must be volatile or a stale
+    // `false` silently skips title generation after the model has loaded.
+    private volatile boolean isModelLoaded = false;
     private final java.util.List<Message> chatHistory = new java.util.ArrayList<>();
     private static final int MAX_HISTORY = 12; // Keep last 6 rounds of chat
     private String systemPrompt = "";
