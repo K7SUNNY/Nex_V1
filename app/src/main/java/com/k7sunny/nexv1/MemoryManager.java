@@ -32,12 +32,7 @@ public class MemoryManager {
                         String content = obj.getString("content");
                         boolean isPinned = obj.getBoolean("isPinned");
 
-                        // General migration: "Nex" -> "I" for third-person memories
-                        if (content.startsWith("Nex ")) {
-                            content = "I " + content.substring(4);
-                        } else if (content.equals("Nex")) {
-                            content = "I";
-                        }
+                        content = normalizePersonReference(content);
 
                         entities.add(new MemoryEntity(title, content, isPinned, i));
                     }
@@ -67,21 +62,32 @@ public class MemoryManager {
         List<Memory> list = new ArrayList<>();
         boolean migrated = false;
         for (MemoryEntity entity : entities) {
-            String content = entity.content;
-            // General migration: "Nex" -> "I" for third-person memories
-            if (content.startsWith("Nex ")) {
-                content = "I " + content.substring(4);
-                migrated = true;
-            } else if (content.equals("Nex")) {
-                content = "I";
+            String originalContent = entity.content;
+            String normalizedContent = normalizePersonReference(originalContent);
+            
+            if (!originalContent.equals(normalizedContent)) {
                 migrated = true;
             }
-            list.add(new Memory(entity.title, content, entity.isPinned));
+            list.add(new Memory(entity.title, normalizedContent, entity.isPinned));
         }
         if (migrated) {
             saveMemories(list);
         }
         return list;
+    }
+
+    private String normalizePersonReference(String content) {
+        if (content == null) return null;
+        if (content.startsWith("Nex ")) {
+            return "I " + content.substring(4);
+        } else if (content.equals("Nex")) {
+            return "I";
+        } else if (content.startsWith("User ")) {
+            return "You " + content.substring(5);
+        } else if (content.equals("User")) {
+            return "You";
+        }
+        return content;
     }
 
     public List<String> getPinnedMemoryStrings() {

@@ -120,7 +120,7 @@ public class AIManager {
                     if (sb.length() > 0) {
                         sb.append("\n\n");
                     }
-                    sb.append("User facts and memories for reference:\n");
+                    sb.append("Background facts about the person you are chatting with (referred to below as \"you\" — this is not your own name or identity):\n");
                     for (String memory : pinnedMemories) {
                         sb.append("- ").append(memory).append("\n");
                     }
@@ -218,15 +218,16 @@ public class AIManager {
         executorService.execute(() -> {
             String memorySystemPrompt = 
                 "You are a strict memory processor. Analyze the conversation.\n" +
-                "Only extract a memory if the user EXPLICITLY states a personal fact, preference, hobby, or detail about themselves.\n" +
-                "Format: \"[Topic] | User [fact/preference]\"\n" +
+                "Only extract a memory if the person EXPLICITLY states a personal fact, preference, hobby, or detail about themselves.\n" +
+                "Format: \"[Topic] | You [fact/preference]\"\n" +
                 "Topic: A short 1-2 word category.\n" +
-                "Example 1: \"Coding | User prefers Kotlin over Java.\"\n" +
-                "Example 2: \"Location | User lives in Tokyo.\"\n" +
-                "If the user is just saying hi, asking a general question, or if NO personal user info is present, you MUST reply with ONLY the word \"NONE\".\n" +
-                "DO NOT make up facts. DO NOT hallucinate. If you are unsure, reply with \"NONE\".\n" +
-                "Negative Example: User says \"Hey!\" -> Output: \"NONE\"\n" +
-                "Negative Example: User says \"What is the weather?\" -> Output: \"NONE\"";
+                "Always refer to the person as \"You\" — NEVER write the word \"User\" as if it were their name.\n" +
+                "Example 1: \"Coding | You prefer Kotlin over Java.\"\n" +
+                "Example 2: \"Location | You live in Tokyo.\"\n" +
+                "If the person is just saying hi, asking a general question, or if NO personal info is present, reply with ONLY \"NONE\".\n" +
+                "DO NOT make up facts. DO NOT hallucinate. If unsure, reply with \"NONE\".\n" +
+                "Negative Example: \"Hey!\" -> Output: \"NONE\"\n" +
+                "Negative Example: \"What is the weather?\" -> Output: \"NONE\"";
 
             java.util.List<Message> contextMsgs = new java.util.ArrayList<>();
             synchronized (chatHistory) {
@@ -311,13 +312,24 @@ public class AIManager {
                 
                 if (title.length() > 30) title = title.substring(0, 27) + "...";
                 
-                String finalTitle = title;
-                String finalContent = content;
+                String finalTitle = normalizePersonReference(title);
+                String finalContent = normalizePersonReference(content);
                 mainHandler.post(() -> callback.onMemoryExtracted(finalTitle, finalContent));
             } else {
                 mainHandler.post(() -> callback.onMemoryExtracted(null, null));
             }
         });
+    }
+
+    private String normalizePersonReference(String text) {
+        if (text == null) return text;
+        if (text.startsWith("User ")) {
+            return "You " + text.substring(5);
+        } else if (text.equals("User")) {
+            return "You";
+        }
+        // catch mid-sentence leaks too
+        return text.replaceAll("\\bUser\\b", "you");
     }
 
     public void setHistory(java.util.List<Message> messages) {
