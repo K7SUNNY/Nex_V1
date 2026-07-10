@@ -3,6 +3,7 @@
 #include <vector>
 #include <thread>
 #include <atomic>
+#include <mutex>
 #include <android/log.h>
 #include "llama.h"
 #include "common.h"
@@ -24,8 +25,8 @@
 
 static llama_model* g_model = nullptr;
 static llama_context* g_ctx = nullptr;
-static std::string g_last_prompt = "";
-static int g_last_token_count = 0;
+static std::vector<llama_token> g_last_tokens;
+static std::mutex g_mutex;
 static std::atomic<bool> g_cancel_inference{false};
 
 // Helper: replace all occurrences of `from` with `to` in a string
@@ -53,6 +54,7 @@ Java_com_k7sunny_nexv1_AIManager_initNative(JNIEnv*, jobject) {
 }
 
 static void free_resources() {
+    std::lock_guard<std::mutex> lock(g_mutex);
     if (g_ctx) {
         llama_free(g_ctx);
         g_ctx = nullptr;
@@ -61,8 +63,7 @@ static void free_resources() {
         llama_model_free(g_model);
         g_model = nullptr;
     }
-    g_last_prompt = "";
-    g_last_token_count = 0;
+    g_last_tokens.clear();
 }
 
 extern "C" JNIEXPORT jlong JNICALL
@@ -77,6 +78,7 @@ Java_com_k7sunny_nexv1_AIManager_loadModelNative(JNIEnv* env, jobject, jstring m
     model_params.use_mmap = true;
     model_params.n_gpu_layers = 0; // CPU only for now to ensure stability
 
+    std::lock_guard<std::mutex> lock(g_mutex);
     g_model = llama_model_load_from_file(path, model_params);
     env->ReleaseStringUTFChars(model_path, path);
 
@@ -131,6 +133,7 @@ Java_com_k7sunny_nexv1_AIManager_runInferenceNative(
 
     g_cancel_inference.store(false);
 
+    std::unique_lock<std::mutex> lock(g_mutex);
     if (!g_model || !g_ctx) {
         return env->NewStringUTF("Error: Model not loaded");
     }
@@ -180,11 +183,8 @@ Java_com_k7sunny_nexv1_AIManager_runInferenceNative(
     }
 
     // ---- Apply chat template ----
-    // Use the model's built-in chat template (auto-detection).
-    // llama.cpp supports Qwen's ChatML template natively.
     const char* tmpl_to_use = nullptr;
 
-    // First call: get required buffer size
     int32_t prompt_len = llama_chat_apply_template(
         tmpl_to_use, messages.data(), messages.size(), true, nullptr, 0);
 
@@ -193,7 +193,6 @@ Java_com_k7sunny_nexv1_AIManager_runInferenceNative(
         return env->NewStringUTF("Error: chat template failed");
     }
 
-    // Second call: fill the buffer
     std::vector<char> buf(prompt_len + 1, 0);
     llama_chat_apply_template(
         tmpl_to_use, messages.data(), messages.size(), true, buf.data(), buf.size());
@@ -202,40 +201,30 @@ Java_com_k7sunny_nexv1_AIManager_runInferenceNative(
 
     LOG_PROMPT("Formatted prompt (%d chars):\n%s", (int)prompt.size(), prompt.c_str());
 
-    // ---- SMART KV CACHE REUSE ----
-
-    int n_past = 0;
-    if (!g_last_prompt.empty() && prompt.find(g_last_prompt) == 0) {
-        n_past = g_last_token_count;
-        LOG_CACHE("Reusing KV cache: %d tokens", n_past);
-    } else {
-        llama_memory_clear(llama_get_memory(g_ctx), true);
-        LOG_CACHE("Cache cleared — prompt changed");
-        n_past = 0;
-        g_last_prompt = "";
-        g_last_token_count = 0;
-    }
-
+    // Tokenize full prompt
     std::vector<llama_token> all_tokens = common_tokenize(g_ctx, prompt, true, true);
     if (all_tokens.empty()) return env->NewStringUTF("");
 
-    // Guard: if the "cached" token count covers (or exceeds) the whole new
-    // prompt — e.g. retokenization produced fewer tokens than were decoded
-    // last time — reusing it would sample from stale logits at misaligned
-    // positions. Fall back to a full re-decode.
-    if (n_past >= (int)all_tokens.size()) {
-        llama_memory_clear(llama_get_memory(g_ctx), true);
-        LOG_CACHE("Cached prefix (%d) >= prompt tokens (%zu) — full re-decode", n_past, all_tokens.size());
-        n_past = 0;
-        g_last_prompt = "";
-        g_last_token_count = 0;
+    // ---- SMART KV CACHE REUSE (Token-based) ----
+
+    int n_past = 0;
+    // Compare token by token to find common prefix
+    size_t max_reuse = std::min(all_tokens.size(), g_last_tokens.size());
+    while (n_past < max_reuse && all_tokens[n_past] == g_last_tokens[n_past]) {
+        n_past++;
     }
 
-    // Tokens we actually need to decode (the ones not in cache)
-    std::vector<llama_token> new_tokens;
-    if (n_past < (int)all_tokens.size()) {
-        new_tokens.assign(all_tokens.begin() + n_past, all_tokens.end());
+    if (n_past > 0) {
+        LOG_CACHE("Reusing KV cache: %d tokens", n_past);
+        // Truncate KV cache to matching prefix using newer API names
+        llama_memory_seq_rm(llama_get_memory(g_ctx), 0, n_past, -1);
+    } else {
+        llama_memory_clear(llama_get_memory(g_ctx), true);
+        LOG_CACHE("Cache cleared — no common prefix");
     }
+
+    // Tokens we actually need to decode
+    std::vector<llama_token> new_tokens(all_tokens.begin() + n_past, all_tokens.end());
 
     LOG_INFER("Total tokens: %zu, New to decode: %zu", all_tokens.size(), new_tokens.size());
 
@@ -249,12 +238,9 @@ Java_com_k7sunny_nexv1_AIManager_runInferenceNative(
         if (llama_decode(g_ctx, batch) != 0) {
             LOGE("Decode failed");
             llama_batch_free(batch);
-            // KV cache state is unknown after a failed decode — make sure the
-            // next call starts from a clean slate instead of "reusing" it.
             llama_memory_clear(llama_get_memory(g_ctx), true);
-            g_last_prompt = "";
-            g_last_token_count = 0;
-            return env->NewStringUTF("Error");
+            g_last_tokens.clear();
+            return env->NewStringUTF("Error: decode failed");
         }
         LOG_INFER("Prompt decode took %lld ms", (long long)((ggml_time_us() - start_eval) / 1000));
         llama_batch_free(batch);
@@ -277,11 +263,8 @@ Java_com_k7sunny_nexv1_AIManager_runInferenceNative(
     int n_predict = 0;
     int n_cur = all_tokens.size();
 
-    // Set to false whenever the text in `response` stops matching what was
-    // actually decoded into the KV cache (stop-pattern trim, decode failure).
-    // In that case the g_last_prompt/g_last_token_count bookkeeping would lie
-    // to the NEXT call, which reuses the cache purely on a text-prefix match
-    // — producing garbage at misaligned positions.
+    // Track tokens for next call
+    std::vector<llama_token> current_tokens = all_tokens;
     bool cache_valid = true;
 
     llama_batch run_batch = llama_batch_init(1, 0, 1);
@@ -302,13 +285,13 @@ Java_com_k7sunny_nexv1_AIManager_runInferenceNative(
         env->CallVoidMethod(jcallback, onTokenMethod, jpiece);
         env->DeleteLocalRef(jpiece);
 
-        // Check for role-leak / stop patterns — trim at earliest match and stop
+        // Check for role-leak / stop patterns
         {
             std::vector<std::string> stops = {
                 "<|user|>", "<|assistant|>", "<|system|>",
                 "<|endoftext|>", "</s>", "<|end|>",
-                "<|im_start|>", "<|im_end|>",
-                "User:", "Instruction:"
+                "<|im_start|>", "<|im_end|>", "<|eot_id|>",
+                "User:", "Assistant:", "Instruction:"
             };
             size_t earliest = std::string::npos;
             for (const auto& s : stops) {
@@ -319,9 +302,7 @@ Java_com_k7sunny_nexv1_AIManager_runInferenceNative(
             }
             if (earliest != std::string::npos) {
                 response.erase(earliest);
-                LOG_INFER("Stop pattern hit, trimmed response at pos %zu", earliest);
-                // The trimmed-away tokens are already in the KV cache, so the
-                // cache no longer matches `prompt + response`.
+                LOG_INFER("Stop pattern hit, trimmed response");
                 cache_valid = false;
                 break;
             }
@@ -329,10 +310,9 @@ Java_com_k7sunny_nexv1_AIManager_runInferenceNative(
 
         common_batch_clear(run_batch);
         common_batch_add(run_batch, token, n_cur++, {0}, true);
+        current_tokens.push_back(token);
 
         if (llama_decode(g_ctx, run_batch) != 0) {
-            // `response` already contains this token's piece but it never made
-            // it into the KV cache — bookkeeping is out of sync.
             cache_valid = false;
             break;
         }
@@ -342,15 +322,11 @@ Java_com_k7sunny_nexv1_AIManager_runInferenceNative(
         n_predict++;
     }
 
-    // Update state for next call
     if (cache_valid) {
-        g_last_prompt = prompt + response;
-        g_last_token_count = n_cur;
+        g_last_tokens = current_tokens;
     } else {
-        // Force a clean re-decode next time instead of reusing a cache that
-        // no longer matches the recorded prompt text.
-        g_last_prompt = "";
-        g_last_token_count = 0;
+        g_last_tokens.clear();
+        llama_memory_clear(llama_get_memory(g_ctx), true);
     }
 
     LOG_INFER("Generated %d tokens, response length: %zu chars", n_predict, response.length());

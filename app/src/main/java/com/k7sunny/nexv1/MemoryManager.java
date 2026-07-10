@@ -32,9 +32,11 @@ public class MemoryManager {
                         String content = obj.getString("content");
                         boolean isPinned = obj.getBoolean("isPinned");
 
-                        // Migrate old third-person default memory to first-person
-                        if ("Nex prefers concise code examples and OLED dark mode themes.".equals(content)) {
-                            content = "I prefer concise code examples and OLED dark mode themes.";
+                        // General migration: "Nex" -> "I" for third-person memories
+                        if (content.startsWith("Nex ")) {
+                            content = "I " + content.substring(4);
+                        } else if (content.equals("Nex")) {
+                            content = "I";
                         }
 
                         entities.add(new MemoryEntity(title, content, isPinned, i));
@@ -66,9 +68,12 @@ public class MemoryManager {
         boolean migrated = false;
         for (MemoryEntity entity : entities) {
             String content = entity.content;
-            // Migrate old third-person default memory to first-person
-            if ("Nex prefers concise code examples and OLED dark mode themes.".equals(content)) {
-                content = "I prefer concise code examples and OLED dark mode themes.";
+            // General migration: "Nex" -> "I" for third-person memories
+            if (content.startsWith("Nex ")) {
+                content = "I " + content.substring(4);
+                migrated = true;
+            } else if (content.equals("Nex")) {
+                content = "I";
                 migrated = true;
             }
             list.add(new Memory(entity.title, content, entity.isPinned));

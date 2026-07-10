@@ -725,7 +725,10 @@ public class MainActivity extends AppCompatActivity {
                     generateAutoTitle();
 
                     // Trigger Memory Extraction
-                    checkAndExtractMemory(text, messageList.get(index), index);
+                    // Only trigger if the user prompt is long enough to potentially contain a fact (> 10 chars)
+                    if (text.trim().length() > 10) {
+                        checkAndExtractMemory(text, messageList.get(index), index);
+                    }
                 }
             }
 
@@ -811,7 +814,9 @@ public class MainActivity extends AppCompatActivity {
                     generateAutoTitle();
 
                     // Trigger Memory Extraction
-                    checkAndExtractMemory(promptText, messageList.get(index), index);
+                    if (promptText.trim().length() > 10) {
+                        checkAndExtractMemory(promptText, messageList.get(index), index);
+                    }
                 }
             }
 
@@ -839,18 +844,24 @@ public class MainActivity extends AppCompatActivity {
 
     private void pinMessageToMemory(String text) {
         if (text == null || text.trim().isEmpty()) return;
+        final String cleanText = text.trim();
         dbExecutor.execute(() -> {
             List<Memory> memories = memoryManager.getAllMemories();
+            
+            // IMPROVED: Better normalization for duplicate detection (Issue 4.6)
+            String normalizedNew = cleanText.toLowerCase().replaceAll("[^a-z0-9]", "");
             boolean exists = false;
             for (Memory m : memories) {
-                if (m.getContent().equalsIgnoreCase(text.trim())) {
+                String normalizedExisting = m.getContent().toLowerCase().replaceAll("[^a-z0-9]", "");
+                if (normalizedNew.equals(normalizedExisting)) {
                     exists = true;
                     break;
                 }
             }
+            
             if (!exists) {
-                String title = text.length() > 20 ? text.substring(0, 17) + "..." : text;
-                memories.add(new Memory(title, text.trim(), true));
+                String title = cleanText.length() > 20 ? cleanText.substring(0, 17) + "..." : cleanText;
+                memories.add(new Memory(title, cleanText, true));
                 memoryManager.saveMemories(memories);
                 List<String> memoryStrings = memoryManager.getAllMemoryStrings();
                 runOnUiThread(() -> {
@@ -1249,13 +1260,14 @@ public class MainActivity extends AppCompatActivity {
                 String contentLower = cleanContent.toLowerCase();
 
                 // 1. Reject NONE/null placeholders
-                if (titleLower.equals("none") || contentLower.equals("none") ||
-                        titleLower.contains("category") || titleLower.contains("topic")) {
+                if (titleLower.equals("none") || contentLower.equals("none")) {
                     return;
                 }
 
-                // 2. Enforce that the extracted memory is about the User (must contain the word "user")
-                if (!contentLower.contains("user")) {
+                // 2. Enforce that the extracted memory is about the User
+                // We've relaxed this to allow any fact that the model deemed important
+                // as the prompt already instructs it to only extract user facts.
+                if (contentLower.length() < 3) {
                     return;
                 }
 

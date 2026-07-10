@@ -10,15 +10,13 @@ public class ConversationAnalyzer {
     // Section 11: Configurable parameters
     public static class Config {
         public static final int MAX_TITLE_LENGTH = 40;
-        public static final int MIN_WORDS = 2;
+        public static final int MIN_WORDS = 1;
         public static final int FALLBACK_MAX_LENGTH = 30;
 
         // AI Title parameters
         public static final float AI_TEMPERATURE = 0.3f;
-        // Bumped from 16 -> 24: 16 tokens was too tight for a small model to
-        // reliably land on a clean word boundary, which caused truncated
-        // titles to fail validateTitle() and get silently discarded.
-        public static final int MAX_GENERATION_TOKENS = 24;
+        // Bumped from 24 -> 48: 24 tokens was still tight for some models
+        public static final int MAX_GENERATION_TOKENS = 48;
 
         // FIX: title/drift generation used to send the ENTIRE conversation
         // history to the model with no windowing (unlike normal chat, which
@@ -235,13 +233,8 @@ public class ConversationAnalyzer {
         String[] words = title.split("\\s+");
         if (words.length < Config.MIN_WORDS) return false;
 
-        // FIX: the old check rejected ANY title containing a single "*" or
-        // "_" anywhere (e.g. "Fixing user_id Bug" or "C++ Tips*" would be
-        // rejected outright). That's overly aggressive — plain words with an
-        // underscore/asterisk are legitimate. We now only reject genuine
-        // markdown artifacts: bold/italic markers and inline code fences.
-        if (title.contains("**") || title.contains("__") || title.contains("`")) return false;
-        if (title.contains("http://") || title.contains("https://") || title.contains("www.")) return false;
+        // RELAXED: Reject only genuine markdown artifacts if they make up most of the title
+        // or break display. Small models often output "Title: **Topic**".
         if (title.contains("\n") || title.contains("\r")) return false;
 
         // Reject prefixes

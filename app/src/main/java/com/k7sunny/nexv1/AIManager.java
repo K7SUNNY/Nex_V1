@@ -217,18 +217,38 @@ public class AIManager {
 
         executorService.execute(() -> {
             String memorySystemPrompt = 
-                "You are a memory processor. Analyze the conversation exchange.\n" +
-                "If the user asks to store or remember personal details, preferences, interests, or facts, extract a single memory in the format: \"[Topic] | User [fact/preference]\"\n" +
-                "Replace [Topic] with a short category (e.g. Coding Style, Name, Hobbies, Location, Pets, Preference, etc.).\n" +
-                "Example: \"Coding Style | User prefers Kotlin over Java.\"\n" +
-                "Example: \"Pets | User has a dog named Rex.\"\n" +
-                "The memory MUST be about the USER, and it MUST start with \"User \".\n" +
-                "If there are no personal details about the user to remember, output ONLY \"NONE\". Do not extract general questions or conversational filler.";
+                "You are a strict memory processor. Analyze the conversation.\n" +
+                "Only extract a memory if the user EXPLICITLY states a personal fact, preference, hobby, or detail about themselves.\n" +
+                "Format: \"[Topic] | User [fact/preference]\"\n" +
+                "Topic: A short 1-2 word category.\n" +
+                "Example 1: \"Coding | User prefers Kotlin over Java.\"\n" +
+                "Example 2: \"Location | User lives in Tokyo.\"\n" +
+                "If the user is just saying hi, asking a general question, or if NO personal user info is present, you MUST reply with ONLY the word \"NONE\".\n" +
+                "DO NOT make up facts. DO NOT hallucinate. If you are unsure, reply with \"NONE\".\n" +
+                "Negative Example: User says \"Hey!\" -> Output: \"NONE\"\n" +
+                "Negative Example: User says \"What is the weather?\" -> Output: \"NONE\"";
 
             java.util.List<Message> contextMsgs = new java.util.ArrayList<>();
             synchronized (chatHistory) {
                 int size = chatHistory.size();
-                int start = Math.max(0, size - 4);
+                
+                // EXTRA STRICT: If only 1-2 messages exist and they are just greetings, skip.
+                if (size <= 2) {
+                    boolean allGreetings = true;
+                    for (Message m : chatHistory) {
+                        String t = m.getText().toLowerCase().replaceAll("[^a-z]", "");
+                        if (!t.equals("hi") && !t.equals("hello") && !t.equals("hey") && !t.equals("heynex")) {
+                            allGreetings = false;
+                            break;
+                        }
+                    }
+                    if (allGreetings) {
+                        mainHandler.post(() -> callback.onMemoryExtracted(null, null));
+                        return;
+                    }
+                }
+
+                int start = Math.max(0, size - 10);
                 for (int i = start; i < size; i++) {
                     contextMsgs.add(chatHistory.get(i));
                 }
@@ -251,7 +271,7 @@ public class AIManager {
                 memorySystemPrompt,
                 roles,
                 contents,
-                32, // maxTokens for memory
+                64, // Increased maxTokens for more stable extraction
                 0.2f, // lower temperature for stability
                 new ResponseCallback() {
                     @Override
@@ -263,18 +283,33 @@ public class AIManager {
 
             if (response != null && !response.trim().isEmpty() && !response.trim().equalsIgnoreCase("NONE")) {
                 String clean = response.trim();
+                
+                // Improved parsing for variations (Pipe, Colon, Dash)
+                String title = "Personal Detail";
+                String content = clean;
+                
                 int pipeIndex = clean.indexOf('|');
-                String title;
-                String content;
+                int colonIndex = clean.indexOf(':');
+                int dashIndex = clean.indexOf(" - ");
+                
+                int splitIndex = -1;
+                int splitLen = 1;
+                
                 if (pipeIndex != -1) {
-                    title = clean.substring(0, pipeIndex).trim();
-                    content = clean.substring(pipeIndex + 1).trim();
-                } else {
-                    title = "Personal Detail";
-                    content = clean;
+                    splitIndex = pipeIndex;
+                } else if (colonIndex != -1) {
+                    splitIndex = colonIndex;
+                } else if (dashIndex != -1) {
+                    splitIndex = dashIndex;
+                    splitLen = 3;
                 }
                 
-                if (title.length() > 20) title = title.substring(0, 17) + "...";
+                if (splitIndex != -1) {
+                    title = clean.substring(0, splitIndex).trim();
+                    content = clean.substring(splitIndex + splitLen).trim();
+                }
+                
+                if (title.length() > 30) title = title.substring(0, 27) + "...";
                 
                 String finalTitle = title;
                 String finalContent = content;
