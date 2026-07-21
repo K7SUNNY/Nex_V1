@@ -7,7 +7,7 @@ To avoid `jlink.exe does not exist` and Java path drift, follow these rules.
 
 Use only:
 
-`D:\Program Files\Android Studio\jbr`
+`C:\Program Files\Android\Android Studio\jbr`
 
 Do not use:
 
@@ -19,7 +19,7 @@ That VS Code extension runtime may not include the required `jlink.exe`.
 
 - `.idea/gradle.xml` must keep: `gradleJvm = jbr-21`
 - `.idea/misc.xml` must keep: `project-jdk-name = jbr-21`
-- `.vscode/settings.json` must keep Java/Gradle home pointing to `D:\Program Files\Android Studio\jbr`
+- `.vscode/settings.json` must keep Java/Gradle home pointing to `C:\Program Files\Android\Android Studio\jbr`
 
 ## Before Switching IDE (every time)
 
@@ -44,13 +44,13 @@ This repo includes workspace settings in `.vscode/settings.json` to pin Java:
 
 Both should point to:
 
-`D:\Program Files\Android Studio\jbr`
+`C:\Program Files\Android\Android Studio\jbr`
 
 ## AI Safety Prompt (copy/paste)
 
 When asking any AI to edit this repo, prepend:
 
-`Do not change Java/JDK paths. Keep .idea/gradle.xml gradleJvm=jbr-21, .idea/misc.xml project-jdk-name=jbr-21, and .vscode/settings.json pointing to D:\Program Files\Android Studio\jbr.`
+`Do not change Java/JDK paths. Keep .idea/gradle.xml gradleJvm=jbr-21, .idea/misc.xml project-jdk-name=jbr-21, and .vscode/settings.json pointing to C:\Program Files\Android\Android Studio\jbr.`
 
 ## Quick Recovery If Error Returns
 

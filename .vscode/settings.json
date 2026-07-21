@@ -1,11 +1,11 @@
 {
-  "java.jdt.ls.java.home": "D:\\Program Files\\Android Studio\\jbr",
-  "java.import.gradle.java.home": "D:\\Program Files\\Android Studio\\jbr",
+  "java.jdt.ls.java.home": "C:\\Program Files\\Android\\Android Studio\\jbr",
+  "java.import.gradle.java.home": "C:\\Program Files\\Android\\Android Studio\\jbr",
   "java.import.gradle.wrapper.enabled": true,
   "java.configuration.runtimes": [
     {
       "name": "JavaSE-21",
-      "path": "D:\\Program Files\\Android Studio\\jbr",
+      "path": "C:\\Program Files\\Android\\Android Studio\\jbr",
       "default": true
     }
   ]
