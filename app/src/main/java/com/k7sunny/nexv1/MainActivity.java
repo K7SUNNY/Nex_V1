@@ -604,7 +604,7 @@ public class MainActivity extends AppCompatActivity {
                     recyclerView.scrollToPosition(messageList.size() - 1);
 
                     // Sync AI history with loaded messages
-                    aiManager.setHistory(messageList);
+                    aiManager.setHistory(deepCopyMessageList(messageList));
                     updateTokenCount("");
                 }
             });
@@ -685,7 +685,7 @@ public class MainActivity extends AppCompatActivity {
 
         // Save session and messages (asynchronously on background thread with copy of list)
         String title = getActiveSessionTitle();
-        List<Message> copyListForDb = new ArrayList<>(messageList);
+        List<Message> copyListForDb = deepCopyMessageList(messageList);
         dbExecutor.execute(() -> {
             historyManager.saveSession(new ChatSession(currentSessionId, title, System.currentTimeMillis()), copyListForDb);
         });
@@ -715,7 +715,7 @@ public class MainActivity extends AppCompatActivity {
 
                     // Save history after AI response (asynchronously on background thread with copy of list)
                     String title = getActiveSessionTitle();
-                    List<Message> copyListForDb2 = new ArrayList<>(messageList);
+                    List<Message> copyListForDb2 = deepCopyMessageList(messageList);
                     dbExecutor.execute(() -> {
                         historyManager.saveSession(new ChatSession(currentSessionId, title, System.currentTimeMillis()), copyListForDb2);
                     });
@@ -778,7 +778,7 @@ public class MainActivity extends AppCompatActivity {
         chatAdapter.notifyItemRangeRemoved(position, numToRemove);
 
         // Sync AI history with messageList (which now ends at the user prompt at position - 1)
-        aiManager.setHistory(messageList);
+        aiManager.setHistory(deepCopyMessageList(messageList));
 
         // Add typing indicator
         Message typingMessage = new Message("", Message.TYPE_TYPING);
@@ -804,7 +804,7 @@ public class MainActivity extends AppCompatActivity {
 
                     // Save history after AI response (asynchronously on background thread with copy of list)
                     String title = getActiveSessionTitle();
-                    List<Message> copyListForDb = new ArrayList<>(messageList);
+                    List<Message> copyListForDb = deepCopyMessageList(messageList);
                     dbExecutor.execute(() -> {
                         historyManager.saveSession(new ChatSession(currentSessionId, title, System.currentTimeMillis()), copyListForDb);
                     });
@@ -886,11 +886,11 @@ public class MainActivity extends AppCompatActivity {
                 startNewChat();
             } else {
                 String title = getActiveSessionTitle();
-                List<Message> copyListForDb = new ArrayList<>(messageList);
+                List<Message> copyListForDb = deepCopyMessageList(messageList);
                 dbExecutor.execute(() -> {
                     historyManager.saveSession(new ChatSession(currentSessionId, title, System.currentTimeMillis()), copyListForDb);
                 });
-                aiManager.setHistory(messageList);
+                aiManager.setHistory(deepCopyMessageList(messageList));
                 updateTokenCount("");
             }
             Toast.makeText(this, "Message deleted", Toast.LENGTH_SHORT).show();
@@ -939,7 +939,7 @@ public class MainActivity extends AppCompatActivity {
         }
 
         // Get a snapshot copy of the message list
-        final List<Message> snapshot = new ArrayList<>(messageList);
+        final List<Message> snapshot = deepCopyMessageList(messageList);
 
         // Check if eligible for initial title or drift re-evaluation
         final boolean isInitial = (currentSessionTitle == null || currentSessionTitle.isEmpty());
@@ -1174,6 +1174,18 @@ public class MainActivity extends AppCompatActivity {
         dbExecutor.shutdown(); // Shutdown database thread executor.
     }
 
+    private List<Message> deepCopyMessageList(List<Message> original) {
+        List<Message> copy = new ArrayList<>();
+        if (original != null) {
+            synchronized (original) {
+                for (Message m : original) {
+                    copy.add(new Message(m));
+                }
+            }
+        }
+        return copy;
+    }
+
     private int estimateContextTokens(String currentInput) {
         int totalChars = 0;
 
@@ -1309,7 +1321,7 @@ public class MainActivity extends AppCompatActivity {
 
                             // Save history after updating tag to persist it
                             String sessionTitle = getActiveSessionTitle();
-                            List<Message> copyListForDb = new ArrayList<>(messageList);
+                            List<Message> copyListForDb = deepCopyMessageList(messageList);
                             dbExecutor.execute(() -> historyManager.saveSession(
                                     new ChatSession(sessionIdAtCallTime, sessionTitle, System.currentTimeMillis()),
                                     copyListForDb));

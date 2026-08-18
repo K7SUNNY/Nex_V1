@@ -15,6 +15,13 @@ public class Message {
         this.type = type;
     }
 
+    public Message(Message other) {
+        this.text = other.text;
+        this.type = other.type;
+        this.isActionsVisible = other.isActionsVisible;
+        this.memoryTag = other.memoryTag;
+    }
+
     public String getText() {
         return text;
     }

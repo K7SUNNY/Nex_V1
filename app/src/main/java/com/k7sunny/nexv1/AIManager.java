@@ -22,13 +22,13 @@ public class AIManager {
     // UI thread (title/drift/memory triggers) — must be volatile or a stale
     // `false` silently skips title generation after the model has loaded.
     private volatile boolean isModelLoaded = false;
-    private final java.util.List<Message> chatHistory = new java.util.ArrayList<>();
+    private final java.util.List<Message> chatHistory = java.util.Collections.synchronizedList(new java.util.ArrayList<>());
     private static final int MAX_HISTORY = 12; // Keep last 6 rounds of chat
-    private String systemPrompt = "";
-    private final java.util.List<String> pinnedMemories = new java.util.ArrayList<>();
-    private int maxTokens = 256;
-    private float temperature = 0.7f;
-    private int contextWindowSize = 12;
+    private volatile String systemPrompt = "";
+    private final java.util.List<String> pinnedMemories = java.util.Collections.synchronizedList(new java.util.ArrayList<>());
+    private volatile int maxTokens = 256;
+    private volatile float temperature = 0.7f;
+    private volatile int contextWindowSize = 12;
 
     // JNI bridge methods
 
@@ -97,34 +97,37 @@ public class AIManager {
                 String cleanPrompt = prompt.trim();
 
                 // 1. Add User message to history
-                chatHistory.add(new Message(cleanPrompt, Message.TYPE_USER));
-
                 // 2. Build message arrays for native template formatting
                 java.util.List<String> roles = new java.util.ArrayList<>();
                 java.util.List<String> contents = new java.util.ArrayList<>();
 
-                for (Message m : chatHistory) {
-                    if (m.getType() == Message.TYPE_USER) {
-                        roles.add("user");
-                        contents.add(m.getText());
-                    } else if (m.getType() == Message.TYPE_AI) {
-                        roles.add("assistant");
-                        contents.add(m.getText());
+                synchronized (chatHistory) {
+                    chatHistory.add(new Message(cleanPrompt, Message.TYPE_USER));
+                    for (Message m : chatHistory) {
+                        if (m.getType() == Message.TYPE_USER) {
+                            roles.add("user");
+                            contents.add(m.getText());
+                        } else if (m.getType() == Message.TYPE_AI) {
+                            roles.add("assistant");
+                            contents.add(m.getText());
+                        }
                     }
                 }
 
                 // Merge pinned memories into the system prompt
                 String systemWithMemories = systemPrompt;
-                if (!pinnedMemories.isEmpty()) {
-                    StringBuilder sb = new StringBuilder(systemPrompt);
-                    if (sb.length() > 0) {
-                        sb.append("\n\n");
+                synchronized (pinnedMemories) {
+                    if (!pinnedMemories.isEmpty()) {
+                        StringBuilder sb = new StringBuilder(systemPrompt);
+                        if (sb.length() > 0) {
+                            sb.append("\n\n");
+                        }
+                        sb.append("Background facts about the person you are chatting with (referred to below as \"you\" — this is not your own name or identity):\n");
+                        for (String memory : pinnedMemories) {
+                            sb.append("- ").append(memory).append("\n");
+                        }
+                        systemWithMemories = sb.toString().trim();
                     }
-                    sb.append("Background facts about the person you are chatting with (referred to below as \"you\" — this is not your own name or identity):\n");
-                    for (String memory : pinnedMemories) {
-                        sb.append("- ").append(memory).append("\n");
-                    }
-                    systemWithMemories = sb.toString().trim();
                 }
 
                 Log.d(TAG_CHAT, "Sending " + roles.size() + " messages to native | system: " + systemWithMemories);
@@ -152,14 +155,18 @@ public class AIManager {
                     response = "No response generated.";
                 } else {
                     // 3. Add AI response to history
-                    chatHistory.add(new Message(response.trim(), Message.TYPE_AI));
+                    synchronized (chatHistory) {
+                        chatHistory.add(new Message(response.trim(), Message.TYPE_AI));
+                    }
                 }
 
                 // 4. Keep history lean (sliding window based on user preference)
                 boolean dropped = false;
-                while (chatHistory.size() > contextWindowSize) {
-                    chatHistory.remove(0);
-                    dropped = true;
+                synchronized (chatHistory) {
+                    while (chatHistory.size() > contextWindowSize) {
+                        chatHistory.remove(0);
+                        dropped = true;
+                    }
                 }
                 if (dropped) {
                     mainHandler.post(() -> callback.onContextDropped());
@@ -334,15 +341,17 @@ public class AIManager {
 
     public void setHistory(java.util.List<Message> messages) {
         executorService.execute(() -> {
-            chatHistory.clear();
-            for (Message m : messages) {
-                if (m.getType() == Message.TYPE_USER || m.getType() == Message.TYPE_AI) {
-                    chatHistory.add(m);
+            synchronized (chatHistory) {
+                chatHistory.clear();
+                for (Message m : messages) {
+                    if (m.getType() == Message.TYPE_USER || m.getType() == Message.TYPE_AI) {
+                        chatHistory.add(m);
+                    }
                 }
-            }
-            // Keep lean
-            while (chatHistory.size() > contextWindowSize) {
-                chatHistory.remove(0);
+                // Keep lean
+                while (chatHistory.size() > contextWindowSize) {
+                    chatHistory.remove(0);
+                }
             }
             Log.d(TAG_CHAT, "History synced, size: " + chatHistory.size());
         });
@@ -357,8 +366,10 @@ public class AIManager {
     }
 
     public void setMemories(java.util.List<String> memories) {
-        this.pinnedMemories.clear();
-        this.pinnedMemories.addAll(memories);
+        synchronized (pinnedMemories) {
+            this.pinnedMemories.clear();
+            this.pinnedMemories.addAll(memories);
+        }
     }
 
     public void setMaxTokens(int maxTokens) {
@@ -371,7 +382,9 @@ public class AIManager {
 
     public void clearHistory() {
         executorService.execute(() -> {
-            chatHistory.clear();
+            synchronized (chatHistory) {
+                chatHistory.clear();
+            }
             Log.d(TAG_CHAT, "Chat history cleared");
         });
     }
