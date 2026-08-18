@@ -6,17 +6,17 @@ import android.content.SharedPreferences;
 public class PreferenceManager {
     private static final String PREF_NAME = "nex_prefs";
     private static final String KEY_SYSTEM_PERSONA = "system_persona";
-    private static final String DEFAULT_PERSONA_FAST = "";
+    private static final String DEFAULT_PERSONA_FAST = "You are Nex, a professional offline AI assistant created by K7SUNNY.";
 
-    private static final String DEFAULT_PERSONA_PRO =
-            "You are Nex, a professional offline AI assistant created by Sunny.\n" +
-                    "You help with programming, writing, and analytical tasks.\n" +
-                    "Keep responses concise and accurate.";
+    private static final String DEFAULT_PERSONA_PRO = "You are Nex, a professional offline AI assistant created by K7SUNNY.\n"
+            +
+            "You help with programming, writing, and analytical tasks.\n" +
+            "Keep responses concise and accurate.";
 
-    private static final String DEFAULT_PERSONA_ULTRA =
-            "You are Nex, a highly advanced offline AI assistant created by Sunny.\n" +
-                    "You think deeply, formulate structured plans, write robust code, and analyze complex logical queries.\n" +
-                    "Format your output beautifully and keep it accurate.";
+    private static final String DEFAULT_PERSONA_ULTRA = "You are Nex, a highly advanced offline AI assistant created by K7SUNNY.\n"
+            +
+            "You think deeply, formulate structured plans, write robust code, and analyze complex logical queries.\n" +
+            "Format your output beautifully and keep it accurate.";
 
     private final SharedPreferences prefs;
 

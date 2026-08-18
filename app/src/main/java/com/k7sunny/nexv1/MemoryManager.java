@@ -86,13 +86,13 @@ public class MemoryManager {
             normalized = "I";
         }
         
-        normalized = normalized.replaceAll("(?i)\\bUser's\\b", "Your");
-        normalized = normalized.replaceAll("(?i)\\bUser\\b", "You");
+        normalized = normalized.replaceAll("(?i)\\bYour\\b", "User's");
+        normalized = normalized.replaceAll("(?i)\\bYou\\b", "User");
         
-        if (normalized.startsWith("you ")) {
-            normalized = "You " + normalized.substring(4);
-        } else if (normalized.equals("you")) {
-            normalized = "You";
+        if (normalized.startsWith("user ")) {
+            normalized = "User " + normalized.substring(5);
+        } else if (normalized.equals("user")) {
+            normalized = "User";
         }
         
         return normalized;

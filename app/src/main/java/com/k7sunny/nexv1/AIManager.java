@@ -134,7 +134,7 @@ public class AIManager {
                         if (sb.length() > 0) {
                             sb.append("\n\n");
                         }
-                        sb.append("Background facts about the person you are chatting with (referred to below as \"you\" — this is not your own name or identity):\n");
+                        sb.append("Background facts about the person you are chatting with (referred to below as \"User\"):\n");
                         for (String memory : pinnedMemories) {
                             sb.append("- ").append(memory).append("\n");
                         }
@@ -287,8 +287,8 @@ public class AIManager {
             "Rules:\n" +
             "1. ONLY extract information stated by the \"User\".\n" +
             "2. DO NOT extract any statements, claims, opinions, or responses made by the \"Assistant\".\n" +
-            "3. Format the memory output strictly as: \"[Topic] | You [fact]\" (e.g. \"Coding | You prefer Kotlin over Java.\").\n" +
-            "4. Refer to the user as \"You\" in the fact content (e.g. \"You are Sunny\" or \"You prefer Java\"). Do not refer to the user in the third-person as \"User\" or \"Sunny\".\n" +
+            "3. Format the memory output strictly as: \"[Topic] | User [fact]\" (e.g. \"Coding | User prefers Kotlin over Java.\").\n" +
+            "4. Refer to the user as \"User\" in the fact content (e.g. \"User is Sunny\" or \"User prefers Java\"). Do not refer to the user in the second-person as \"You\" or \"your\".\n" +
             "5. If the User has not shared any new personal facts (e.g. they only asked a question, made a general statement, or greeted you), reply with ONLY the word \"NONE\".\n" +
             "6. DO NOT make up or hallucinate any facts.";
 
@@ -350,16 +350,16 @@ public class AIManager {
         if (text == null) return text;
         
         // Handle possessive replacements first
-        String normalized = text.replaceAll("(?i)\\bUser's\\b", "Your");
+        String normalized = text.replaceAll("(?i)\\bYour\\b", "User's");
         
         // Handle normal replacements
-        normalized = normalized.replaceAll("(?i)\\bUser\\b", "You");
+        normalized = normalized.replaceAll("(?i)\\bYou\\b", "User");
         
-        // Ensure starting reference is properly capitalized if it starts with "you"
-        if (normalized.startsWith("you ")) {
-            normalized = "You " + normalized.substring(4);
-        } else if (normalized.equals("you")) {
-            normalized = "You";
+        // Ensure starting reference is properly capitalized if it starts with "user"
+        if (normalized.startsWith("user ")) {
+            normalized = "User " + normalized.substring(5);
+        } else if (normalized.equals("user")) {
+            normalized = "User";
         }
         
         return normalized;
