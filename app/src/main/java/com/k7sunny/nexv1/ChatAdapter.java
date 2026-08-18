@@ -22,12 +22,18 @@ import androidx.recyclerview.widget.RecyclerView;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import io.noties.markwon.Markwon;
+import io.noties.markwon.ext.tables.TablePlugin;
+import io.noties.markwon.AbstractMarkwonPlugin;
+import io.noties.markwon.core.MarkwonTheme;
+import android.graphics.Color;
 
 public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 
     private final List<Message> messages;
     private final OnMessageActionListener actionListener;
     private boolean isGenerating = false;
+    private Markwon markwon;
 
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final Map<Message, Runnable> pendingDisappears = new HashMap<>();
@@ -83,6 +89,20 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     @NonNull
     @Override
     public RecyclerView.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+        if (markwon == null) {
+            markwon = Markwon.builder(parent.getContext())
+                .usePlugin(TablePlugin.create(parent.getContext()))
+                .usePlugin(new AbstractMarkwonPlugin() {
+                    @Override
+                    public void configureTheme(@NonNull MarkwonTheme.Builder builder) {
+                        builder.codeBlockBackgroundColor(Color.parseColor("#1C1C1E"))
+                               .codeBlockTextColor(Color.parseColor("#E5E5EA"))
+                               .codeBackgroundColor(Color.parseColor("#2C2C2E"))
+                               .codeTextColor(Color.parseColor("#FF9500"));
+                    }
+                })
+                .build();
+        }
         if (viewType == Message.TYPE_USER) {
             View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_user_message, parent, false);
             return new UserViewHolder(view);
@@ -102,7 +122,7 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         itemView.setHapticFeedbackEnabled(hapticsEnabled);
 
         if (holder instanceof UserViewHolder) {
-            ((UserViewHolder) holder).messageText.setText(message.getText());
+            markwon.setMarkdown(((UserViewHolder) holder).messageText, message.getText());
             itemView.setOnLongClickListener(v -> {
                 copyToClipboard(v.getContext(), message.getText());
                 return true;
@@ -152,7 +172,7 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         } else {
             if (holder.messageText != null) {
                 holder.messageText.setVisibility(View.VISIBLE);
-                holder.messageText.setText(message.getText());
+                markwon.setMarkdown(holder.messageText, message.getText());
                 holder.messageText.setAlpha(1.0f);
             }
             if (holder.memoryIndicator != null) {
