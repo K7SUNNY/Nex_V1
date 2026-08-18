@@ -78,16 +78,24 @@ public class MemoryManager {
 
     private String normalizePersonReference(String content) {
         if (content == null) return null;
-        if (content.startsWith("Nex ")) {
-            return "I " + content.substring(4);
-        } else if (content.equals("Nex")) {
-            return "I";
-        } else if (content.startsWith("User ")) {
-            return "You " + content.substring(5);
-        } else if (content.equals("User")) {
-            return "You";
+        
+        String normalized = content;
+        if (normalized.startsWith("Nex ")) {
+            normalized = "I " + normalized.substring(4);
+        } else if (normalized.equals("Nex")) {
+            normalized = "I";
         }
-        return content;
+        
+        normalized = normalized.replaceAll("(?i)\\bUser's\\b", "Your");
+        normalized = normalized.replaceAll("(?i)\\bUser\\b", "You");
+        
+        if (normalized.startsWith("you ")) {
+            normalized = "You " + normalized.substring(4);
+        } else if (normalized.equals("you")) {
+            normalized = "You";
+        }
+        
+        return normalized;
     }
 
     public List<String> getPinnedMemoryStrings() {

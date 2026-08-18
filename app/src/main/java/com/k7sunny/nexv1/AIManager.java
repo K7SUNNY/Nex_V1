@@ -288,7 +288,7 @@ public class AIManager {
             "1. ONLY extract information stated by the \"User\".\n" +
             "2. DO NOT extract any statements, claims, opinions, or responses made by the \"Assistant\".\n" +
             "3. Format the memory output strictly as: \"[Topic] | You [fact]\" (e.g. \"Coding | You prefer Kotlin over Java.\").\n" +
-            "4. Refer to the user as \"You\". Never refer to the user as \"User\" or \"Sunny\".\n" +
+            "4. Refer to the user as \"You\" in the fact content (e.g. \"You are Sunny\" or \"You prefer Java\"). Do not refer to the user in the third-person as \"User\" or \"Sunny\".\n" +
             "5. If the User has not shared any new personal facts (e.g. they only asked a question, made a general statement, or greeted you), reply with ONLY the word \"NONE\".\n" +
             "6. DO NOT make up or hallucinate any facts.";
 
@@ -348,13 +348,21 @@ public class AIManager {
 
     private String normalizePersonReference(String text) {
         if (text == null) return text;
-        if (text.startsWith("User ")) {
-            return "You " + text.substring(5);
-        } else if (text.equals("User")) {
-            return "You";
+        
+        // Handle possessive replacements first
+        String normalized = text.replaceAll("(?i)\\bUser's\\b", "Your");
+        
+        // Handle normal replacements
+        normalized = normalized.replaceAll("(?i)\\bUser\\b", "You");
+        
+        // Ensure starting reference is properly capitalized if it starts with "you"
+        if (normalized.startsWith("you ")) {
+            normalized = "You " + normalized.substring(4);
+        } else if (normalized.equals("you")) {
+            normalized = "You";
         }
-        // catch mid-sentence leaks too
-        return text.replaceAll("\\bUser\\b", "you");
+        
+        return normalized;
     }
 
     public void setHistory(java.util.List<Message> messages) {

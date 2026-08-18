@@ -1305,8 +1305,13 @@ public class MainActivity extends AppCompatActivity {
                     return;
                 }
 
-                // Enforce that memory is about the User ("You ") and not about the AI ("I " or "Nex ")
-                if (!contentLower.contains("you") && !contentLower.startsWith("you")) {
+                // Enforce that memory is about the User ("You "/"Your ") and not about the AI ("I " or "Nex ")
+                // If it is a Name memory, we relax the check to allow name-only content.
+                boolean isNameMemory = titleLower.contains("name");
+                boolean startsWithYouOrYour = contentLower.startsWith("you") || contentLower.startsWith("your");
+                boolean containsYouOrYour = contentLower.contains("you") || contentLower.contains("your");
+
+                if (!startsWithYouOrYour && !containsYouOrYour && !isNameMemory) {
                     return;
                 }
                 if (contentLower.startsWith("i ") || contentLower.startsWith("nex ")) {
