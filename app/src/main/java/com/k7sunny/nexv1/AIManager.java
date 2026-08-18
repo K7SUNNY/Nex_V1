@@ -244,115 +244,106 @@ public class AIManager {
             return;
         }
 
-        executorService.execute(() -> {
-            String memorySystemPrompt = 
-                "You are a strict memory processor. Analyze the conversation.\n" +
-                "Only extract a memory if the person EXPLICITLY states a personal fact, preference, hobby, or detail about themselves.\n" +
-                "Format: \"[Topic] | You [fact/preference]\"\n" +
-                "Topic: A short 1-2 word category.\n" +
-                "Always refer to the person as \"You\" — NEVER write the word \"User\" as if it were their name.\n" +
-                "Example 1: \"Coding | You prefer Kotlin over Java.\"\n" +
-                "Example 2: \"Location | You live in Tokyo.\"\n" +
-                "If the person is just saying hi, asking a general question, or if NO personal info is present, reply with ONLY \"NONE\".\n" +
-                "DO NOT make up facts. DO NOT hallucinate. If unsure, reply with \"NONE\".\n" +
-                "Negative Example: \"Hey!\" -> Output: \"NONE\"\n" +
-                "Negative Example: \"What is the weather?\" -> Output: \"NONE\"";
-
-            java.util.List<Message> contextMsgs = new java.util.ArrayList<>();
-            synchronized (chatHistory) {
-                int size = chatHistory.size();
-                
-                // EXTRA STRICT: If only 1-2 messages exist and they are just greetings, skip.
-                if (size <= 2) {
-                    boolean allGreetings = true;
-                    for (Message m : chatHistory) {
-                        String t = m.getText().toLowerCase().replaceAll("[^a-z]", "");
-                        if (!t.equals("hi") && !t.equals("hello") && !t.equals("hey") && !t.equals("heynex")) {
-                            allGreetings = false;
-                            break;
-                        }
+        StringBuilder transcriptBuilder = new StringBuilder();
+        synchronized (chatHistory) {
+            int size = chatHistory.size();
+            
+            // EXTRA STRICT: If only 1-2 messages exist and they are just greetings, skip.
+            if (size <= 2) {
+                boolean allGreetings = true;
+                for (Message m : chatHistory) {
+                    String t = m.getText().toLowerCase().replaceAll("[^a-z]", "");
+                    if (!t.equals("hi") && !t.equals("hello") && !t.equals("hey") && !t.equals("heynex")) {
+                        allGreetings = false;
+                        break;
                     }
-                    if (allGreetings) {
-                        mainHandler.post(() -> callback.onMemoryExtracted(null, null));
+                }
+                if (allGreetings) {
+                    callback.onMemoryExtracted(null, null);
+                    return;
+                }
+            }
+
+            int start = Math.max(0, size - 10);
+            for (int i = start; i < size; i++) {
+                Message msg = chatHistory.get(i);
+                String speaker = (msg.getType() == Message.TYPE_USER) ? "User" : "Assistant";
+                transcriptBuilder.append(speaker).append(": ").append(msg.getText()).append("\n");
+            }
+        }
+
+        String transcript = transcriptBuilder.toString().trim();
+        if (transcript.isEmpty()) {
+            callback.onMemoryExtracted(null, null);
+            return;
+        }
+
+        String memorySystemPrompt = "You are a strict memory processor.";
+
+        String instruction =
+            "Here is the recent chat conversation:\n\n" +
+            transcript + "\n\n" +
+            "Task: Extract any personal facts, preferences, hobbies, or details that the HUMAN USER (labeled as \"User\") explicitly states about themselves.\n" +
+            "Rules:\n" +
+            "1. ONLY extract information stated by the \"User\".\n" +
+            "2. DO NOT extract any statements, claims, opinions, or responses made by the \"Assistant\".\n" +
+            "3. Format the memory output strictly as: \"[Topic] | You [fact]\" (e.g. \"Coding | You prefer Kotlin over Java.\").\n" +
+            "4. Refer to the user as \"You\". Never refer to the user as \"User\" or \"Sunny\".\n" +
+            "5. If the User has not shared any new personal facts (e.g. they only asked a question, made a general statement, or greeted you), reply with ONLY the word \"NONE\".\n" +
+            "6. DO NOT make up or hallucinate any facts.";
+
+        runShortInference(
+            memorySystemPrompt,
+            new String[]{"user"},
+            new String[]{instruction},
+            64, // Increased maxTokens for more stable extraction
+            0.2f, // lower temperature for stability
+            new ResponseCallback() {
+                @Override
+                public void onResponse(String response) {
+                    if (response == null || response.trim().isEmpty() || response.trim().equalsIgnoreCase("NONE")) {
+                        callback.onMemoryExtracted(null, null);
                         return;
                     }
-                }
 
-                int start = Math.max(0, size - 10);
-                for (int i = start; i < size; i++) {
-                    contextMsgs.add(chatHistory.get(i));
-                }
-            }
-
-            if (contextMsgs.isEmpty()) {
-                mainHandler.post(() -> callback.onMemoryExtracted(null, null));
-                return;
-            }
-
-            String[] roles = new String[contextMsgs.size()];
-            String[] contents = new String[contextMsgs.size()];
-            for (int i = 0; i < contextMsgs.size(); i++) {
-                Message msg = contextMsgs.get(i);
-                roles[i] = (msg.getType() == Message.TYPE_USER) ? "user" : "assistant";
-                contents[i] = msg.getText();
-            }
-
-            String response = null;
-            try {
-                response = runInferenceNative(
-                    memorySystemPrompt,
-                    roles,
-                    contents,
-                    64, // Increased maxTokens for more stable extraction
-                    0.2f, // lower temperature for stability
-                    new ResponseCallback() {
-                        @Override
-                        public void onResponse(String response) {}
-                        @Override
-                        public void onToken(String token) {}
+                    String clean = response.trim();
+                    
+                    // Improved parsing for variations (Pipe, Colon, Dash)
+                    String title = "Personal Detail";
+                    String content = clean;
+                    
+                    int pipeIndex = clean.indexOf('|');
+                    int colonIndex = clean.indexOf(':');
+                    int dashIndex = clean.indexOf(" - ");
+                    
+                    int splitIndex = -1;
+                    int splitLen = 1;
+                    
+                    if (pipeIndex != -1) {
+                        splitIndex = pipeIndex;
+                    } else if (colonIndex != -1) {
+                        splitIndex = colonIndex;
+                    } else if (dashIndex != -1) {
+                        splitIndex = dashIndex;
+                        splitLen = 3;
                     }
-                );
-            } catch (RuntimeException e) {
-                Log.e(TAG_CHAT, "Native memory extraction threw exception", e);
-            }
+                    
+                    if (splitIndex != -1) {
+                        title = clean.substring(0, splitIndex).trim();
+                        content = clean.substring(splitIndex + splitLen).trim();
+                    }
+                    
+                    if (title.length() > 30) title = title.substring(0, 27) + "...";
+                    
+                    String finalTitle = normalizePersonReference(title);
+                    String finalContent = normalizePersonReference(content);
+                    callback.onMemoryExtracted(finalTitle, finalContent);
+                }
 
-            if (response != null && !response.trim().isEmpty() && !response.trim().equalsIgnoreCase("NONE")) {
-                String clean = response.trim();
-                
-                // Improved parsing for variations (Pipe, Colon, Dash)
-                String title = "Personal Detail";
-                String content = clean;
-                
-                int pipeIndex = clean.indexOf('|');
-                int colonIndex = clean.indexOf(':');
-                int dashIndex = clean.indexOf(" - ");
-                
-                int splitIndex = -1;
-                int splitLen = 1;
-                
-                if (pipeIndex != -1) {
-                    splitIndex = pipeIndex;
-                } else if (colonIndex != -1) {
-                    splitIndex = colonIndex;
-                } else if (dashIndex != -1) {
-                    splitIndex = dashIndex;
-                    splitLen = 3;
-                }
-                
-                if (splitIndex != -1) {
-                    title = clean.substring(0, splitIndex).trim();
-                    content = clean.substring(splitIndex + splitLen).trim();
-                }
-                
-                if (title.length() > 30) title = title.substring(0, 27) + "...";
-                
-                String finalTitle = normalizePersonReference(title);
-                String finalContent = normalizePersonReference(content);
-                mainHandler.post(() -> callback.onMemoryExtracted(finalTitle, finalContent));
-            } else {
-                mainHandler.post(() -> callback.onMemoryExtracted(null, null));
+                @Override
+                public void onToken(String token) {}
             }
-        });
+        );
     }
 
     private String normalizePersonReference(String text) {

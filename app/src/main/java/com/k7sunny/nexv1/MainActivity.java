@@ -725,8 +725,8 @@ public class MainActivity extends AppCompatActivity {
                     generateAutoTitle();
 
                     // Trigger Memory Extraction
-                    // Only trigger if the user prompt is long enough to potentially contain a fact (> 10 chars)
-                    if (text.trim().length() > 10) {
+                    // Only trigger if the user prompt is long enough to potentially contain a fact and is not a question/general query
+                    if (isEligibleForMemoryExtraction(text)) {
                         checkAndExtractMemory(text, messageList.get(index), index);
                     }
                 }
@@ -814,7 +814,7 @@ public class MainActivity extends AppCompatActivity {
                     generateAutoTitle();
 
                     // Trigger Memory Extraction
-                    if (promptText.trim().length() > 10) {
+                    if (isEligibleForMemoryExtraction(promptText)) {
                         checkAndExtractMemory(promptText, messageList.get(index), index);
                     }
                 }
@@ -1174,6 +1174,30 @@ public class MainActivity extends AppCompatActivity {
         dbExecutor.shutdown(); // Shutdown database thread executor.
     }
 
+    private boolean isEligibleForMemoryExtraction(String text) {
+        if (text == null) return false;
+        String clean = text.trim();
+        if (clean.length() <= 10) return false;
+
+        // 1. Skip questions (ending with ?)
+        if (clean.endsWith("?")) return false;
+
+        // 2. Skip common question words at the start of sentences
+        String lower = clean.toLowerCase();
+        String[] questionStarters = {
+            "what", "why", "how", "who", "where", "when", 
+            "do", "does", "did", "is", "are", "was", "were", 
+            "can", "could", "should", "would", "will", "tell me about",
+            "explain", "show me"
+        };
+        for (String starter : questionStarters) {
+            if (lower.startsWith(starter + " ") || lower.startsWith(starter + "'")) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     private List<Message> deepCopyMessageList(List<Message> original) {
         List<Message> copy = new ArrayList<>();
         if (original != null) {
@@ -1277,9 +1301,15 @@ public class MainActivity extends AppCompatActivity {
                 }
 
                 // 2. Enforce that the extracted memory is about the User
-                // We've relaxed this to allow any fact that the model deemed important
-                // as the prompt already instructs it to only extract user facts.
                 if (contentLower.length() < 3) {
+                    return;
+                }
+
+                // Enforce that memory is about the User ("You ") and not about the AI ("I " or "Nex ")
+                if (!contentLower.contains("you") && !contentLower.startsWith("you")) {
+                    return;
+                }
+                if (contentLower.startsWith("i ") || contentLower.startsWith("nex ")) {
                     return;
                 }
 
