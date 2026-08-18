@@ -64,9 +64,16 @@ public class AIManager {
         });
         this.mainHandler = new Handler(Looper.getMainLooper());
 
-        boolean initialized = initNative();
+        boolean initialized = false;
+        String bridgeTest = "failed";
+        try {
+            initialized = initNative();
+            bridgeTest = stringFromJNI();
+        } catch (RuntimeException e) {
+            Log.e(TAG_MODEL, "Native bridge initialization threw exception", e);
+        }
         Log.d(TAG_MODEL, "Native backend initialized: " + initialized);
-        Log.d(TAG_MODEL, "Native bridge test: " + stringFromJNI());
+        Log.d(TAG_MODEL, "Native bridge test: " + bridgeTest);
     }
 
     public void loadModel(String modelPath) {
@@ -77,7 +84,12 @@ public class AIManager {
 
         executorService.execute(() -> {
             Log.d(TAG_MODEL, "Loading model from: " + modelPath);
-            long modelPtr = loadModelNative(modelPath);
+            long modelPtr = 0;
+            try {
+                modelPtr = loadModelNative(modelPath);
+            } catch (RuntimeException e) {
+                Log.e(TAG_MODEL, "Native model load threw exception", e);
+            }
 
             if (modelPtr != 0) {
                 isModelLoaded = true;
@@ -133,23 +145,28 @@ public class AIManager {
                 Log.d(TAG_CHAT, "Sending " + roles.size() + " messages to native | system: " + systemWithMemories);
 
                 // Let native C++ apply the model's chat template via llama_chat_apply_template
-                response = runInferenceNative(
-                    systemWithMemories,
-                    roles.toArray(new String[0]),
-                    contents.toArray(new String[0]),
-                    maxTokens,
-                    temperature,
-                    new ResponseCallback() {
-                    @Override
-                    public void onResponse(String response) {
-                        // Not used directly in native, but kept for interface
-                    }
+                try {
+                    response = runInferenceNative(
+                        systemWithMemories,
+                        roles.toArray(new String[0]),
+                        contents.toArray(new String[0]),
+                        maxTokens,
+                        temperature,
+                        new ResponseCallback() {
+                        @Override
+                        public void onResponse(String response) {
+                            // Not used directly in native, but kept for interface
+                        }
 
-                    @Override
-                    public void onToken(String token) {
-                        mainHandler.post(() -> callback.onToken(token));
-                    }
-                });
+                        @Override
+                        public void onToken(String token) {
+                            mainHandler.post(() -> callback.onToken(token));
+                        }
+                    });
+                } catch (RuntimeException e) {
+                    Log.e(TAG_CHAT, "Native inference threw exception", e);
+                    response = "Error: Native inference failed.";
+                }
 
                 if (response == null || response.trim().isEmpty()) {
                     response = "No response generated.";
@@ -197,19 +214,24 @@ public class AIManager {
         }
 
         executorService.execute(() -> {
-            String response = runInferenceNative(
-                systemPrompt,
-                roles,
-                contents,
-                maxTokens,
-                temperature,
-                new ResponseCallback() {
-                    @Override
-                    public void onResponse(String r) {}
-                    @Override
-                    public void onToken(String token) {}
-                }
-            );
+            String response = null;
+            try {
+                response = runInferenceNative(
+                    systemPrompt,
+                    roles,
+                    contents,
+                    maxTokens,
+                    temperature,
+                    new ResponseCallback() {
+                        @Override
+                        public void onResponse(String r) {}
+                        @Override
+                        public void onToken(String token) {}
+                    }
+                );
+            } catch (RuntimeException e) {
+                Log.e(TAG_CHAT, "Native short inference threw exception", e);
+            }
             String finalResponse = (response != null) ? response.trim() : null;
             mainHandler.post(() -> callback.onResponse(finalResponse));
         });
@@ -275,19 +297,24 @@ public class AIManager {
                 contents[i] = msg.getText();
             }
 
-            String response = runInferenceNative(
-                memorySystemPrompt,
-                roles,
-                contents,
-                64, // Increased maxTokens for more stable extraction
-                0.2f, // lower temperature for stability
-                new ResponseCallback() {
-                    @Override
-                    public void onResponse(String response) {}
-                    @Override
-                    public void onToken(String token) {}
-                }
-            );
+            String response = null;
+            try {
+                response = runInferenceNative(
+                    memorySystemPrompt,
+                    roles,
+                    contents,
+                    64, // Increased maxTokens for more stable extraction
+                    0.2f, // lower temperature for stability
+                    new ResponseCallback() {
+                        @Override
+                        public void onResponse(String response) {}
+                        @Override
+                        public void onToken(String token) {}
+                    }
+                );
+            } catch (RuntimeException e) {
+                Log.e(TAG_CHAT, "Native memory extraction threw exception", e);
+            }
 
             if (response != null && !response.trim().isEmpty() && !response.trim().equalsIgnoreCase("NONE")) {
                 String clean = response.trim();
@@ -390,7 +417,11 @@ public class AIManager {
     }
 
     public void cancelInference() {
-        cancelInferenceNative();
+        try {
+            cancelInferenceNative();
+        } catch (RuntimeException e) {
+            Log.e(TAG_MODEL, "cancelInferenceNative threw exception", e);
+        }
     }
 
     public void release() {
@@ -398,7 +429,11 @@ public class AIManager {
         executorService.execute(() -> {
             if (isModelLoaded) {
                 Log.d(TAG_MODEL, "Freeing native resources");
-                freeNative();
+                try {
+                    freeNative();
+                } catch (RuntimeException e) {
+                    Log.e(TAG_MODEL, "freeNative threw exception", e);
+                }
                 isModelLoaded = false;
             }
         });
