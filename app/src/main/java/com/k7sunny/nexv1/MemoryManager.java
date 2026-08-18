@@ -37,7 +37,7 @@ public class MemoryManager {
                         entities.add(new MemoryEntity(title, content, isPinned, i));
                     }
                     if (!entities.isEmpty()) {
-                        memoryDao.replaceMemories(entities);
+                        memoryDao.syncMemories(entities);
                     }
                 }
                 // Clear the preferences after successful migration
@@ -54,7 +54,7 @@ public class MemoryManager {
             Memory m = memories.get(i);
             entities.add(new MemoryEntity(m.getTitle(), m.getContent(), m.isPinned(), i));
         }
-        memoryDao.replaceMemories(entities);
+        memoryDao.syncMemories(entities);
     }
 
     public List<Memory> getAllMemories() {
