@@ -54,7 +54,15 @@
         android:layout_marginStart="30dp"
         android:lineSpacingExtra="5dp"
         android:textColor="#E3E3E3"
-        android:textSize="15sp" />
+        android:textSize="15sp"
+        android:visibility="gone" />
+
+    <LinearLayout
+        android:id="@+id/messageContainer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="30dp"
+        android:orientation="vertical" />
 
     <LinearLayout
         android:id="@+id/typingIndicator"

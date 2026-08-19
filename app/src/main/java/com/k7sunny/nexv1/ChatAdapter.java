@@ -27,6 +27,12 @@ import io.noties.markwon.ext.tables.TablePlugin;
 import io.noties.markwon.AbstractMarkwonPlugin;
 import io.noties.markwon.core.MarkwonTheme;
 import android.graphics.Color;
+import android.widget.LinearLayout;
+import android.widget.ImageView;
+import java.util.ArrayList;
+import io.noties.markwon.AbstractMarkwonPlugin;
+import io.noties.markwon.core.MarkwonTheme;
+import android.graphics.Color;
 
 public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 
@@ -37,6 +43,54 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final Map<Message, Runnable> pendingDisappears = new HashMap<>();
+
+    public static class MessageBlock {
+        public static final int TYPE_TEXT = 0;
+        public static final int TYPE_CODE = 1;
+
+        public final int type;
+        public final String content;
+        public final String language;
+
+        public MessageBlock(int type, String content, String language) {
+            this.type = type;
+            this.content = content;
+            this.language = language;
+        }
+    }
+
+    public static List<MessageBlock> parseBlocks(String text) {
+        List<MessageBlock> blocks = new ArrayList<>();
+        if (text == null || text.isEmpty()) {
+            return blocks;
+        }
+
+        String[] parts = text.split("```", -1);
+        for (int i = 0; i < parts.length; i++) {
+            String part = parts[i];
+            if (i % 2 == 0) {
+                if (!part.isEmpty()) {
+                    blocks.add(new MessageBlock(MessageBlock.TYPE_TEXT, part, null));
+                }
+            } else {
+                String language = "code";
+                String code = part;
+                int firstNewline = part.indexOf('\n');
+                if (firstNewline != -1) {
+                    String langCandidate = part.substring(0, firstNewline).trim();
+                    if (!langCandidate.isEmpty() && langCandidate.length() < 20 && !langCandidate.contains(" ")) {
+                        language = langCandidate;
+                        code = part.substring(firstNewline + 1);
+                    }
+                }
+                if (code.endsWith("\n")) {
+                    code = code.substring(0, code.length() - 1);
+                }
+                blocks.add(new MessageBlock(MessageBlock.TYPE_CODE, code, language));
+            }
+        }
+        return blocks;
+    }
 
     public interface OnMessageActionListener {
         void onRegenerate(int position);
@@ -162,6 +216,9 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             if (holder.messageText != null) {
                 holder.messageText.setVisibility(View.GONE);
             }
+            if (holder.messageContainer != null) {
+                holder.messageContainer.setVisibility(View.GONE);
+            }
             if (holder.typingIndicator != null) {
                 holder.typingIndicator.setVisibility(View.VISIBLE);
                 startTypingAnimation(holder);
@@ -171,9 +228,58 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             }
         } else {
             if (holder.messageText != null) {
-                holder.messageText.setVisibility(View.VISIBLE);
-                markwon.setMarkdown(holder.messageText, message.getText());
-                holder.messageText.setAlpha(1.0f);
+                holder.messageText.setVisibility(View.GONE);
+            }
+            if (holder.messageContainer != null) {
+                holder.messageContainer.removeAllViews();
+                holder.messageContainer.setVisibility(View.VISIBLE);
+
+                List<MessageBlock> blocks = parseBlocks(message.getText());
+                float density = holder.itemView.getContext().getResources().getDisplayMetrics().density;
+                for (MessageBlock block : blocks) {
+                    if (block.type == MessageBlock.TYPE_TEXT) {
+                        TextView tv = new TextView(holder.itemView.getContext());
+                        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                            LinearLayout.LayoutParams.MATCH_PARENT,
+                            LinearLayout.LayoutParams.WRAP_CONTENT
+                        );
+                        lp.setMargins(0, 0, 0, (int) (6 * density));
+                        tv.setLayoutParams(lp);
+                        tv.setTextColor(Color.parseColor("#E3E3E3"));
+                        tv.setTextSize(15);
+                        tv.setLineSpacing(5, 1);
+                        markwon.setMarkdown(tv, block.content);
+                        holder.messageContainer.addView(tv);
+                    } else if (block.type == MessageBlock.TYPE_CODE) {
+                        View codeBlockView = LayoutInflater.from(holder.itemView.getContext())
+                            .inflate(R.layout.item_message_code_block, holder.messageContainer, false);
+
+                        TextView tvLanguage = codeBlockView.findViewById(R.id.tvLanguage);
+                        TextView tvCode = codeBlockView.findViewById(R.id.tvCode);
+                        View btnCopyCode = codeBlockView.findViewById(R.id.btnCopyCode);
+                        TextView tvCopyStatus = codeBlockView.findViewById(R.id.tvCopyStatus);
+
+                        tvLanguage.setText(block.language.toUpperCase());
+                        tvCode.setText(SyntaxHighlighter.formatCode(block.content, block.language));
+
+                        btnCopyCode.setOnClickListener(v -> {
+                            triggerHaptic(v, android.view.HapticFeedbackConstants.KEYBOARD_TAP);
+                            ClipboardManager clipboard = (ClipboardManager) v.getContext().getSystemService(Context.CLIPBOARD_SERVICE);
+                            ClipData clip = ClipData.newPlainText("Code block", block.content);
+                            if (clipboard != null) {
+                                clipboard.setPrimaryClip(clip);
+                                tvCopyStatus.setText("Copied!");
+                                v.postDelayed(() -> {
+                                    if (tvCopyStatus != null) {
+                                        tvCopyStatus.setText("Copy code");
+                                    }
+                                }, 2000);
+                            }
+                        });
+
+                        holder.messageContainer.addView(codeBlockView);
+                    }
+                }
             }
             if (holder.memoryIndicator != null) {
                 if (message.getMemoryTag() != null && !message.getMemoryTag().isEmpty()) {
@@ -375,6 +481,7 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 
     static class AiViewHolder extends RecyclerView.ViewHolder {
         TextView messageText;
+        LinearLayout messageContainer;
         TextView memoryIndicator;
         View aiActionContainer;
         ImageButton btnCopy;
@@ -390,6 +497,7 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         AiViewHolder(View itemView) {
             super(itemView);
             messageText = itemView.findViewById(R.id.messageText);
+            messageContainer = itemView.findViewById(R.id.messageContainer);
             memoryIndicator = itemView.findViewById(R.id.memoryIndicator);
             aiActionContainer = itemView.findViewById(R.id.aiActionContainer);
             btnCopy = itemView.findViewById(R.id.btnCopy);
