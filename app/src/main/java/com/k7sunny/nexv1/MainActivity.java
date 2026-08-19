@@ -6,6 +6,9 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.database.Cursor;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -13,10 +16,13 @@ import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.FrameLayout;
 import android.widget.ImageButton;
+import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.PickVisualMediaRequest;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
@@ -32,6 +38,10 @@ import com.google.android.material.bottomsheet.BottomSheetDialog;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.card.MaterialCardView;
 import com.google.android.material.progressindicator.LinearProgressIndicator;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
@@ -63,6 +73,13 @@ public class MainActivity extends AppCompatActivity {
     private String currentSessionTitle = null;
     private boolean isGenerating = false;
     private View fabScrollToBottom;
+
+    // Image attachment UI in composer
+    private String selectedImagePath = null;
+    private FrameLayout layoutImagePreview;
+    private ImageView ivComposerPreview;
+    private ImageButton btnRemoveImage;
+    private ImageButton btnAttachImage;
 
     /**
      * FIX (title-generation bug #1/#2/#3/#7): title/drift generation runs
@@ -115,6 +132,20 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
     );
+
+    private final ActivityResultLauncher<PickVisualMediaRequest> photoPickerLauncher =
+            registerForActivityResult(new ActivityResultContracts.PickVisualMedia(), uri -> {
+                if (uri != null) {
+                    handleSelectedImage(uri);
+                }
+            });
+
+    private final ActivityResultLauncher<Intent> legacyPickerLauncher =
+            registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
+                if (result.getResultCode() == RESULT_OK && result.getData() != null && result.getData().getData() != null) {
+                    handleSelectedImage(result.getData().getData());
+                }
+            });
 
     // Views used by the model download card.
     private View downloadModelCard;
@@ -270,6 +301,18 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
+        layoutImagePreview = findViewById(R.id.layout_image_preview);
+        ivComposerPreview = findViewById(R.id.iv_composer_preview);
+        btnRemoveImage = findViewById(R.id.btn_remove_image);
+        btnAttachImage = findViewById(R.id.btnAttachImage);
+
+        if (btnAttachImage != null) {
+            btnAttachImage.setOnClickListener(v -> launchImagePicker());
+        }
+        if (btnRemoveImage != null) {
+            btnRemoveImage.setOnClickListener(v -> clearSelectedImage());
+        }
+
         setupSuggestions();
 
         sendButton.setOnClickListener(v -> {
@@ -323,6 +366,9 @@ public class MainActivity extends AppCompatActivity {
             } else if ("ultra".equals(model)) {
                 modelSelector.setText("Nex Ultra");
                 modelSelector.setIconResource(R.drawable.ic_persona);
+            } else if ("vision".equals(model)) {
+                modelSelector.setText("Nex Vision");
+                modelSelector.setIconResource(R.drawable.ic_vision);
             } else {
                 modelSelector.setText(R.string.nex_fast);
                 modelSelector.setIconResource(R.drawable.ic_bolt);
@@ -456,27 +502,37 @@ public class MainActivity extends AppCompatActivity {
     // Update UI based on whether a valid model exists.
 
     private void checkModelStatus() {
-        if (modelManager.isModelFilePresentWithCorrectSize()) {
-            if (modelManager.isModelVerified()) {
-                String modelPath = modelManager.getModelPath();
-                downloadModelCard.setVisibility(View.GONE);
-                downloadProgress.setVisibility(View.GONE);
+        String modelKey = preferenceManager.getSelectedModel();
+        if (modelManager.isModelDownloaded()) {
+            downloadModelCard.setVisibility(View.GONE);
+            downloadProgress.setVisibility(View.GONE);
 
+            String modelPath = modelManager.getModelPath();
+            if ("vision".equals(modelKey)) {
+                String mmprojPath = modelManager.getMmprojPath();
+                Log.d(TAG, "Nex Vision found and verified, loading: " + modelPath + ", mmproj: " + mmprojPath);
+                aiManager.loadVisionModel(modelPath, mmprojPath);
+                Toast.makeText(this, "Nex Vision engine ready!", Toast.LENGTH_SHORT).show();
+            } else {
                 Log.d(TAG, "Model found and verified, loading: " + modelPath);
                 aiManager.loadModel(modelPath);
-
                 Toast.makeText(this, "AI model ready!", Toast.LENGTH_SHORT).show();
-            } else {
-                verifyModelInBackground();
             }
+        } else if (modelManager.isModelFilePresentWithCorrectSize(modelKey) && !modelManager.isModelVerified(modelKey)) {
+            verifyModelInBackground();
+        } else if ("vision".equals(modelKey) && modelManager.isModelFilePresentWithCorrectSize("vision") && modelManager.isModelVerified("vision")) {
+            downloadModelCard.setVisibility(View.VISIBLE);
+            downloadProgress.setVisibility(View.GONE);
+            btnDownloadModel.setEnabled(true);
+            btnDownloadModel.setText("Download Projector");
+            downloadStatusText.setText("Download the vision projector (~668MB) to enable offline image analysis.");
         } else {
             downloadModelCard.setVisibility(View.VISIBLE);
             downloadProgress.setVisibility(View.GONE);
             btnDownloadModel.setEnabled(true);
             btnDownloadModel.setText("Download Model");
 
-            String modelKey = preferenceManager.getSelectedModel();
-            String sizeStr = "fast".equals(modelKey) ? "~450MB" : ("pro".equals(modelKey) ? "~1.1GB" : "~2.0GB");
+            String sizeStr = "fast".equals(modelKey) ? "~450MB" : ("pro".equals(modelKey) ? "~1.1GB" : ("ultra".equals(modelKey) ? "~2.0GB" : "~2.7GB"));
             downloadStatusText.setText("Download the core AI engine (" + sizeStr + ") to start chatting offline.");
         }
     }
@@ -554,6 +610,7 @@ public class MainActivity extends AppCompatActivity {
         modelItems.add(new ModelItem("fast", "Nex Fast", "~450MB", "Optimized for speed and efficiency.", R.drawable.ic_bolt));
         modelItems.add(new ModelItem("pro", "Nex Pro", "~1.1GB", "Smart and conversational model.", R.drawable.app_icon));
         modelItems.add(new ModelItem("ultra", "Nex Ultra", "~2.0GB", "Deep reasoning and advanced coding.", R.drawable.ic_persona));
+        modelItems.add(new ModelItem("vision", "Nex Vision", "~2.7GB", "Offline image analysis, vision & OCR.", R.drawable.ic_vision, "VISION"));
 
         ModelAdapter adapter = new ModelAdapter(modelItems, preferenceManager.getSelectedModel(), item -> {
             preferenceManager.setSelectedModel(item.getKey());
@@ -665,7 +722,9 @@ public class MainActivity extends AppCompatActivity {
 
     private void sendMessage() {
         String text = messageInput.getText().toString().trim();
-        if (text.isEmpty()) return;
+        String imgPath = selectedImagePath;
+
+        if (text.isEmpty() && (imgPath == null || imgPath.isEmpty())) return;
 
         View sendButton = findViewById(R.id.sendButton);
         triggerHapticFeedback(sendButton != null ? sendButton : messageInput, android.view.HapticFeedbackConstants.KEYBOARD_TAP);
@@ -678,10 +737,13 @@ public class MainActivity extends AppCompatActivity {
         // Reset scroll state: user just sent a message, so they expect to see it
         isUserScrolledUp = false;
 
-        Message userMsg = new Message(text, Message.TYPE_USER);
+        Message userMsg = new Message(text, Message.TYPE_USER, imgPath);
         messageList.add(userMsg);
         chatAdapter.notifyItemInserted(messageList.size() - 1);
         recyclerView.scrollToPosition(messageList.size() - 1);
+
+        messageInput.setText("");
+        clearSelectedImage();
 
         // Save session and messages (asynchronously on background thread with copy of list)
         String title = getActiveSessionTitle();
@@ -690,18 +752,16 @@ public class MainActivity extends AppCompatActivity {
             historyManager.saveSession(new ChatSession(currentSessionId, title, System.currentTimeMillis()), copyListForDb);
         });
 
-        messageInput.setText("");
-
         setGeneratingState(true);
 
         Message typingMessage = new Message("", Message.TYPE_TYPING);
         messageList.add(typingMessage);
         chatAdapter.notifyItemInserted(messageList.size() - 1);
         recyclerView.scrollToPosition(messageList.size() - 1);
-        Log.d(TAG_CHAT, "User message: " + text);
+        Log.d(TAG_CHAT, "User message: '" + text + "' (image: " + imgPath + ")");
 
         long startTime = System.currentTimeMillis();
-        aiManager.generateResponse(text, new AIManager.ResponseCallback() {
+        aiManager.generateResponse(text, imgPath, new AIManager.ResponseCallback() {
             @Override
             public void onResponse(String response) {
                 setGeneratingState(false);
@@ -768,6 +828,7 @@ public class MainActivity extends AppCompatActivity {
         if (userMsg.getType() != Message.TYPE_USER) return;
 
         String promptText = userMsg.getText();
+        String imgPath = userMsg.getImageUri();
 
         // Remove the target AI message and all subsequent messages in the list
         int originalSize = messageList.size();
@@ -790,7 +851,7 @@ public class MainActivity extends AppCompatActivity {
         setGeneratingState(true);
 
         long startTime = System.currentTimeMillis();
-        aiManager.generateResponse(promptText, new AIManager.ResponseCallback() {
+        aiManager.generateResponse(promptText, imgPath, new AIManager.ResponseCallback() {
             @Override
             public void onResponse(String response) {
                 setGeneratingState(false);
@@ -840,6 +901,115 @@ public class MainActivity extends AppCompatActivity {
                 runOnUiThread(() -> Toast.makeText(MainActivity.this, "Older context dropped to fit window", Toast.LENGTH_SHORT).show());
             }
         });
+    }
+
+    private void launchImagePicker() {
+        try {
+            photoPickerLauncher.launch(new PickVisualMediaRequest.Builder()
+                    .setMediaType(ActivityResultContracts.PickVisualMedia.ImageOnly.INSTANCE)
+                    .build());
+        } catch (Exception e) {
+            try {
+                Intent intent = new Intent(Intent.ACTION_PICK);
+                intent.setType("image/*");
+                legacyPickerLauncher.launch(intent);
+            } catch (Exception ex) {
+                Toast.makeText(this, "Unable to open image picker", Toast.LENGTH_SHORT).show();
+            }
+        }
+    }
+
+    private void handleSelectedImage(Uri uri) {
+        try {
+            File imagesDir = new File(getCacheDir(), "images");
+            if (!imagesDir.exists()) {
+                imagesDir.mkdirs();
+            }
+            File destFile = new File(imagesDir, "attach_" + System.currentTimeMillis() + ".jpg");
+
+            Bitmap bitmap = null;
+            int maxTarget = 392; // Fast mobile CPU inference (~3-5s), low memory, crisp OCR/vision
+            try (InputStream in = getContentResolver().openInputStream(uri)) {
+                if (in != null) {
+                    BitmapFactory.Options options = new BitmapFactory.Options();
+                    options.inJustDecodeBounds = true;
+                    BitmapFactory.decodeStream(in, null, options);
+
+                    int maxDim = Math.max(options.outWidth, options.outHeight);
+                    int sampleSize = 1;
+                    while (maxDim / sampleSize > maxTarget * 2) {
+                        sampleSize *= 2;
+                    }
+
+                    BitmapFactory.Options decodeOptions = new BitmapFactory.Options();
+                    decodeOptions.inSampleSize = sampleSize;
+                    try (InputStream in2 = getContentResolver().openInputStream(uri)) {
+                        bitmap = BitmapFactory.decodeStream(in2, null, decodeOptions);
+                    }
+                }
+            }
+
+            if (bitmap != null) {
+                int width = bitmap.getWidth();
+                int height = bitmap.getHeight();
+                float ratio = Math.min((float) maxTarget / width, (float) maxTarget / height);
+                if (ratio > 1.0f) ratio = 1.0f;
+                int targetW = Math.round(width * ratio);
+                int targetH = Math.round(height * ratio);
+                // Ensure dimensions are multiples of 28 for Qwen2.5-VL patch grid
+                targetW = Math.max(28, (targetW / 28) * 28);
+                targetH = Math.max(28, (targetH / 28) * 28);
+                Bitmap scaled = Bitmap.createScaledBitmap(bitmap, targetW, targetH, true);
+                if (scaled != bitmap) {
+                    bitmap.recycle();
+                    bitmap = scaled;
+                }
+
+                try (OutputStream out = new FileOutputStream(destFile)) {
+                    bitmap.compress(Bitmap.CompressFormat.JPEG, 90, out);
+                }
+                bitmap.recycle();
+            } else {
+                try (InputStream in = getContentResolver().openInputStream(uri);
+                     OutputStream out = new FileOutputStream(destFile)) {
+                    if (in != null) {
+                        byte[] buffer = new byte[8192];
+                        int read;
+                        while ((read = in.read(buffer)) != -1) {
+                            out.write(buffer, 0, read);
+                        }
+                    }
+                }
+            }
+
+            selectedImagePath = destFile.getAbsolutePath();
+            if (ivComposerPreview != null) {
+                ivComposerPreview.setImageURI(Uri.fromFile(destFile));
+            }
+            if (layoutImagePreview != null) {
+                layoutImagePreview.setVisibility(View.VISIBLE);
+            }
+            // Auto switch to vision model if currently on a text-only model
+            if (!modelManager.isVisionModel()) {
+                preferenceManager.setSelectedModel(ModelManager.MODEL_VISION);
+                updateModelSelectorButton();
+                checkModelStatus();
+                Toast.makeText(this, "Switched to Nex Vision for image analysis", Toast.LENGTH_SHORT).show();
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to cache selected image", e);
+            Toast.makeText(this, "Failed to load selected image", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void clearSelectedImage() {
+        selectedImagePath = null;
+        if (layoutImagePreview != null) {
+            layoutImagePreview.setVisibility(View.GONE);
+        }
+        if (ivComposerPreview != null) {
+            ivComposerPreview.setImageDrawable(null);
+        }
     }
 
     private void pinMessageToMemory(String text) {

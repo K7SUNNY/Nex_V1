@@ -18,6 +18,10 @@ public class PreferenceManager {
             "You think deeply, formulate structured plans, write robust code, and analyze complex logical queries.\n" +
             "Format your output beautifully and keep it accurate.";
 
+    private static final String DEFAULT_PERSONA_VISION = "You are Nex Vision, an advanced offline multimodal AI assistant powered by Qwen2.5-VL.\n"
+            +
+            "You analyze images, read screenshots and UI elements, perform OCR, answer visual questions, and provide detailed observations locally.";
+
     private final SharedPreferences prefs;
 
     public PreferenceManager(Context context) {
@@ -37,6 +41,8 @@ public class PreferenceManager {
             return DEFAULT_PERSONA_PRO;
         } else if ("ultra".equals(model)) {
             return DEFAULT_PERSONA_ULTRA;
+        } else if ("vision".equals(model)) {
+            return DEFAULT_PERSONA_VISION;
         } else {
             return DEFAULT_PERSONA_FAST;
         }

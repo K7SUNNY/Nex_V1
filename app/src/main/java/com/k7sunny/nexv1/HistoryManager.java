@@ -77,6 +77,7 @@ public class HistoryManager {
                 msg.getType()
             );
             entity.memoryTag = msg.getMemoryTag();
+            entity.imageUri = msg.getImageUri();
             messageEntities.add(entity);
         }
 
@@ -87,7 +88,7 @@ public class HistoryManager {
         List<ChatMessageEntity> entities = chatHistoryDao.getMessages(sessionId);
         List<Message> list = new ArrayList<>();
         for (ChatMessageEntity entity : entities) {
-            Message msg = new Message(entity.text, entity.type);
+            Message msg = new Message(entity.text, entity.type, entity.imageUri);
             msg.setMemoryTag(entity.memoryTag);
             list.add(msg);
         }

@@ -49,10 +49,20 @@ public class ModelAdapter extends RecyclerView.Adapter<ModelAdapter.ViewHolder> 
         holder.tvDesc.setText(item.getDescription());
         holder.icon.setImageResource(item.getIconRes());
 
+        if (item.getTag() != null && !item.getTag().isEmpty()) {
+            holder.tvTag.setText(item.getTag());
+            holder.tvTag.setVisibility(View.VISIBLE);
+        } else {
+            holder.tvTag.setVisibility(View.GONE);
+        }
+
         boolean isSelected = item.getKey().equals(selectedKey);
         holder.check.setVisibility(isSelected ? View.VISIBLE : View.GONE);
 
         int activeStrokeColor = 0xFF007AFF; // Blue
+        if (isSelected && "vision".equals(item.getKey())) {
+            activeStrokeColor = 0xFFAF52DE; // Purple accent for vision
+        }
         int inactiveStrokeColor = 0x1AFFFFFF; // Translucent white
         int activeBgColor = 0xFF1C1C1E; // Active card bg
         int inactiveBgColor = 0xFF111111; // Standard card bg
@@ -77,6 +87,7 @@ public class ModelAdapter extends RecyclerView.Adapter<ModelAdapter.ViewHolder> 
         final ImageView icon;
         final ImageView check;
         final TextView tvName;
+        final TextView tvTag;
         final TextView tvSize;
         final TextView tvDesc;
 
@@ -86,6 +97,7 @@ public class ModelAdapter extends RecyclerView.Adapter<ModelAdapter.ViewHolder> 
             icon = itemView.findViewById(R.id.icon_model);
             check = itemView.findViewById(R.id.check_model);
             tvName = itemView.findViewById(R.id.tv_model_name);
+            tvTag = itemView.findViewById(R.id.tv_model_tag);
             tvSize = itemView.findViewById(R.id.tv_model_size);
             tvDesc = itemView.findViewById(R.id.tv_model_desc);
         }

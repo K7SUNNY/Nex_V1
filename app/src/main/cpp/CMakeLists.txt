@@ -10,6 +10,7 @@ set(LLAMA_BUILD_COMMON ON CACHE INTERNAL "")
 set(LLAMA_BUILD_EXAMPLES OFF CACHE INTERNAL "")
 set(LLAMA_BUILD_TESTS OFF CACHE INTERNAL "")
 set(LLAMA_BUILD_SERVER OFF CACHE INTERNAL "")
+set(LLAMA_BUILD_MTMD ON CACHE INTERNAL "")
 set(GGML_OPENMP ON CACHE INTERNAL "")
 
 # Automatically fetch llama.cpp if not present locally
@@ -37,6 +38,7 @@ target_include_directories(
     ${llama_cpp_SOURCE_DIR}/common
     ${llama_cpp_SOURCE_DIR}/include
     ${llama_cpp_SOURCE_DIR}/ggml/include
+    ${llama_cpp_SOURCE_DIR}/tools/mtmd
 )
 
 find_library(
@@ -54,6 +56,7 @@ target_link_libraries(
     nexv1
     llama
     llama-common
+    mtmd
     ${log-lib}
     ${OPENMP_LIBRARIES}
 )

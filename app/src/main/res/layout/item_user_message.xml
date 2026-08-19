@@ -16,15 +16,40 @@
         app:cardBackgroundColor="#26282B"
         app:strokeWidth="0dp">
 
-        <TextView
-            android:id="@+id/messageText"
+        <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:textColor="@android:color/white"
-            android:textSize="15sp"
-            android:paddingHorizontal="16dp"
-            android:paddingVertical="10dp"
-            android:lineSpacingExtra="2dp"/>
+            android:orientation="vertical">
+
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/card_attached_image"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_margin="6dp"
+                app:cardCornerRadius="14dp"
+                app:cardElevation="0dp"
+                app:cardBackgroundColor="#131314"
+                app:strokeWidth="0dp"
+                android:visibility="gone">
+
+                <ImageView
+                    android:id="@+id/ivUserAttachedImage"
+                    android:layout_width="220dp"
+                    android:layout_height="160dp"
+                    android:scaleType="centerCrop"
+                    android:contentDescription="Attached Image" />
+            </com.google.android.material.card.MaterialCardView>
+
+            <TextView
+                android:id="@+id/messageText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="@android:color/white"
+                android:textSize="15sp"
+                android:paddingHorizontal="16dp"
+                android:paddingVertical="10dp"
+                android:lineSpacingExtra="2dp"/>
+        </LinearLayout>
     </com.google.android.material.card.MaterialCardView>
 
 </LinearLayout>

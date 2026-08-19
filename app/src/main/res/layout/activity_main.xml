@@ -304,6 +304,48 @@
             android:animateLayoutChanges="true"
             android:padding="8dp">
 
+            <!-- Attached Image Preview in Composer -->
+            <FrameLayout
+                android:id="@+id/layout_image_preview"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:layout_marginTop="4dp"
+                android:layout_marginBottom="4dp"
+                android:visibility="gone">
+
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:layout_marginEnd="6dp"
+                    app:cardCornerRadius="14dp"
+                    app:cardBackgroundColor="#1C1C1E"
+                    app:strokeWidth="1dp"
+                    app:strokeColor="#3A3A3C">
+
+                    <ImageView
+                        android:id="@+id/iv_composer_preview"
+                        android:layout_width="80dp"
+                        android:layout_height="80dp"
+                        android:scaleType="centerCrop"
+                        android:contentDescription="Attached Image Preview" />
+                </com.google.android.material.card.MaterialCardView>
+
+                <ImageButton
+                    android:id="@+id/btn_remove_image"
+                    android:layout_width="22dp"
+                    android:layout_height="22dp"
+                    android:layout_gravity="top|end"
+                    android:background="@drawable/bg_dot"
+                    android:backgroundTint="#FF3B30"
+                    android:contentDescription="Remove image"
+                    android:padding="4dp"
+                    android:scaleType="fitCenter"
+                    android:src="@drawable/ic_close"
+                    app:tint="@android:color/white" />
+            </FrameLayout>
+
             <EditText
                 android:id="@+id/messageInput"
                 android:layout_width="match_parent"
@@ -311,7 +353,7 @@
                 android:layout_marginHorizontal="12dp"
                 android:layout_marginTop="4dp"
                 android:background="@android:color/transparent"
-                android:hint="Ask Nex to think, plan, code, or create..."
+                android:hint="Ask Nex to think, plan, code, or analyze..."
                 android:importantForAutofill="no"
                 android:inputType="textMultiLine"
                 android:imeOptions="actionSend"
@@ -327,24 +369,45 @@
                 android:layout_height="48dp"
                 android:layout_marginTop="4dp">
 
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/modelSelector"
-                    style="@style/Widget.Material3.Button.TextButton"
+                <LinearLayout
                     android:layout_width="wrap_content"
-                    android:layout_height="36dp"
+                    android:layout_height="wrap_content"
                     android:layout_centerVertical="true"
-                    android:layout_marginStart="4dp"
-                    android:text="Nex Fast"
-                    android:textColor="@android:color/white"
-                    android:textSize="12sp"
-                    app:icon="@drawable/ic_bolt"
-                    app:iconGravity="textStart"
-                    app:iconSize="18dp"
-                    app:iconTint="@android:color/white"
-                    app:backgroundTint="#26282B"
-                    android:minWidth="0dp"
-                    android:paddingHorizontal="16dp"
-                    app:cornerRadius="18dp" />
+                    android:layout_alignParentStart="true"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/modelSelector"
+                        style="@style/Widget.Material3.Button.TextButton"
+                        android:layout_width="wrap_content"
+                        android:layout_height="36dp"
+                        android:layout_marginStart="4dp"
+                        android:text="Nex Fast"
+                        android:textColor="@android:color/white"
+                        android:textSize="12sp"
+                        app:icon="@drawable/ic_bolt"
+                        app:iconGravity="textStart"
+                        app:iconSize="18dp"
+                        app:iconTint="@android:color/white"
+                        app:backgroundTint="#26282B"
+                        android:minWidth="0dp"
+                        android:paddingHorizontal="14dp"
+                        app:cornerRadius="18dp" />
+
+                    <ImageButton
+                        android:id="@+id/btnAttachImage"
+                        android:layout_width="36dp"
+                        android:layout_height="36dp"
+                        android:layout_marginStart="6dp"
+                        android:background="@drawable/bg_dot"
+                        android:backgroundTint="#26282B"
+                        android:contentDescription="Attach Image"
+                        android:padding="8dp"
+                        android:scaleType="fitCenter"
+                        android:src="@drawable/ic_image"
+                        app:tint="@android:color/white" />
+                </LinearLayout>
 
                 <TextView
                     android:id="@+id/tv_char_count"

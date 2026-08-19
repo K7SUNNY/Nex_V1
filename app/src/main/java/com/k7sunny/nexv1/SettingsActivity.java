@@ -84,6 +84,7 @@ public class SettingsActivity extends AppCompatActivity {
         modelItems.add(new ModelItem("fast", "Nex Fast", "~450MB", "Optimized for speed and efficiency.", R.drawable.ic_bolt));
         modelItems.add(new ModelItem("pro", "Nex Pro", "~1.1GB", "Smart and conversational model.", R.drawable.app_icon));
         modelItems.add(new ModelItem("ultra", "Nex Ultra", "~2.0GB", "Deep reasoning and advanced coding.", R.drawable.ic_persona));
+        modelItems.add(new ModelItem("vision", "Nex Vision", "~2.7GB", "Offline image analysis, vision & OCR.", R.drawable.ic_vision, "VISION"));
 
         modelAdapter = new ModelAdapter(modelItems, preferenceManager.getSelectedModel(), item -> {
             selectModel(item.getKey());
@@ -224,7 +225,7 @@ public class SettingsActivity extends AppCompatActivity {
 
     private void updateDownloadCardUI() {
         String currentModel = preferenceManager.getSelectedModel();
-        boolean downloaded = modelManager.isModelFilePresentWithCorrectSize() && modelManager.isModelVerified();
+        boolean downloaded = modelManager.isModelDownloaded();
 
         if (downloaded) {
             cardDownloadManager.setVisibility(View.GONE);
@@ -234,12 +235,16 @@ public class SettingsActivity extends AppCompatActivity {
             btnActionDownload.setEnabled(true);
             btnActionDownload.setText("Download");
 
-            String sizeStr = "fast".equals(currentModel) ? "~450MB" : ("pro".equals(currentModel) ? "~1.1GB" : "~2.0GB");
+            String sizeStr = "fast".equals(currentModel) ? "~450MB" : ("pro".equals(currentModel) ? "~1.1GB" : ("ultra".equals(currentModel) ? "~2.0GB" : "~2.7GB"));
             
             if (modelManager.isModelFileCorrupted()) {
                 tvDownloadTitle.setText("Corrupted Model Detected");
                 tvDownloadStatus.setText("The existing file is incomplete or corrupted. Tap below to delete and download a clean copy (" + sizeStr + ").");
                 btnActionDownload.setText("Clean & Download");
+            } else if ("vision".equals(currentModel) && modelManager.isModelFilePresentWithCorrectSize("vision") && modelManager.isModelVerified("vision")) {
+                tvDownloadTitle.setText("Vision Projector Required");
+                tvDownloadStatus.setText("Download the vision projector (~668MB) to enable offline image analysis.");
+                btnActionDownload.setText("Download Projector");
             } else {
                 tvDownloadTitle.setText("Model Download Required");
                 tvDownloadStatus.setText("Download the core AI engine (" + sizeStr + ") to use this model offline.");

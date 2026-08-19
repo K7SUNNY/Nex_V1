@@ -109,8 +109,8 @@ android {
 
         externalNativeBuild {
             cmake {
-                cppFlags("")
-                arguments("-DGGML_OPENMP=ON", "-DGGML_LLAMAFILE=OFF")
+                cppFlags("-O3", "-fno-finite-math-only")
+                arguments("-DGGML_OPENMP=ON", "-DGGML_LLAMAFILE=OFF", "-DCMAKE_BUILD_TYPE=Release")
                 abiFilters("arm64-v8a")
             }
         }

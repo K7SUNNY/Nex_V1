@@ -37,6 +37,9 @@ public class ChatMessageEntity {
 
     public String memoryTag;
 
+    @ColumnInfo(name = "image_uri")
+    public String imageUri;
+
     public ChatMessageEntity(@NonNull String sessionId, int position, @NonNull String text, int type) {
         this.sessionId = sessionId;
         this.position = position;

@@ -22,6 +22,7 @@ public class AIManager {
     // UI thread (title/drift/memory triggers) — must be volatile or a stale
     // `false` silently skips title generation after the model has loaded.
     private volatile boolean isModelLoaded = false;
+    private volatile boolean isVisionModel = false;
     private final java.util.List<Message> chatHistory = java.util.Collections.synchronizedList(new java.util.ArrayList<>());
     private static final int MAX_HISTORY = 12; // Keep last 6 rounds of chat
     private volatile String systemPrompt = "";
@@ -35,7 +36,9 @@ public class AIManager {
     public native String stringFromJNI();
     public native boolean initNative();
     public native long loadModelNative(String modelPath);
+    public native long loadVisionModelNative(String modelPath, String mmprojPath);
     public native String runInferenceNative(String systemPrompt, String[] roles, String[] contents, int maxTokens, float temperature, ResponseCallback callback);
+    public native String runVisionInferenceNative(String systemPrompt, String[] roles, String[] contents, String imagePath, int maxTokens, float temperature, ResponseCallback callback);
     public native void cancelInferenceNative();
     public native void freeNative();
 
@@ -83,7 +86,8 @@ public class AIManager {
         }
 
         executorService.execute(() -> {
-            Log.d(TAG_MODEL, "Loading model from: " + modelPath);
+            Log.d(TAG_MODEL, "Loading text model from: " + modelPath);
+            isVisionModel = false;
             long modelPtr = 0;
             try {
                 modelPtr = loadModelNative(modelPath);
@@ -101,12 +105,42 @@ public class AIManager {
         });
     }
 
+    public void loadVisionModel(String modelPath, String mmprojPath) {
+        if (modelPath == null || modelPath.isEmpty() || mmprojPath == null || mmprojPath.isEmpty()) {
+            Log.e(TAG_MODEL, "loadVisionModel called with missing model or mmproj path");
+            return;
+        }
+
+        executorService.execute(() -> {
+            Log.d(TAG_MODEL, "Loading vision model from: " + modelPath + ", mmproj: " + mmprojPath);
+            isVisionModel = true;
+            long modelPtr = 0;
+            try {
+                modelPtr = loadVisionModelNative(modelPath, mmprojPath);
+            } catch (RuntimeException e) {
+                Log.e(TAG_MODEL, "Native vision model load threw exception", e);
+            }
+
+            if (modelPtr != 0) {
+                isModelLoaded = true;
+                Log.d(TAG_MODEL, "Nex Vision model loaded successfully");
+            } else {
+                isModelLoaded = false;
+                Log.e(TAG_MODEL, "Failed to load Nex Vision model");
+            }
+        });
+    }
+
     public void generateResponse(String prompt, ResponseCallback callback) {
+        generateResponse(prompt, null, callback);
+    }
+
+    public void generateResponse(String prompt, String imagePath, ResponseCallback callback) {
         executorService.execute(() -> {
             String response;
 
             if (isModelLoaded) {
-                String cleanPrompt = prompt.trim();
+                String cleanPrompt = prompt != null ? prompt.trim() : "";
 
                 // 1. Add User message to history
                 // 2. Build message arrays for native template formatting
@@ -114,7 +148,7 @@ public class AIManager {
                 java.util.List<String> contents = new java.util.ArrayList<>();
 
                 synchronized (chatHistory) {
-                    chatHistory.add(new Message(cleanPrompt, Message.TYPE_USER));
+                    chatHistory.add(new Message(cleanPrompt, Message.TYPE_USER, imagePath));
                     for (Message m : chatHistory) {
                         if (m.getType() == Message.TYPE_USER) {
                             roles.add("user");
@@ -142,27 +176,40 @@ public class AIManager {
                     }
                 }
 
-                Log.d(TAG_CHAT, "Sending " + roles.size() + " messages to native | system: " + systemWithMemories);
+                Log.d(TAG_CHAT, "Sending " + roles.size() + " messages to native (image=" + imagePath + ", isVision=" + isVisionModel + ") | system: " + systemWithMemories);
 
-                // Let native C++ apply the model's chat template via llama_chat_apply_template
+                // Let native C++ apply the model's chat template and run inference
                 try {
-                    response = runInferenceNative(
-                        systemWithMemories,
-                        roles.toArray(new String[0]),
-                        contents.toArray(new String[0]),
-                        maxTokens,
-                        temperature,
-                        new ResponseCallback() {
+                    ResponseCallback nativeTokenCallback = new ResponseCallback() {
                         @Override
-                        public void onResponse(String response) {
-                            // Not used directly in native, but kept for interface
-                        }
+                        public void onResponse(String response) {}
 
                         @Override
                         public void onToken(String token) {
                             mainHandler.post(() -> callback.onToken(token));
                         }
-                    });
+                    };
+
+                    if (isVisionModel || (imagePath != null && !imagePath.isEmpty())) {
+                        response = runVisionInferenceNative(
+                            systemWithMemories,
+                            roles.toArray(new String[0]),
+                            contents.toArray(new String[0]),
+                            imagePath,
+                            maxTokens,
+                            temperature,
+                            nativeTokenCallback
+                        );
+                    } else {
+                        response = runInferenceNative(
+                            systemWithMemories,
+                            roles.toArray(new String[0]),
+                            contents.toArray(new String[0]),
+                            maxTokens,
+                            temperature,
+                            nativeTokenCallback
+                        );
+                    }
                 } catch (RuntimeException e) {
                     Log.e(TAG_CHAT, "Native inference threw exception", e);
                     response = "Error: Native inference failed.";
@@ -449,5 +496,9 @@ public class AIManager {
 
     public boolean isModelLoaded() {
         return isModelLoaded;
+    }
+
+    public boolean isVisionModel() {
+        return isVisionModel;
     }
 }

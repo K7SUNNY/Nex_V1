@@ -8,7 +8,7 @@ import androidx.room.RoomDatabase;
 import androidx.room.migration.Migration;
 import androidx.sqlite.db.SupportSQLiteDatabase;
 
-@Database(entities = {ChatSessionEntity.class, ChatMessageEntity.class, MemoryEntity.class}, version = 3, exportSchema = false)
+@Database(entities = {ChatSessionEntity.class, ChatMessageEntity.class, MemoryEntity.class}, version = 4, exportSchema = false)
 public abstract class NexDatabase extends RoomDatabase {
     private static volatile NexDatabase INSTANCE;
 
@@ -27,13 +27,20 @@ public abstract class NexDatabase extends RoomDatabase {
         }
     };
 
+    public static final Migration MIGRATION_3_4 = new Migration(3, 4) {
+        @Override
+        public void migrate(@NonNull SupportSQLiteDatabase database) {
+            database.execSQL("ALTER TABLE chat_messages ADD COLUMN image_uri TEXT");
+        }
+    };
+
     public static NexDatabase getDatabase(final Context context) {
         if (INSTANCE == null) {
             synchronized (NexDatabase.class) {
                 if (INSTANCE == null) {
                     INSTANCE = Room.databaseBuilder(context.getApplicationContext(),
                                     NexDatabase.class, "nex_database")
-                            .addMigrations(MIGRATION_2_3)
+                            .addMigrations(MIGRATION_2_3, MIGRATION_3_4)
                             .build();
                 }
             }

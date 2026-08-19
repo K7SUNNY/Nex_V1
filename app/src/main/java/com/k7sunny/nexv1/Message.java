@@ -9,10 +9,17 @@ public class Message {
     private int type;
     private boolean isActionsVisible = false;
     private String memoryTag = null;
+    private String imageUri = null;
 
     public Message(String text, int type) {
         this.text = text;
         this.type = type;
+    }
+
+    public Message(String text, int type, String imageUri) {
+        this.text = text;
+        this.type = type;
+        this.imageUri = imageUri;
     }
 
     public Message(Message other) {
@@ -20,6 +27,7 @@ public class Message {
         this.type = other.type;
         this.isActionsVisible = other.isActionsVisible;
         this.memoryTag = other.memoryTag;
+        this.imageUri = other.imageUri;
     }
 
     public String getText() {
@@ -52,5 +60,13 @@ public class Message {
 
     public void setMemoryTag(String memoryTag) {
         this.memoryTag = memoryTag;
+    }
+
+    public String getImageUri() {
+        return imageUri;
+    }
+
+    public void setImageUri(String imageUri) {
+        this.imageUri = imageUri;
     }
 }

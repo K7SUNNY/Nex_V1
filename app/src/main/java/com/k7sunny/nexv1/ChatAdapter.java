@@ -176,9 +176,46 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         itemView.setHapticFeedbackEnabled(hapticsEnabled);
 
         if (holder instanceof UserViewHolder) {
-            markwon.setMarkdown(((UserViewHolder) holder).messageText, message.getText());
+            UserViewHolder userHolder = (UserViewHolder) holder;
+            String imgUriStr = message.getImageUri();
+            if (imgUriStr != null && !imgUriStr.isEmpty()) {
+                if (userHolder.cardAttachedImage != null) {
+                    userHolder.cardAttachedImage.setVisibility(View.VISIBLE);
+                }
+                if (userHolder.ivUserAttachedImage != null) {
+                    try {
+                        if (imgUriStr.startsWith("file://") || imgUriStr.startsWith("content://")) {
+                            userHolder.ivUserAttachedImage.setImageURI(android.net.Uri.parse(imgUriStr));
+                        } else {
+                            userHolder.ivUserAttachedImage.setImageURI(android.net.Uri.fromFile(new java.io.File(imgUriStr)));
+                        }
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                        if (userHolder.cardAttachedImage != null) {
+                            userHolder.cardAttachedImage.setVisibility(View.GONE);
+                        }
+                    }
+                }
+            } else {
+                if (userHolder.cardAttachedImage != null) {
+                    userHolder.cardAttachedImage.setVisibility(View.GONE);
+                }
+            }
+
+            if (message.getText() != null && !message.getText().trim().isEmpty()) {
+                userHolder.messageText.setVisibility(View.VISIBLE);
+                markwon.setMarkdown(userHolder.messageText, message.getText());
+            } else if (imgUriStr != null && !imgUriStr.isEmpty()) {
+                userHolder.messageText.setVisibility(View.GONE);
+            } else {
+                userHolder.messageText.setVisibility(View.VISIBLE);
+                markwon.setMarkdown(userHolder.messageText, "");
+            }
+
             itemView.setOnLongClickListener(v -> {
-                copyToClipboard(v.getContext(), message.getText());
+                if (message.getText() != null && !message.getText().isEmpty()) {
+                    copyToClipboard(v.getContext(), message.getText());
+                }
                 return true;
             });
         } else if (holder instanceof AiViewHolder) {
@@ -473,9 +510,14 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 
     static class UserViewHolder extends RecyclerView.ViewHolder {
         TextView messageText;
+        ImageView ivUserAttachedImage;
+        View cardAttachedImage;
+
         UserViewHolder(View itemView) {
             super(itemView);
             messageText = itemView.findViewById(R.id.messageText);
+            ivUserAttachedImage = itemView.findViewById(R.id.ivUserAttachedImage);
+            cardAttachedImage = itemView.findViewById(R.id.card_attached_image);
         }
     }
 
