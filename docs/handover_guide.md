@@ -1,12 +1,12 @@
 # Project Handover & Setup Guide
 
-This guide is designed for developers taking over the development of Nex V1. It outlines context, setup details, model configuration, and critical architectural areas requiring attention.
+This guide is designed for developers taking over the development of Nex V1. It outlines context, setup details, model configuration, and critical architectural areas.
 
 ---
 
 ## 1. Project Background & Context
 
-Nex V1 is an offline-first, local AI chat application for Android. It was created to demonstrate that high-performance, private, and personalized AI is achievable on consumer mobile hardware without internet access or API usage costs. It succeeds the **Spark AI** project by introducing a local fact-extraction database (Memory) and sub-millisecond response context caching (KV cache recycling).
+Nex V1 is an offline-first, local AI chat application for Android. It demonstrates that high-performance, private, and personalized text and multimodal vision AI is achievable on consumer mobile hardware without internet access or API usage costs. It features local fact-extraction (Memory), sub-millisecond response context caching (KV cache recycling), and multimodal image reasoning via Qwen2.5-VL and `mtmd`.
 
 ---
 
@@ -34,43 +34,39 @@ Nex V1 is an offline-first, local AI chat application for Android. It was create
 
 ## 3. Model Provisioning
 
-The application does not embed the large language model (`.gguf` file) inside the APK to keep download sizes reasonable. The model must be transferred to the device manually.
+The app supports 4 distinct model options:
 
-### Supported Model Archetypes
-- **Recommended base model**: `Qwen2.5-0.5B-Instruct` or `Qwen2.5-1.5B-Instruct`
-- **Format**: `.gguf`
-- **Quantization**: `Q4_K_M` (Balanced performance-to-size ratio)
+| Model ID | Model Name | Base File (.gguf) | Vision Projector (mmproj) |
+| :--- | :--- | :--- | :--- |
+| `fast` | **Nex Fast** | `qwen2.5-0.5b-instruct-q4_k_m.gguf` | *None* |
+| `pro` | **Nex Pro** | `qwen2.5-1.5b-instruct-q4_k_m.gguf` | *None* |
+| `ultra` | **Nex Ultra** | `qwen2.5-3b-instruct-q4_k_m.gguf` | *None* |
+| `vision` | **Nex Vision** | `Qwen2.5-VL-3B-Instruct-Q4_K_M.gguf` | `mmproj-Qwen2.5-VL-3B-Instruct-f16.gguf` |
 
-### Loading Models
-1. Upload the GGUF model to your Android device's storage (e.g., using `adb push` or device file explorer).
-   ```powershell
-   adb push qwen2.5-0.5b-instruct-q4_k_m.gguf /sdcard/Download/
-   ```
-2. Launch the Nex V1 application on the device.
-3. In the setup menu or Settings, select the local file path to load the GGUF model.
+### Automatic & Manual Provisioning
+- **In-App Download**: `ModelManager.java` supports automated downloading directly from HuggingFace repositories into app-scoped external storage (`/storage/emulated/0/Android/data/com.k7sunny.nexv1/files/models/`).
+- **Manual ADB Push**:
+  ```powershell
+  adb push Qwen2.5-VL-3B-Instruct-Q4_K_M.gguf /sdcard/Android/data/com.k7sunny.nexv1/files/models/
+  adb push mmproj-Qwen2.5-VL-3B-Instruct-f16.gguf /sdcard/Android/data/com.k7sunny.nexv1/files/models/
+  ```
 
 ---
 
-## 4. Key Open Tasks & Technical Debt
+## 4. Completed Architectural Safeguards
 
-The application is functional, but there are several structural and concurrency vulnerabilities (noted in the initial `DEBUG_REPORT.md`) that need to be resolved.
-
-### A. JNI Crash Prevention & Exception Boundaries
-* **Issue**: The current bridge in `native-lib.cpp` directly invokes `llama.cpp` APIs. If context overflows or memory limit triggers (OOM), C++ signals will abort the application process, bypassing Java-level try-catch logs.
-* **Handover Task**: Wrap C++ calls in exception boundaries, establish JNI utility handlers, and return native failure codes back to `AIManager.java`.
-
-### B. Race Condition Synchronization
-* **Issue**: `AIManager.chatHistory` (ArrayList) and `MainActivity.messageList` are modified across UI and thread pools without robust locks, risking `ConcurrentModificationException`.
-* **Handover Task**: Introduce synchronized wrappers (e.g., `Collections.synchronizedList`) or process all mutations through a single-thread handler loop.
-
-### C. Database Optimizations
-* **Issue**: `MemoryDao.replaceMemories` currently performs a destructive write (deletes all rows and inserts all memories) which is inefficient as memory counts grow.
-* **Handover Task**: Implement UPSERT (insert or ignore) strategies in DAOs to keep persistence atomic and lightweight.
+1. **JNI Exception Boundaries**: All native calls in `native-lib.cpp` are wrapped in `try { ... } catch (const std::exception& e)` with clean Java runtime exception propagation.
+2. **Race Condition Synchronization**: `AIManager.chatHistory` operations use explicit `synchronized` blocks. `MainActivity` accesses `messageList` on the UI thread and re-locates items via `.indexOf(msg)` after async operations.
+3. **Memory Filter Guards**: Reject AI self-referencing statements and prompt instruction leakage. Normalizes facts to third-person (`User ...`).
+4. **Multimodal Mobile Safety**: Pre-scales images to patch-aligned 392px and sets `image_max_tokens = 256` to prevent kernel page allocation failures and swap thrashing.
 
 ---
 
 ## 5. Feature Roadmap
 
-- [ ] **Multimodal Model Support**: Add vision compatibility to parse image attachments via LLaVA-style GGUF configurations.
-- [ ] **Retrieval-Augmented Generation (RAG)**: Create a localized semantic vector index using a lightweight embedding model to parse user documents.
-- [ ] **STT and TTS Integration**: Integrate Whispers.cpp and local text-to-speech for direct voice interaction.
+- [x] **Multimodal Model Support**: Full vision compatibility with Qwen2.5-VL 3B + mmproj using `mtmd`.
+- [x] **Token-Based KV Cache Recycling**: Sub-millisecond prompt evaluation for multi-turn chats.
+- [x] **Persistent Chat & Image History**: Room DB schema v4 with `image_uri`.
+- [ ] **Retrieval-Augmented Generation (RAG)**: Localized semantic vector index using lightweight embeddings to parse user documents.
+- [ ] **STT and TTS Integration**: Integrate Whisper.cpp and local text-to-speech for direct voice interaction.
+- [ ] **NPU / GPU Acceleration**: Explore Vulkan / NNAPI backends for accelerated prompt decoding.

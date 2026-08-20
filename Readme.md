@@ -19,27 +19,33 @@ The goal is to create a fast, private, and controllable AI assistant that actual
 ## Features
 
 - **Fully Offline AI:** No internet required, no API costs, total privacy.
-- **Intelligent Memory System:** Automatically extracts and stores personal facts and preferences to personalize future interactions.
-- **Smart Context Management:** Optimized KV cache reuse for lightning-fast multi-turn conversations.
-- **Auto-Title Generation:** Automatically generates descriptive titles for chat sessions based on content.
-- **Topic Drift Detection:** Detects when a conversation has moved to a new subject and suggests updating the title.
-- **Persistent History:** Full chat history stored locally using Room Database.
-- **Clean Material UI:** Minimalist and responsive design with dark mode support.
+- **Multimodal Nex Vision:** Offline image reasoning, screenshot analysis, OCR, and visual Q&A powered by Qwen2.5-VL 3B and `mtmd`.
+- **4 Model Choices:**
+  - **Nex Fast:** Qwen2.5-0.5B (ultra-fast, instant streaming).
+  - **Nex Pro:** Qwen2.5-1.5B (balanced reasoning and speed).
+  - **Nex Ultra:** Qwen2.5-3B (deep reasoning and complex planning).
+  - **Nex Vision:** Qwen2.5-VL-3B (multimodal text + vision).
+- **Intelligent Memory System:** Automatically extracts, sanitizes, and stores personal facts and plans to personalize future interactions.
+- **Smart Context Management:** Optimized token-based KV cache reuse for lightning-fast multi-turn conversations.
+- **Auto-Title Generation & Drift Detection:** Automatically generates descriptive session titles and detects topic shifts.
+- **Persistent History:** Full chat history and image attachments stored locally using Room Database.
+- **Clean Material UI:** Minimalist and responsive design with dark mode, code block highlighting, and attachment preview.
 
 ---
 
-## AI Engine and Model
+## AI Engine and Model Architecture
 
-### Engine: llama.cpp (Native C++)
+### Engine: llama.cpp + mtmd (Native C++)
 - Integrated via **Android NDK and JNI bridge**.
-- **Token-based KV Cache Reuse:** Drastically reduces processing time for long conversations by only decoding new tokens.
-- **Thread-Safe Implementation:** Native layer uses mutex synchronization for stability during concurrent operations.
-- **Optimized for Mobile:** Tuned for big.LITTLE CPU architectures to balance speed and battery life.
+- **Multimodal Subsystem (`mtmd`):** Uses llama.cpp's `mtmd` engine for vision tokenization, image patch embedding, and spatial merging.
+- **Visual Token Clamping & Patch Alignment:** Dynamically limits vision tokens to 256 and pre-scales images to patch-aligned 392px to ensure 3–5s vision inference on mobile CPUs without memory thrashing.
+- **Token-based KV Cache Reuse:** Drastically reduces processing time for long multi-turn conversations by only decoding new tokens.
+- **Compiler Optimizations:** Built with Release mode `-O3` and ARM NEON SIMD vectorization.
+- **Thread-Safe Architecture:** Mutex synchronization across JNI operations prevents race conditions during concurrent inference and cancellations.
 
-### Model
-- **Base Model:** Qwen2.5-0.5B-Instruct (or Llama 3 / Gemma variants).
-- **Format:** GGUF.
-- **Quantization:** Q4_K_M (Balanced performance vs. memory footprint).
+### Models
+- **Text Models:** Qwen2.5-0.5B, 1.5B, 3B Instruct (GGUF, Q4_K_M).
+- **Vision Model:** Qwen2.5-VL-3B-Instruct (GGUF, Q4_K_M) paired with `mmproj-Qwen2.5-VL-3B-Instruct-f16.gguf` projector.
 
 ---
 
@@ -47,51 +53,51 @@ The goal is to create a fast, private, and controllable AI assistant that actual
 
 Nex V1 features a sophisticated, local "Personal Knowledge Base":
 
-- **Auto-Extraction:** Uses the AI model to scan conversations for facts (hobbies, pets, locations, coding styles) after every user turn.
-- **Identity Protection:** Features a robust sanitization pipeline that prevents "Role Reversal" hallucinations. It ensures the AI always refers to itself as "I" and you as "You," avoiding identity confusion common in small models.
+- **Auto-Extraction:** Uses the AI model to scan conversations for facts, plans, and preferences after every user turn with few-shot guidance.
+- **Third-Person Normalization:** Formats facts cleanly as `[Topic] | User [fact/plan]` (e.g. `Family | User is meeting their family next week.`).
+- **Identity Protection:** Enforces strict validation filters to prevent AI self-referencing (`I am an AI...`) or prompt instruction leakage.
 - **Atomic Persistence:** Uses Room Database with unique constraints to prevent duplicate memories.
-- **Dynamic Context Injection:** Memories are injected into the system prompt with de-ambiguated headers so the AI knows exactly who the information belongs to.
+- **Dynamic Context Injection:** Pinned memories are injected into the system prompt across conversations.
 
 ---
 
 ## Architecture Overview
 
-**UI (Activity / RecyclerView)**  
+**UI (Activity / RecyclerView / Image Picker)**  
 ↓  
 **ChatAdapter / ConversationAnalyzer** (Title & Drift Logic)  
 ↓  
-**AIManager** (Java Orchestration + Memory Extraction)  
+**AIManager** (Java Orchestration + Memory Extraction + Multimodal Dispatch)  
 ↓  
-**MemoryManager / HistoryManager** (Room Persistence)  
+**MemoryManager / HistoryManager** (Room Persistence with Image URIs)  
 ↓  
-**JNI Bridge**  
+**JNI Bridge (`native-lib.cpp`)**  
 ↓  
-**llama.cpp (C++)**  
+**llama.cpp & mtmd (C++)**  
 ↓  
-**GGUF Model** (Qwen/Llama)
+**GGUF Model + mmproj Projector** (Qwen2.5 / Qwen2.5-VL)
 
 ---
 
 ## Tech Stack
 
 - **Platform:** Android (Native)
-- **Language:** Java & C++
-- **UI:** Material Components 3
-- **AI Engine:** llama.cpp (GGUF)
-- **Native Layer:** C++ (NDK + JNI)
-- **Database:** Room / SQLite
-- **Concurrency:** Java ExecutorService & C++ Pthreads
+- **Language:** Java & C++ (NDK 26+)
+- **UI:** Material Components 3 & Markwon (Markdown rendering)
+- **AI Engine:** llama.cpp & mtmd (GGUF)
+- **Database:** Room / SQLite (Schema v4)
+- **Concurrency:** Java ExecutorService & C++ Pthreads / OpenMP
 
 ---
 
 ## Current Status
 
-- **UI & Chat System:** Completed and Polished.
-- **Native Integration:** llama.cpp successfully integrated with JNI.
-- **Model Execution:** Fully functional on-device inference.
-- **Memory System:** Active fact extraction and sanitization implemented.
-- **Chat History:** Persistent storage and session management completed.
-- **Optimization:** KV cache reuse and thread safety implemented.
+- **UI & Chat System:** Completed and Polished with image attachment and thumbnail support.
+- **Native Integration:** llama.cpp & mtmd successfully integrated with JNI.
+- **Model Execution:** Fully functional text and multimodal on-device inference.
+- **Memory System:** Active fact/plan extraction, third-person normalization, and Room persistence.
+- **Chat History:** Persistent storage and session management with attached image support.
+- **Optimization:** KV cache reuse, visual token clamping, and `-O3` Release compilation.
 
 ---
 
@@ -99,8 +105,8 @@ Nex V1 features a sophisticated, local "Personal Knowledge Base":
 
 1. Clone the repository.
 2. Open in Android Studio (Ladybug or newer recommended).
-3. Ensure **NDK (Side-by-side)** is installed in SDK Manager.
-4. Add your `.gguf` model file to the device (the app will prompt for the path).
+3. Ensure **NDK (Side-by-side)** and **CMake 3.22.1+** are installed in SDK Manager.
+4. Download or place `.gguf` model files in device storage (the app handles automatic in-app downloads from HuggingFace).
 5. Build and run on a physical device for best performance.
 
 ---
@@ -109,13 +115,12 @@ Nex V1 features a sophisticated, local "Personal Knowledge Base":
 
 - [x] Integrate llama.cpp with JNI.
 - [x] Implement token-based KV cache reuse.
-- [x] Add persistent chat history.
-- [x] Create auto-extracting memory system.
-- [x] Implement role-sanitization to prevent identity hallucinations.
-- [ ] Add support for Multimodal models (Vision).
-- [ ] Implement local RAG (Retrieval Augmented Generation) for larger documents.
-- [ ] Add voice interaction (STT/TTS).
-- [ ] Further optimize for entry-level devices.
+- [x] Add persistent chat history (Room DB v4).
+- [x] Create auto-extracting memory system with few-shot normalization.
+- [x] Add support for Multimodal Vision models (Qwen2.5-VL 3B + mmproj).
+- [ ] Implement local RAG (Retrieval Augmented Generation) for user documents.
+- [ ] Add voice interaction (STT/TTS with Whisper.cpp).
+- [ ] Further optimize NPU/GPU acceleration (Vulkan/NNAPI/OpenCL).
 
 ---
 

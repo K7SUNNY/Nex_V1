@@ -1,12 +1,12 @@
 # Database Schema & Data Persistence
 
-Nex V1 persists chat logs and user memory facts locally on the Android device. This persistence layer is built using the **Jetpack Room Library** mapping onto a SQLite database instance. This document details the database schema, entity structures, and migration pathways.
+Nex V1 persists chat logs, image attachment paths, and user memory facts locally on the Android device. This persistence layer is built using the **Jetpack Room Library** mapping onto a SQLite database instance. This document details the database schema, entity structures, and migration pathways.
 
 ---
 
 ## 1. Database Architecture & ER Diagram
 
-The database, named `nex_database`, consists of three entities: `ChatSessionEntity`, `ChatMessageEntity`, and `MemoryEntity`.
+The database, named `nex_database`, consists of three entities: `ChatSessionEntity`, `ChatMessageEntity`, and `MemoryEntity` (Current Schema Version: 4).
 
 ```mermaid
 erDiagram
@@ -22,6 +22,7 @@ erDiagram
         TEXT text
         INTEGER type
         TEXT memoryTag
+        TEXT image_uri "NULLABLE"
     }
     memories {
         INTEGER id PK "AUTOINCREMENT"
@@ -48,7 +49,7 @@ Stores metadata representing distinct chat windows/conversations.
 | `timestamp` | `INTEGER` | No | Time (in ms) when the session was created or last updated. |
 
 ### Table: `chat_messages`
-Stores individual conversation bubbles within a session.
+Stores individual conversation bubbles within a session, including attached media.
 
 | Column | Type | Nullable | Description |
 | :--- | :--- | :--- | :--- |
@@ -56,8 +57,9 @@ Stores individual conversation bubbles within a session.
 | `session_id` (FK) | `TEXT` | No | References `chat_sessions.id`. Deleted automatically via `ON DELETE CASCADE`. |
 | `position` | `INTEGER` | No | Index of the message in the conversation timeline (ordering). |
 | `text` | `TEXT` | No | Text content of the bubble. |
-| `type` | `INTEGER` | No | Message sender type (`0 = USER`, `1 = AI`). |
+| `type` | `INTEGER` | No | Message sender type (`0 = USER`, `1 = AI`, `2 = TYPING`). |
 | `memoryTag` | `TEXT` | Yes | Label mapping a message bubble to an extracted memory title. |
+| `image_uri` | `TEXT` | Yes | Local file URI/path for multimodal image attachments. |
 
 - **Indices**:
   - Index on `session_id` to speed up message retrieval.
@@ -69,8 +71,8 @@ Stores facts, habits, and preferences extracted from conversation transcripts.
 | Column | Type | Nullable | Description |
 | :--- | :--- | :--- | :--- |
 | `id` (PK) | `INTEGER` | No | Auto-incrementing primary key. |
-| `title` | `TEXT` | No | Categorized key (e.g., `"Location"`, `"Programming"`). |
-| `content` | `TEXT` | No | Normalized text description of the fact (e.g. `"You prefer Kotlin"`). |
+| `title` | `TEXT` | No | Categorized key (e.g., `"Location"`, `"Programming"`, `"Family"`). |
+| `content` | `TEXT` | No | Normalized text description of the fact (e.g. `"User prefers Kotlin"`). |
 | `is_pinned` | `INTEGER` | No | Flag indicating if this memory is injected into prompt context. |
 | `position` | `INTEGER` | No | Order rank for sorting in the memory viewer. |
 
@@ -83,20 +85,16 @@ Stores facts, habits, and preferences extracted from conversation transcripts.
 ## 3. Migration History
 
 ### Migration: Version 2 → Version 3 (`MIGRATION_2_3`)
-This migration added performance and uniqueness constraints to the `memories` table:
-1. **Clean Duplicate Data**:
-   ```sql
-   DELETE FROM memories WHERE id NOT IN (SELECT MIN(id) FROM memories GROUP BY content)
-   ```
-2. **Apply Constraints & Indices**:
-   - Creates a unique index on `content` to prevent duplicate memories:
-     ```sql
-     CREATE UNIQUE INDEX IF NOT EXISTS `index_memories_content` ON `memories` (`content`)
-     ```
-   - Creates an index on `is_pinned` for faster context injection:
-     ```sql
-     CREATE INDEX IF NOT EXISTS `index_memories_is_pinned` ON `memories` (`is_pinned`)
-     ```
+Added performance and uniqueness constraints to the `memories` table:
+- Cleaned duplicate rows.
+- Added `index_memories_content` unique constraint.
+- Added `index_memories_is_pinned` index.
+
+### Migration: Version 3 → Version 4 (`MIGRATION_3_4`)
+Added multimodal image attachment support:
+```sql
+ALTER TABLE `chat_messages` ADD COLUMN `image_uri` TEXT;
+```
 
 ---
 

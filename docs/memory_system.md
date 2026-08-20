@@ -1,12 +1,12 @@
 # Personal Memory & Identity Protection System
 
-Nex V1 features a local-first memory pipeline designed to extract personal user details (facts, preferences, hobbies, and locations) and inject them into subsequent chats. This ensures a personalized experience while preserving privacy.
+Nex V1 features a local-first memory pipeline designed to extract personal user details (facts, plans, events, preferences, hobbies, and family/work information) and inject them into subsequent chats. This ensures a personalized experience while preserving complete privacy.
 
 ---
 
 ## 1. Memory Extraction Pipeline
 
-After every AI response is generated, a background analysis task is triggered to see if the user shared any new personal facts.
+After every AI response is generated, a background analysis task is triggered to inspect the conversation for new personal facts or plans.
 
 ```mermaid
 sequenceDiagram
@@ -17,21 +17,21 @@ sequenceDiagram
     participant DB as NexDatabase
 
     UI->>AM: checkAndExtractMemory(userPrompt, aiMsg)
-    AM->>AM: Extract last 10 messages for context
-    AM->>L: runInferenceNative(memorySystemPrompt, context)
-    L-->>AM: Returns parsed string (e.g. "Coding | You prefer Kotlin")
+    AM->>AM: Extract recent chat context
+    AM->>L: runShortInference(memorySystemPrompt, instruction)
+    L-->>AM: Returns parsed string (e.g. "Family | User is meeting their family next week.")
     AM->>MM: saveMemories()
-    MM->>MM: Normalize references (User -> You)
-    MM->>DB: Write MemoryEntity
+    MM->>DB: Write MemoryEntity (Room DB v4)
     MM-->>UI: Update cachedMemories & AIManager memory context
 ```
 
-### Prompt Constraints
-A custom system prompt forces the model to act as a strict classification parser:
-- Only extract explicit personal facts or preferences.
-- Format strictly as: `[Topic] | You [fact]`.
-- Return `NONE` if no personal info is present.
-- Never write the word `User` as a proper noun/name.
+### Prompt Constraints & Few-Shot Guidance
+A specialized memory extraction prompt instructs the model to act as a strict classification parser:
+- Extracts personal facts, plans, preferences, family/life events, work, or hobbies shared by the User.
+- If the user commands *"remember this"* or *"update memory"*, the extractor resolves the referenced plan/fact from prior context.
+- Formats strictly as: `[Topic] | User [fact/plan]`.
+- Returns `NONE` if no personal facts or plans are present (e.g. general questions or greetings).
+- Includes few-shot examples to guarantee consistent output formatting on 0.5B, 1.5B, and 3B models.
 
 ### Parsing Formats
 The system parses the output from the model by checking for delimiters in order:
@@ -48,11 +48,9 @@ If no delimiter is found, the system defaults the title to `"Personal Detail"` a
 When using small models, role reversal (hallucinating who is the user and who is the AI) is a common issue. To prevent this, Nex V1 sanitizes how memories are written and loaded.
 
 ### Reference Sanitization
-In `MemoryManager.java`, the `normalizePersonReference(String content)` method enforces the correct point of view before data is saved or displayed:
-- If a fact starts with `"Nex "` or equals `"Nex"`, it is converted to `"I "` or `"I"` (self-referential for the AI).
-- If a fact starts with `"User "` or equals `"User"`, it is converted to `"You "` or `"You"` (referring to the human chat partner).
-
-This ensures that when memories are later read by the AI, they are structured from the perspective of the AI talking to the user.
+In `AIManager.java` and `MemoryManager.java`, the `normalizePersonReference` method enforces clean third-person formatting:
+- `You` / `your` are normalized to `User` / `User's`.
+- Content is validated in `MainActivity.java` to strictly reject AI self-referencing statements (`I am an AI...`, `Nex is...`) and prompt instruction leakage.
 
 ---
 
@@ -63,8 +61,8 @@ Saved and pinned memories are injected into the top of the conversation context 
 ### Injection Format
 In `AIManager.java`, before passing prompt arrays to JNI:
 ```text
-Background facts about the person you are chatting with (referred to below as "you" — this is not your own name or identity):
-- You prefer Kotlin over Java.
-- You live in Tokyo.
+Background facts about the person you are chatting with (referred to below as "User"):
+- User prefers Kotlin over Java.
+- User is meeting their family next week.
 ```
-This header disambiguates the context, preventing the model from confusing the user's hobbies with its own operational rules.
+This header disambiguates the context, preventing the model from confusing the user's facts with its own operational rules.
