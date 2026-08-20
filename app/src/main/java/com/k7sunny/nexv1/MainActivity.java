@@ -1461,30 +1461,26 @@ public class MainActivity extends AppCompatActivity {
                 String cleanTitle = title.trim();
                 String cleanContent = content.trim();
 
-                // Stricter filter guards for smaller models (Qwen 0.5B/1.5B):
                 String titleLower = cleanTitle.toLowerCase();
                 String contentLower = cleanContent.toLowerCase();
 
-                // 1. Reject NONE/null placeholders
-                if (titleLower.equals("none") || contentLower.equals("none")) {
+                Log.d("NexMemory", "Memory extraction result: title='" + cleanTitle + "', content='" + cleanContent + "'");
+
+                // 1. Reject NONE/null placeholders or too short content
+                if (titleLower.equals("none") || contentLower.equals("none") || contentLower.length() < 3) {
+                    Log.d("NexMemory", "Memory discarded: placeholder or empty ('" + cleanContent + "')");
                     return;
                 }
 
-                // 2. Enforce that the extracted memory is about the User
-                if (contentLower.length() < 3) {
+                // 2. Reject if the memory is about the AI assistant itself
+                if (contentLower.startsWith("i ") || contentLower.startsWith("nex ") || contentLower.startsWith("assistant ") || contentLower.contains("as an ai")) {
+                    Log.d("NexMemory", "Memory discarded: AI self-reference ('" + cleanContent + "')");
                     return;
                 }
 
-                // Enforce that memory is about the User ("You "/"Your ") and not about the AI ("I " or "Nex ")
-                // If it is a Name memory, we relax the check to allow name-only content.
-                boolean isNameMemory = titleLower.contains("name");
-                boolean startsWithYouOrYour = contentLower.startsWith("you") || contentLower.startsWith("your");
-                boolean containsYouOrYour = contentLower.contains("you") || contentLower.contains("your");
-
-                if (!startsWithYouOrYour && !containsYouOrYour && !isNameMemory) {
-                    return;
-                }
-                if (contentLower.startsWith("i ") || contentLower.startsWith("nex ")) {
+                // 3. Reject if model hallucinated prompt instruction regurgitations
+                if (titleLower.contains("system prompt") || titleLower.contains("instruction") || contentLower.contains("extract any personal")) {
+                    Log.d("NexMemory", "Memory discarded: instruction leak");
                     return;
                 }
 
@@ -1497,11 +1493,15 @@ public class MainActivity extends AppCompatActivity {
                             break;
                         }
                     }
-                    if (exists) return;
+                    if (exists) {
+                        Log.d("NexMemory", "Memory already exists in DB: " + cleanContent);
+                        return;
+                    }
 
                     Memory newMemory = new Memory(cleanTitle, cleanContent, false);
                     memories.add(newMemory);
                     memoryManager.saveMemories(memories);
+                    Log.d("NexMemory", "Memory saved to DB successfully: " + cleanTitle + " | " + cleanContent);
 
                     // Update AI manager memories context dynamically in memory
                     List<String> memoryStrings = memoryManager.getAllMemoryStrings();

@@ -325,19 +325,25 @@ public class AIManager {
             return;
         }
 
-        String memorySystemPrompt = "You are a strict memory processor.";
+        String memorySystemPrompt = "You are a concise, accurate memory extractor.";
 
         String instruction =
             "Here is the recent chat conversation:\n\n" +
             transcript + "\n\n" +
-            "Task: Extract any personal facts, preferences, hobbies, or details that the HUMAN USER (labeled as \"User\") explicitly states about themselves.\n" +
+            "Task: Extract any personal facts, plans, preferences, family/life events, work, or details shared by the HUMAN USER (labeled as \"User\").\n" +
             "Rules:\n" +
-            "1. ONLY extract information stated by the \"User\".\n" +
+            "1. ONLY extract information stated by the \"User\". If the user says \"remember this\" or \"update memory\", extract the underlying fact, event, or plan they shared.\n" +
             "2. DO NOT extract any statements, claims, opinions, or responses made by the \"Assistant\".\n" +
-            "3. Format the memory output strictly as: \"[Topic] | User [fact]\" (e.g. \"Coding | User prefers Kotlin over Java.\").\n" +
-            "4. Refer to the user as \"User\" in the fact content (e.g. \"User is Sunny\" or \"User prefers Java\"). Do not refer to the user in the second-person as \"You\" or \"your\".\n" +
-            "5. If the User has not shared any new personal facts (e.g. they only asked a question, made a general statement, or greeted you), reply with ONLY the word \"NONE\".\n" +
-            "6. DO NOT make up or hallucinate any facts.";
+            "3. Format the memory output strictly as: \"[Topic] | User [fact/plan]\" (e.g. \"Family | User is meeting their family next week.\").\n" +
+            "4. Refer to the user as \"User\" in the fact content. Keep it concise (1 short sentence).\n" +
+            "5. If the conversation contains NO personal facts, plans, or user details at all (e.g. only greetings or general questions like 'what is photosynthesis?'), reply with ONLY the word \"NONE\".\n" +
+            "6. DO NOT make up or hallucinate any facts.\n\n" +
+            "Examples:\n" +
+            "- User: \"Hey i am going to meet my family next week!\" -> Family | User is meeting their family next week.\n" +
+            "- User: \"I love playing guitar\" -> Hobbies | User plays guitar.\n" +
+            "- User: \"I work as a software engineer in Delhi\" -> Occupation | User works as a software engineer in Delhi.\n" +
+            "- User: \"What is the capital of France?\" -> NONE\n\n" +
+            "Memory:";
 
         runShortInference(
             memorySystemPrompt,
