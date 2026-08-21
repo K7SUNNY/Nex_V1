@@ -28,23 +28,45 @@
             android:background="#1C1C1E"
             app:tint="@android:color/white"/>
 
-        <ImageView
-            android:id="@+id/check_model"
-            android:layout_width="24dp"
-            android:layout_height="24dp"
+        <!-- Action container on the right (Checkmark + Delete button) -->
+        <LinearLayout
+            android:id="@+id/model_actions_container"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
             android:layout_alignParentEnd="true"
             android:layout_centerVertical="true"
-            android:src="@drawable/ic_chat"
-            app:tint="#007AFF"
-            android:visibility="gone"/>
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <ImageButton
+                android:id="@+id/btn_delete_model"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Delete model from storage"
+                android:padding="8dp"
+                android:src="@drawable/ic_trash"
+                android:visibility="gone"
+                app:tint="#8E8E93" />
+
+            <ImageView
+                android:id="@+id/check_model"
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:layout_marginStart="4dp"
+                android:src="@drawable/ic_chat"
+                app:tint="#007AFF"
+                android:visibility="gone"/>
+        </LinearLayout>
 
         <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_toEndOf="@id/icon_model"
-            android:layout_toStartOf="@id/check_model"
+            android:layout_toStartOf="@id/model_actions_container"
             android:layout_centerVertical="true"
             android:layout_marginStart="16dp"
+            android:layout_marginEnd="8dp"
             android:orientation="vertical">
 
             <LinearLayout

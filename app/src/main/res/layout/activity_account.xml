@@ -76,9 +76,9 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="32dp"
-                app:cardBackgroundColor="#111111"
+                app:cardBackgroundColor="#0D0E12"
                 app:cardCornerRadius="24dp"
-                app:strokeColor="#007AFF"
+                app:strokeColor="#1E2129"
                 app:strokeWidth="1dp">
 
                 <LinearLayout
@@ -132,9 +132,9 @@
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                app:cardBackgroundColor="#111111"
+                app:cardBackgroundColor="#0D0E12"
                 app:cardCornerRadius="24dp"
-                app:strokeColor="#1AFFFFFF"
+                app:strokeColor="#1E2129"
                 app:strokeWidth="1dp">
 
                 <LinearLayout

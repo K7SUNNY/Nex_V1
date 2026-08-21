@@ -88,6 +88,8 @@ public class SettingsActivity extends AppCompatActivity {
 
         modelAdapter = new ModelAdapter(modelItems, preferenceManager.getSelectedModel(), item -> {
             selectModel(item.getKey());
+        }, modelManager, item -> {
+            confirmDeleteModel(item);
         });
         recyclerModels.setAdapter(modelAdapter);
 
@@ -215,6 +217,32 @@ public class SettingsActivity extends AppCompatActivity {
         preferenceManager.setSelectedModel(modelKey);
         updateModelSelectionUI();
         updateDownloadCardUI();
+    }
+
+    private void confirmDeleteModel(ModelItem item) {
+        long activeId = preferenceManager.getActiveDownloadId();
+        if (activeId != -1) {
+            Toast.makeText(this, "Cannot delete while a download is in progress.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        new androidx.appcompat.app.AlertDialog.Builder(this)
+                .setTitle("Delete " + item.getName())
+                .setMessage("Are you sure you want to delete this AI model (" + item.getSize() + ") from device storage? You can download it again anytime.")
+                .setPositiveButton(R.string.delete, (dialog, which) -> {
+                    boolean deleted = modelManager.deleteModel(item.getKey());
+                    if (deleted) {
+                        Toast.makeText(this, item.getName() + " deleted from storage.", Toast.LENGTH_SHORT).show();
+                        if (modelAdapter != null) {
+                            modelAdapter.notifyDataSetChanged();
+                        }
+                        updateDownloadCardUI();
+                    } else {
+                        Toast.makeText(this, "Failed to delete model file.", Toast.LENGTH_SHORT).show();
+                    }
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
     }
 
     private void updateModelSelectionUI() {

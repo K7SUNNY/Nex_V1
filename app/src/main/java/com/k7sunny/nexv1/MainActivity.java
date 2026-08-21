@@ -620,7 +620,8 @@ public class MainActivity extends AppCompatActivity {
         modelItems.add(new ModelItem("ultra", "Nex Ultra", "~2.0GB", "Deep reasoning and advanced coding.", R.drawable.ic_persona));
         modelItems.add(new ModelItem("vision", "Nex Vision", "~2.7GB", "Offline image analysis, vision & OCR.", R.drawable.ic_vision, "VISION"));
 
-        ModelAdapter adapter = new ModelAdapter(modelItems, preferenceManager.getSelectedModel(), item -> {
+        final ModelAdapter[] adapterHolder = new ModelAdapter[1];
+        adapterHolder[0] = new ModelAdapter(modelItems, preferenceManager.getSelectedModel(), item -> {
             preferenceManager.setSelectedModel(item.getKey());
             if (aiManager != null) {
                 aiManager.setSystemPrompt(preferenceManager.getSystemPersona());
@@ -628,8 +629,31 @@ public class MainActivity extends AppCompatActivity {
             updateModelSelectorButton();
             checkModelStatus();
             dialog.dismiss();
+        }, modelManager, item -> {
+            long activeId = preferenceManager.getActiveDownloadId();
+            if (activeId != -1) {
+                Toast.makeText(this, "Cannot delete while a download is in progress.", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            new androidx.appcompat.app.AlertDialog.Builder(this)
+                    .setTitle("Delete " + item.getName())
+                    .setMessage("Are you sure you want to delete this AI model (" + item.getSize() + ") from device storage? You can download it again anytime.")
+                    .setPositiveButton(R.string.delete, (d, which) -> {
+                        boolean deleted = modelManager.deleteModel(item.getKey());
+                        if (deleted) {
+                            Toast.makeText(this, item.getName() + " deleted from storage.", Toast.LENGTH_SHORT).show();
+                            if (adapterHolder[0] != null) {
+                                adapterHolder[0].notifyDataSetChanged();
+                            }
+                            checkModelStatus();
+                        } else {
+                            Toast.makeText(this, "Failed to delete model file.", Toast.LENGTH_SHORT).show();
+                        }
+                    })
+                    .setNegativeButton(android.R.string.cancel, null)
+                    .show();
         });
-        recycler.setAdapter(adapter);
+        recycler.setAdapter(adapterHolder[0]);
 
         dialog.show();
     }
