@@ -45,8 +45,10 @@ public class DrawerActivity extends AppCompatActivity {
             return WindowInsetsCompat.CONSUMED;
         });
 
-        ImageButton btn_close = findViewById(R.id.btn_close);
-        btn_close.setOnClickListener(v -> finish());
+        View btn_close = findViewById(R.id.btn_close);
+        if (btn_close != null) {
+            btn_close.setOnClickListener(v -> finish());
+        }
 
         findViewById(R.id.btn_new_chat).setOnClickListener(v -> {
             // Signal MainActivity to start new chat

@@ -3,8 +3,8 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:orientation="horizontal"
     android:gravity="center_vertical"
+    android:orientation="horizontal"
     android:paddingStart="0dp"
     android:paddingEnd="4dp">
 
@@ -15,25 +15,27 @@
         android:layout_height="wrap_content"
         android:layout_weight="1"
         android:gravity="start|center_vertical"
-        android:paddingStart="16dp"
+        android:minHeight="44dp"
+        android:paddingStart="14dp"
         android:paddingEnd="8dp"
         android:text="New conversation"
         android:textAllCaps="false"
-        android:textColor="#E0E0E0"
-        android:textSize="14sp"
+        android:textColor="#E0E2EC"
+        android:textSize="13sp"
+        app:cornerRadius="12dp"
         app:icon="@drawable/ic_chat"
-        app:iconSize="20dp"
-        app:iconTint="#808080"
-        app:iconPadding="16dp"
-        android:minHeight="48dp" />
+        app:iconPadding="14dp"
+        app:iconSize="18dp"
+        app:iconTint="#71747E" />
 
     <ImageButton
         android:id="@+id/btn_more_options"
-        android:layout_width="40dp"
-        android:layout_height="40dp"
+        android:layout_width="34dp"
+        android:layout_height="34dp"
         android:background="?attr/selectableItemBackgroundBorderless"
+        android:contentDescription="@string/menu_options"
+        android:padding="7dp"
         android:src="@drawable/ic_more_vert"
-        app:tint="#808080"
-        android:contentDescription="@string/menu_options" />
+        app:tint="#626572" />
 
 </LinearLayout>
