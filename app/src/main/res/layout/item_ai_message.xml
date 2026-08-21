@@ -102,56 +102,57 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginStart="30dp"
-        android:layout_marginTop="8dp"
+        android:layout_marginTop="6dp"
+        android:gravity="center_vertical"
         android:orientation="horizontal"
         android:visibility="gone">
 
         <ImageButton
             android:id="@+id/btnCopy"
-            android:layout_width="36dp"
-            android:layout_height="36dp"
-            android:padding="6dp"
-            android:scaleType="fitCenter"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:layout_marginEnd="6dp"
             android:background="?attr/selectableItemBackgroundBorderless"
-            android:src="@drawable/ic_copy"
-            app:tint="#888888"
             android:contentDescription="Copy response"
-            android:layout_marginEnd="12dp" />
+            android:padding="5dp"
+            android:scaleType="fitCenter"
+            android:src="@drawable/ic_copy"
+            app:tint="#71747E" />
 
         <ImageButton
             android:id="@+id/btnShare"
-            android:layout_width="36dp"
-            android:layout_height="36dp"
-            android:padding="6dp"
-            android:scaleType="fitCenter"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:layout_marginEnd="6dp"
             android:background="?attr/selectableItemBackgroundBorderless"
-            android:src="@drawable/ic_share"
-            app:tint="#888888"
             android:contentDescription="Share response"
-            android:layout_marginEnd="12dp" />
+            android:padding="5dp"
+            android:scaleType="fitCenter"
+            android:src="@drawable/ic_share"
+            app:tint="#71747E" />
 
         <ImageButton
             android:id="@+id/btnRegenerate"
-            android:layout_width="36dp"
-            android:layout_height="36dp"
-            android:padding="6dp"
-            android:scaleType="fitCenter"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:layout_marginEnd="6dp"
             android:background="?attr/selectableItemBackgroundBorderless"
-            android:src="@drawable/ic_regenerate"
-            app:tint="#888888"
             android:contentDescription="Regenerate response"
-            android:layout_marginEnd="12dp" />
+            android:padding="5dp"
+            android:scaleType="fitCenter"
+            android:src="@drawable/ic_regenerate"
+            app:tint="#71747E" />
 
         <ImageButton
             android:id="@+id/btnMore"
-            android:layout_width="36dp"
-            android:layout_height="36dp"
-            android:padding="6dp"
-            android:scaleType="fitCenter"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
             android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="More options"
+            android:padding="5dp"
+            android:scaleType="fitCenter"
             android:src="@drawable/ic_more_horiz"
-            app:tint="#888888"
-            android:contentDescription="More options" />
+            app:tint="#71747E" />
     </LinearLayout>
 
 </LinearLayout>

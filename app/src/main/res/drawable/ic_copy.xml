@@ -1,23 +1,22 @@
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
-    android:viewportWidth="25"
-    android:viewportHeight="25">
-  <group android:translateY="0.5">
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- Offset background page -->
     <path
         android:fillColor="#00000000"
+        android:pathData="M15,5 L7,5 C5.9,5 5,5.9 5,7 L5,15"
         android:strokeColor="#FFFFFFFF"
-        android:strokeWidth="1.5"
         android:strokeLineCap="round"
         android:strokeLineJoin="round"
-        android:fillType="evenOdd"
-        android:pathData="M8.94605,4.99995 L13.2541,4.99995 C14.173,5.00498 15.0524,5.37487 15.6986,6.02825 C16.3449,6.68163 16.7051,7.56497 16.7001,8.48395 V12.716 C16.7051,13.6349 16.3449,14.5183 15.6986,15.1717 C15.0524,15.825 14.173,16.1949 13.2541,16.2 H8.94605 C8.02707,16.1949 7.14773,15.825 6.50148,15.1717 C5.85522,14.5183 5.495,13.6349 5.50005,12.716 L5.50005,8.48495 C5.49473,7.5658 5.85484,6.6822 6.50112,6.0286 C7.1474,5.375 8.0269,5.00498 8.94605,4.99995 Z"/>
+        android:strokeWidth="1.7" />
+    <!-- Front page -->
     <path
         android:fillColor="#00000000"
+        android:pathData="M9,10.5 C9,9.12 10.12,8 11.5,8 L16.5,8 C17.88,8 19,9.12 19,10.5 L19,16.5 C19,17.88 17.88,19 16.5,19 L11.5,19 C10.12,19 9,17.88 9,16.5 Z"
         android:strokeColor="#FFFFFFFF"
-        android:strokeWidth="1.5"
         android:strokeLineCap="round"
         android:strokeLineJoin="round"
-        android:pathData="M10.1671,19 H14.9371 C17.4857,18.9709 19.5284,16.8816 19.5001,14.333 V9.666"/>
-  </group>
+        android:strokeWidth="1.7" />
 </vector>
