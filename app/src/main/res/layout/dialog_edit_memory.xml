@@ -8,31 +8,38 @@
     android:padding="20dp">
 
     <View
-        android:layout_width="40dp"
+        android:layout_width="36dp"
         android:layout_height="4dp"
         android:layout_gravity="center_horizontal"
         android:layout_marginBottom="16dp"
-        android:background="#333333" />
+        android:background="@drawable/bg_dot"
+        android:backgroundTint="#2C303A" />
 
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginBottom="16dp"
-        android:text="Edit AI Memory"
-        android:textColor="#808080"
-        android:textSize="14sp"
-        android:fontFamily="sans-serif-medium"/>
+        android:letterSpacing="0.08"
+        android:text="EDIT AI MEMORY"
+        android:textAlignment="center"
+        android:textColor="#8E929E"
+        android:textSize="11sp"
+        android:textStyle="bold" />
 
     <!-- Title Field -->
     <com.google.android.material.textfield.TextInputLayout
+        style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginBottom="16dp"
-        style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+        android:layout_marginBottom="14dp"
+        android:hint="Memory Title"
+        android:textColorHint="#626572"
+        app:boxCornerRadiusBottomEnd="12dp"
+        app:boxCornerRadiusBottomStart="12dp"
+        app:boxCornerRadiusTopEnd="12dp"
+        app:boxCornerRadiusTopStart="12dp"
         app:boxStrokeColor="@android:color/white"
-        app:hintTextColor="#808080"
-        android:textColorHint="#808080"
-        android:hint="Memory Title">
+        app:hintTextColor="#8E929E">
 
         <com.google.android.material.textfield.TextInputEditText
             android:id="@+id/edit_memory_title"
@@ -40,28 +47,34 @@
             android:layout_height="wrap_content"
             android:inputType="text"
             android:maxLines="1"
-            android:textColor="@android:color/white" />
+            android:textColor="@android:color/white"
+            android:textSize="14sp" />
 
     </com.google.android.material.textfield.TextInputLayout>
 
     <!-- Content Field -->
     <com.google.android.material.textfield.TextInputLayout
+        style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+        android:hint="Memory Details"
+        android:textColorHint="#626572"
+        app:boxCornerRadiusBottomEnd="12dp"
+        app:boxCornerRadiusBottomStart="12dp"
+        app:boxCornerRadiusTopEnd="12dp"
+        app:boxCornerRadiusTopStart="12dp"
         app:boxStrokeColor="@android:color/white"
-        app:hintTextColor="#808080"
-        android:textColorHint="#808080"
-        android:hint="Memory Details">
+        app:hintTextColor="#8E929E">
 
         <com.google.android.material.textfield.TextInputEditText
             android:id="@+id/edit_memory_content"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:inputType="textMultiLine"
-            android:minLines="3"
             android:maxLines="6"
-            android:textColor="@android:color/white" />
+            android:minLines="3"
+            android:textColor="@android:color/white"
+            android:textSize="14sp" />
 
     </com.google.android.material.textfield.TextInputLayout>
 
@@ -69,9 +82,14 @@
         android:id="@+id/btn_save_memory_edit"
         style="@style/Widget.Material3.Button"
         android:layout_width="match_parent"
-        android:layout_height="56dp"
-        android:layout_marginTop="24dp"
+        android:layout_height="46dp"
+        android:layout_marginTop="20dp"
+        android:backgroundTint="@android:color/white"
+        android:letterSpacing="0.04"
         android:text="@string/save"
+        android:textColor="@android:color/black"
+        android:textSize="14sp"
+        android:textStyle="bold"
         app:cornerRadius="12dp" />
 
 </LinearLayout>

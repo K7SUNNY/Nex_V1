@@ -8,68 +8,96 @@
     android:padding="20dp">
 
     <View
-        android:layout_width="40dp"
+        android:layout_width="36dp"
         android:layout_height="4dp"
         android:layout_gravity="center_horizontal"
-        android:layout_marginBottom="24dp"
-        android:background="#242730" />
+        android:layout_marginBottom="16dp"
+        android:background="#242730"
+        android:backgroundTint="#2C303A" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="16dp"
+        android:letterSpacing="0.08"
+        android:text="MEMORY OPTIONS"
+        android:textAlignment="center"
+        android:textColor="#8E929E"
+        android:textSize="11sp"
+        android:textStyle="bold" />
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/btn_edit"
         style="@style/Widget.Material3.Button.TextButton"
         android:layout_width="match_parent"
-        android:layout_height="56dp"
+        android:layout_height="48dp"
         android:gravity="start|center_vertical"
+        android:paddingStart="14dp"
+        android:paddingEnd="14dp"
         android:text="@string/edit_memory"
-        android:textColor="@android:color/white"
-        android:textSize="16sp"
+        android:textColor="#E0E2EC"
+        android:textSize="14sp"
+        app:cornerRadius="12dp"
         app:icon="@drawable/ic_bolt"
-        app:iconPadding="16dp"
+        app:iconPadding="14dp"
+        app:iconSize="20dp"
         app:iconTint="@android:color/white" />
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/btn_pin"
         style="@style/Widget.Material3.Button.TextButton"
         android:layout_width="match_parent"
-        android:layout_height="56dp"
+        android:layout_height="48dp"
         android:gravity="start|center_vertical"
+        android:paddingStart="14dp"
+        android:paddingEnd="14dp"
         android:text="@string/pin_memory"
-        android:textColor="@android:color/white"
-        android:textSize="16sp"
+        android:textColor="#E0E2EC"
+        android:textSize="14sp"
+        app:cornerRadius="12dp"
         app:icon="@drawable/ic_memory"
-        app:iconPadding="16dp"
+        app:iconPadding="14dp"
+        app:iconSize="20dp"
         app:iconTint="@android:color/white" />
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/btn_copy"
         style="@style/Widget.Material3.Button.TextButton"
         android:layout_width="match_parent"
-        android:layout_height="56dp"
+        android:layout_height="48dp"
         android:gravity="start|center_vertical"
+        android:paddingStart="14dp"
+        android:paddingEnd="14dp"
         android:text="@string/copy_content"
-        android:textColor="@android:color/white"
-        android:textSize="16sp"
-        app:icon="@drawable/ic_chat"
-        app:iconPadding="16dp"
+        android:textColor="#E0E2EC"
+        android:textSize="14sp"
+        app:cornerRadius="12dp"
+        app:icon="@drawable/ic_copy"
+        app:iconPadding="14dp"
+        app:iconSize="20dp"
         app:iconTint="@android:color/white" />
 
     <View
         android:layout_width="match_parent"
         android:layout_height="1dp"
-        android:layout_marginVertical="8dp"
-        android:background="#1AFFFFFF" />
+        android:layout_marginVertical="6dp"
+        android:background="#14161C" />
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/btn_delete"
         style="@style/Widget.Material3.Button.TextButton"
         android:layout_width="match_parent"
-        android:layout_height="56dp"
+        android:layout_height="48dp"
         android:gravity="start|center_vertical"
+        android:paddingStart="14dp"
+        android:paddingEnd="14dp"
         android:text="@string/delete_memory"
         android:textColor="#FF453A"
-        android:textSize="16sp"
-        app:icon="@drawable/ic_close"
-        app:iconPadding="16dp"
+        android:textSize="14sp"
+        app:cornerRadius="12dp"
+        app:icon="@drawable/ic_trash"
+        app:iconPadding="14dp"
+        app:iconSize="20dp"
         app:iconTint="#FF453A" />
 
 </LinearLayout>
