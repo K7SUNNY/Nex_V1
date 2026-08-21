@@ -22,3 +22,6 @@ secrets.xml
 Debug_report.md
 
 captures/
+
+.agents/
+.agents

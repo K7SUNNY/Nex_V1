@@ -186,10 +186,14 @@ public class MainActivity extends AppCompatActivity {
             Insets ime = insets.getInsets(WindowInsetsCompat.Type.ime());
             int bottomInset = Math.max(systemBars.bottom, ime.bottom);
 
-            // Update toolbar padding for top status bar
+            // Update toolbar and center title padding for top status bar
             View toolbar = findViewById(R.id.toolbar);
             if (toolbar != null) {
                 toolbar.setPadding(0, systemBars.top, 0, 0);
+            }
+            View centerTitle = findViewById(R.id.layout_center_title);
+            if (centerTitle != null) {
+                centerTitle.setPadding(0, systemBars.top, 0, 0);
             }
 
             // Update input container margin for bottom navigation/keyboard
@@ -336,6 +340,16 @@ public class MainActivity extends AppCompatActivity {
                 drawerLauncher.launch(intent);
                 overridePendingTransition(R.anim.slide_in_left, 0);
             });
+            View btnAccount = toolbar.findViewById(R.id.btn_toolbar_account);
+            if (btnAccount == null) {
+                btnAccount = findViewById(R.id.btn_toolbar_account);
+            }
+            if (btnAccount != null) {
+                btnAccount.setOnClickListener(v -> {
+                    Intent intent = new Intent(MainActivity.this, AccountActivity.class);
+                    startActivity(intent);
+                });
+            }
         }
 
         // Listen for DownloadManager completion events.
@@ -579,15 +593,9 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void setupSuggestions() {
-        View chipFast = findViewById(R.id.chipFastChat);
-        View chipMemory = findViewById(R.id.chipSavedMemory);
-        View chipCode = findViewById(R.id.chipCodeReady);
         View cardPlan = findViewById(R.id.cardPlanDay);
         View cardImprove = findViewById(R.id.cardImproveUI);
 
-        if (chipFast != null) chipFast.setOnClickListener(v -> fillAndSend("Let's start a fast chat."));
-        if (chipMemory != null) chipMemory.setOnClickListener(v -> fillAndSend("Recall my saved memories."));
-        if (chipCode != null) chipCode.setOnClickListener(v -> fillAndSend("Help me write some code."));
         if (cardPlan != null) cardPlan.setOnClickListener(v -> fillAndSend("Help me plan my day."));
         if (cardImprove != null) cardImprove.setOnClickListener(v -> fillAndSend("How can I improve my app's UI?"));
     }
