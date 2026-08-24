@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/bg_bottom_sheet"
+    android:orientation="vertical"
+    android:padding="20dp">
+
+    <View
+        android:layout_width="36dp"
+        android:layout_height="4dp"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginBottom="16dp"
+        android:background="#242730"
+        android:backgroundTint="#2C303A" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="16dp"
+        android:letterSpacing="0.08"
+        android:text="ATTACH CONTEXT"
+        android:textAlignment="center"
+        android:textColor="#8E929E"
+        android:textSize="11sp"
+        android:textStyle="bold" />
+
+    <!-- Attach Image Button -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btn_attach_image_option"
+        style="@style/Widget.Material3.Button.TextButton"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:gravity="start|center_vertical"
+        android:paddingStart="14dp"
+        android:paddingEnd="14dp"
+        android:text="Attach Image (Vision &amp; OCR)"
+        android:textColor="#E0E2EC"
+        android:textSize="14sp"
+        app:cornerRadius="12dp"
+        app:icon="@drawable/ic_image"
+        app:iconPadding="14dp"
+        app:iconSize="20dp"
+        app:iconTint="@android:color/white" />
+
+    <!-- Attach Document Button -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btn_attach_doc_option"
+        style="@style/Widget.Material3.Button.TextButton"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:layout_marginTop="6dp"
+        android:gravity="start|center_vertical"
+        android:paddingStart="14dp"
+        android:paddingEnd="14dp"
+        android:text="Attach Document (.txt, .md, .pdf, code)"
+        android:textColor="#E0E2EC"
+        android:textSize="14sp"
+        app:cornerRadius="12dp"
+        app:icon="@drawable/ic_document"
+        app:iconPadding="14dp"
+        app:iconSize="20dp"
+        app:iconTint="@android:color/white" />
+
+</LinearLayout>

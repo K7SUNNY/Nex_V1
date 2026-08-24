@@ -58,6 +58,11 @@ public class MemoryActivity extends AppCompatActivity {
         MaterialToolbar toolbar = findViewById(R.id.toolbar);
         toolbar.setNavigationOnClickListener(v -> finish());
 
+        View btnAddMemory = findViewById(R.id.btn_add_memory);
+        if (btnAddMemory != null) {
+            btnAddMemory.setOnClickListener(v -> showAddMemoryDialog());
+        }
+
         memoryManager = new MemoryManager(this);
         setupRecyclers();
         setupSearch();
@@ -225,6 +230,11 @@ public class MemoryActivity extends AppCompatActivity {
         View view = getLayoutInflater().inflate(R.layout.dialog_edit_memory, null);
         editDialog.setContentView(view);
 
+        TextView tvHeader = view.findViewById(R.id.tv_dialog_memory_header);
+        if (tvHeader != null) {
+            tvHeader.setText("EDIT AI MEMORY");
+        }
+
         TextInputEditText editTitle = view.findViewById(R.id.edit_memory_title);
         TextInputEditText editContent = view.findViewById(R.id.edit_memory_content);
         MaterialButton btnSave = view.findViewById(R.id.btn_save_memory_edit);
@@ -249,14 +259,52 @@ public class MemoryActivity extends AppCompatActivity {
                     saveAllToManager();
                     filterMemories(currentSearchQuery);
                     Toast.makeText(this, "Memory updated", Toast.LENGTH_SHORT).show();
+                    editDialog.dismiss();
                 } else {
                     Toast.makeText(this, "Title and details cannot be empty", Toast.LENGTH_SHORT).show();
                 }
             }
-            editDialog.dismiss();
         });
 
         editDialog.show();
+    }
+
+    private void showAddMemoryDialog() {
+        BottomSheetDialog addDialog = new BottomSheetDialog(this, R.style.CustomBottomSheetDialogTheme);
+        View view = getLayoutInflater().inflate(R.layout.dialog_edit_memory, null);
+        addDialog.setContentView(view);
+
+        TextView tvHeader = view.findViewById(R.id.tv_dialog_memory_header);
+        if (tvHeader != null) {
+            tvHeader.setText("ADD NEW MEMORY");
+        }
+
+        TextInputEditText editTitle = view.findViewById(R.id.edit_memory_title);
+        TextInputEditText editContent = view.findViewById(R.id.edit_memory_content);
+        MaterialButton btnSave = view.findViewById(R.id.btn_save_memory_edit);
+
+        btnSave.setOnClickListener(v -> {
+            if (editTitle != null && editContent != null && editTitle.getText() != null && editContent.getText() != null) {
+                String newTitle = editTitle.getText().toString().trim();
+                String newContent = editContent.getText().toString().trim();
+
+                if (!newTitle.isEmpty() && !newContent.isEmpty()) {
+                    if (masterAllMemories == null) {
+                        masterAllMemories = new ArrayList<>();
+                    }
+                    Memory newMemory = new Memory(newTitle, newContent, false);
+                    masterAllMemories.add(0, newMemory);
+                    saveAllToManager();
+                    filterMemories(currentSearchQuery);
+                    Toast.makeText(this, "Memory created", Toast.LENGTH_SHORT).show();
+                    addDialog.dismiss();
+                } else {
+                    Toast.makeText(this, "Title and details cannot be empty", Toast.LENGTH_SHORT).show();
+                }
+            }
+        });
+
+        addDialog.show();
     }
 
     @Override

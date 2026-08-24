@@ -152,6 +152,20 @@ public class MainActivity extends AppCompatActivity {
                 }
             });
 
+    // Attached Document
+    private View layoutDocumentPreview;
+    private TextView tvDocName;
+    private ImageButton btnRemoveDocument;
+    private String attachedDocName = null;
+    private String attachedDocText = null;
+
+    private final ActivityResultLauncher<String[]> documentPickerLauncher =
+            registerForActivityResult(new ActivityResultContracts.OpenDocument(), uri -> {
+                if (uri != null) {
+                    handleSelectedDocument(uri);
+                }
+            });
+
     // Voice Input (STT)
     private SpeechRecognizer speechRecognizer;
     private boolean isListening = false;
@@ -329,11 +343,18 @@ public class MainActivity extends AppCompatActivity {
         btnRemoveImage = findViewById(R.id.btn_remove_image);
         btnAttachImage = findViewById(R.id.btnAttachImage);
 
+        layoutDocumentPreview = findViewById(R.id.layout_document_preview);
+        tvDocName = findViewById(R.id.tv_doc_name);
+        btnRemoveDocument = findViewById(R.id.btn_remove_document);
+
         if (btnAttachImage != null) {
-            btnAttachImage.setOnClickListener(v -> launchImagePicker());
+            btnAttachImage.setOnClickListener(v -> showAttachmentOptions());
         }
         if (btnRemoveImage != null) {
             btnRemoveImage.setOnClickListener(v -> clearSelectedImage());
+        }
+        if (btnRemoveDocument != null) {
+            btnRemoveDocument.setOnClickListener(v -> clearSelectedDocument());
         }
 
         setupSuggestions();
@@ -797,7 +818,7 @@ public class MainActivity extends AppCompatActivity {
         String text = messageInput.getText().toString().trim();
         String imgPath = selectedImagePath;
 
-        if (text.isEmpty() && (imgPath == null || imgPath.isEmpty())) return;
+        if (text.isEmpty() && (imgPath == null || imgPath.isEmpty()) && (attachedDocText == null || attachedDocText.isEmpty())) return;
 
         View sendButton = findViewById(R.id.sendButton);
         triggerHapticFeedback(sendButton != null ? sendButton : messageInput, android.view.HapticFeedbackConstants.KEYBOARD_TAP);
@@ -810,13 +831,24 @@ public class MainActivity extends AppCompatActivity {
         // Reset scroll state: user just sent a message, so they expect to see it
         isUserScrolledUp = false;
 
-        Message userMsg = new Message(text, Message.TYPE_USER, imgPath);
+        String displayText = text;
+        if (displayText.isEmpty() && attachedDocName != null) {
+            displayText = "Analyze attached document: " + attachedDocName;
+        }
+
+        String promptToSend = text;
+        if (attachedDocText != null && !attachedDocText.isEmpty()) {
+            promptToSend = "[Document: " + (attachedDocName != null ? attachedDocName : "Attached File") + "]\n```\n" + attachedDocText + "\n```\n\n" + (text.isEmpty() ? "Please analyze and summarize this document." : text);
+        }
+
+        Message userMsg = new Message(displayText, Message.TYPE_USER, imgPath);
         messageList.add(userMsg);
         chatAdapter.notifyItemInserted(messageList.size() - 1);
         recyclerView.scrollToPosition(messageList.size() - 1);
 
         messageInput.setText("");
         clearSelectedImage();
+        clearSelectedDocument();
 
         // Save session and messages (asynchronously on background thread with copy of list)
         String title = getActiveSessionTitle();
@@ -831,10 +863,11 @@ public class MainActivity extends AppCompatActivity {
         messageList.add(typingMessage);
         chatAdapter.notifyItemInserted(messageList.size() - 1);
         recyclerView.scrollToPosition(messageList.size() - 1);
-        Log.d(TAG_CHAT, "User message: '" + text + "' (image: " + imgPath + ")");
+        Log.d(TAG_CHAT, "User message: '" + promptToSend + "' (image: " + imgPath + ")");
 
         long startTime = System.currentTimeMillis();
-        aiManager.generateResponse(text, imgPath, new AIManager.ResponseCallback() {
+        final String finalUserPrompt = text;
+        aiManager.generateResponse(promptToSend, imgPath, new AIManager.ResponseCallback() {
             @Override
             public void onResponse(String response) {
                 setGeneratingState(false);
@@ -859,8 +892,8 @@ public class MainActivity extends AppCompatActivity {
 
                     // Trigger Memory Extraction
                     // Only trigger if the user prompt is long enough to potentially contain a fact and is not a question/general query
-                    if (isEligibleForMemoryExtraction(text)) {
-                        checkAndExtractMemory(text, messageList.get(index), index);
+                    if (isEligibleForMemoryExtraction(finalUserPrompt)) {
+                        checkAndExtractMemory(finalUserPrompt, messageList.get(index), index);
                     }
                 }
             }
@@ -976,6 +1009,73 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
+    private void showAttachmentOptions() {
+        BottomSheetDialog dialog = new BottomSheetDialog(this, R.style.CustomBottomSheetDialogTheme);
+        View view = getLayoutInflater().inflate(R.layout.bottom_sheet_attachment_picker, null);
+        dialog.setContentView(view);
+
+        View btnImage = view.findViewById(R.id.btn_attach_image_option);
+        View btnDoc = view.findViewById(R.id.btn_attach_doc_option);
+
+        if (btnImage != null) {
+            btnImage.setOnClickListener(v -> {
+                dialog.dismiss();
+                launchImagePicker();
+            });
+        }
+
+        if (btnDoc != null) {
+            btnDoc.setOnClickListener(v -> {
+                dialog.dismiss();
+                launchDocumentPicker();
+            });
+        }
+
+        dialog.show();
+    }
+
+    private void launchDocumentPicker() {
+        try {
+            documentPickerLauncher.launch(new String[]{
+                    "text/*",
+                    "application/pdf",
+                    "application/json",
+                    "application/xml",
+                    "application/octet-stream"
+            });
+        } catch (Exception e) {
+            Toast.makeText(this, "Unable to open document picker", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void handleSelectedDocument(Uri uri) {
+        DocumentHelper.DocumentInfo info = DocumentHelper.parseDocument(this, uri);
+        if (info != null && info.content != null && !info.content.trim().isEmpty()) {
+            attachedDocName = info.name;
+            attachedDocText = info.content;
+
+            if (tvDocName != null) {
+                String label = info.name + (info.size.isEmpty() ? "" : " • " + info.size);
+                tvDocName.setText(label);
+            }
+            if (layoutDocumentPreview != null) {
+                layoutDocumentPreview.setVisibility(View.VISIBLE);
+            }
+            clearSelectedImage(); // keep either image or document
+            Toast.makeText(this, "Document attached: " + info.name, Toast.LENGTH_SHORT).show();
+        } else {
+            Toast.makeText(this, "Could not extract text from document", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void clearSelectedDocument() {
+        attachedDocName = null;
+        attachedDocText = null;
+        if (layoutDocumentPreview != null) {
+            layoutDocumentPreview.setVisibility(View.GONE);
+        }
+    }
+
     private void launchImagePicker() {
         try {
             photoPickerLauncher.launch(new PickVisualMediaRequest.Builder()
@@ -1056,6 +1156,7 @@ public class MainActivity extends AppCompatActivity {
             }
 
             selectedImagePath = destFile.getAbsolutePath();
+            clearSelectedDocument();
             if (ivComposerPreview != null) {
                 ivComposerPreview.setImageURI(Uri.fromFile(destFile));
             }

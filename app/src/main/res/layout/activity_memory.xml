@@ -50,6 +50,19 @@
                 android:textStyle="bold" />
         </LinearLayout>
 
+        <ImageButton
+            android:id="@+id/btn_add_memory"
+            android:layout_width="34dp"
+            android:layout_height="34dp"
+            android:layout_gravity="end|center_vertical"
+            android:layout_marginEnd="8dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="Add Memory"
+            android:padding="6dp"
+            android:scaleType="fitCenter"
+            android:src="@drawable/ic_add"
+            app:tint="@android:color/white" />
+
     </com.google.android.material.appbar.MaterialToolbar>
 
     <!-- Subtle Hairline Header Divider -->

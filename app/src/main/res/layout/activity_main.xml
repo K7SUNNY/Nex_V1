@@ -565,12 +565,75 @@
                     app:tint="@android:color/white" />
             </FrameLayout>
 
+            <!-- Attached Document Preview in Composer -->
+            <FrameLayout
+                android:id="@+id/layout_document_preview"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:layout_marginTop="4dp"
+                android:layout_marginBottom="4dp"
+                android:visibility="gone">
+
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:layout_marginEnd="6dp"
+                    app:cardBackgroundColor="#181A20"
+                    app:cardCornerRadius="10dp"
+                    app:strokeColor="#2C303A"
+                    app:strokeWidth="1dp">
+
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:paddingHorizontal="10dp"
+                        android:paddingVertical="6dp">
+
+                        <ImageView
+                            android:layout_width="16dp"
+                            android:layout_height="16dp"
+                            android:layout_marginEnd="6dp"
+                            android:src="@drawable/ic_document"
+                            app:tint="@android:color/white" />
+
+                        <TextView
+                            android:id="@+id/tv_doc_name"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:ellipsize="middle"
+                            android:maxWidth="200dp"
+                            android:maxLines="1"
+                            android:text="document.txt"
+                            android:textColor="@android:color/white"
+                            android:textSize="12sp"
+                            android:textStyle="bold" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+                <ImageButton
+                    android:id="@+id/btn_remove_document"
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:layout_gravity="top|end"
+                    android:background="@drawable/bg_dot"
+                    android:backgroundTint="#FF3B30"
+                    android:contentDescription="Remove document"
+                    android:padding="3dp"
+                    android:scaleType="fitCenter"
+                    android:src="@drawable/ic_close"
+                    app:tint="@android:color/white" />
+            </FrameLayout>
+
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
                 android:gravity="center"
-                android:layout_marginBottom="4dp">
+                android:layout_marginBottom="8dp">
                 <!-- Message Text Input -->
                 <EditText
                     android:id="@+id/messageInput"
@@ -597,6 +660,9 @@
                     android:layout_marginEnd="4dp"
                     android:background="@drawable/bg_dot"
                     android:backgroundTint="@android:color/transparent"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:foreground="?attr/selectableItemBackgroundBorderless"
                     android:contentDescription="Voice Input"
                     android:padding="7dp"
                     android:scaleType="fitCenter"
@@ -619,12 +685,28 @@
                     android:gravity="center_vertical"
                     android:orientation="horizontal">
 
+                    <ImageButton
+                        android:id="@+id/btnAttachImage"
+                        android:layout_width="32dp"
+                        android:layout_height="32dp"
+                        android:background="@drawable/bg_dot"
+                        android:layout_marginStart="4dp"
+                        android:backgroundTint="#1A1C22"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:foreground="?attr/selectableItemBackgroundBorderless"
+                        android:contentDescription="Attach Image"
+                        android:padding="4dp"
+                        android:scaleType="fitCenter"
+                        android:src="@drawable/ic_add"
+                        app:tint="@android:color/white" />
+
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/modelSelector"
                         style="@style/Widget.Material3.Button.TextButton"
                         android:layout_width="wrap_content"
-                        android:layout_height="32dp"
-                        android:layout_marginStart="2dp"
+                        android:layout_height="match_parent"
+                        android:layout_marginStart="8dp"
                         android:backgroundTint="#1A1C22"
                         android:minWidth="0dp"
                         android:paddingHorizontal="10dp"
@@ -642,18 +724,6 @@
                         app:strokeColor="#282B34"
                         app:strokeWidth="1dp" />
 
-                    <ImageButton
-                        android:id="@+id/btnAttachImage"
-                        android:layout_width="32dp"
-                        android:layout_height="32dp"
-                        android:layout_marginStart="6dp"
-                        android:background="@drawable/bg_dot"
-                        android:backgroundTint="#1A1C22"
-                        android:contentDescription="Attach Image"
-                        android:padding="7dp"
-                        android:scaleType="fitCenter"
-                        android:src="@drawable/ic_image"
-                        app:tint="@android:color/white" />
                 </LinearLayout>
 
                 <!-- Right: Telemetry Count & Send Action -->
@@ -677,6 +747,7 @@
                     android:layout_alignParentEnd="true"
                     android:layout_centerVertical="true"
                     android:layout_marginEnd="2dp"
+                    android:foregroundGravity="center"
                     android:background="@drawable/bg_dot"
                     android:backgroundTint="@android:color/white"
                     android:contentDescription="@string/send"

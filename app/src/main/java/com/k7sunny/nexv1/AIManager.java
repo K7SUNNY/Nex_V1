@@ -140,7 +140,7 @@ public class AIManager {
             String response;
 
             if (isModelLoaded) {
-                String cleanPrompt = prompt != null ? prompt.trim() : "";
+                String cleanPrompt = prompt != null ? prompt.replaceAll("[\\x00-\\x08\\x0B\\x0C\\x0E-\\x1F]", "").trim() : "";
 
                 // 1. Add User message to history
                 // 2. Build message arrays for native template formatting
