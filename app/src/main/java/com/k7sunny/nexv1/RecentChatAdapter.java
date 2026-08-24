@@ -13,15 +13,21 @@ public class RecentChatAdapter extends RecyclerView.Adapter<RecentChatAdapter.Vi
 
     private List<ChatSession> sessions;
     private OnChatClickListener listener;
+    private final PreferenceManager preferenceManager;
 
     public interface OnChatClickListener {
         void onChatClick(ChatSession session);
         void onOptionsClick(ChatSession session);
     }
 
-    public RecentChatAdapter(List<ChatSession> sessions, OnChatClickListener listener) {
+    public RecentChatAdapter(List<ChatSession> sessions, OnChatClickListener listener, PreferenceManager preferenceManager) {
         this.sessions = sessions;
         this.listener = listener;
+        this.preferenceManager = preferenceManager;
+    }
+
+    public RecentChatAdapter(List<ChatSession> sessions, OnChatClickListener listener) {
+        this(sessions, listener, null);
     }
 
     @NonNull
@@ -37,8 +43,10 @@ public class RecentChatAdapter extends RecyclerView.Adapter<RecentChatAdapter.Vi
         holder.btnRecentChat.setText(session.getTitle());
         holder.btnRecentChat.setOnClickListener(v -> listener.onChatClick(session));
         
-        PreferenceManager pm = new PreferenceManager(holder.btnRecentChat.getContext());
-        holder.btnRecentChat.setHapticFeedbackEnabled(pm.isHapticFeedbackEnabled());
+        boolean hapticsEnabled = (preferenceManager != null) 
+                ? preferenceManager.isHapticFeedbackEnabled() 
+                : new PreferenceManager(holder.btnRecentChat.getContext()).isHapticFeedbackEnabled();
+        holder.btnRecentChat.setHapticFeedbackEnabled(hapticsEnabled);
         
         holder.btnRecentChat.setOnLongClickListener(v -> {
             listener.onOptionsClick(session);

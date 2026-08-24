@@ -173,16 +173,9 @@ public class SettingsActivity extends AppCompatActivity {
     }
 
     private void updateUI() {
-        if (!preferenceManager.isCustomPersonaSet()) {
-            tvPersonaSummary.setText("Default (Optimized for Nex)");
-        } else {
-            String persona = preferenceManager.getSystemPersona();
-            if (persona.length() > 60) {
-                tvPersonaSummary.setText(persona.substring(0, 57) + "...");
-            } else {
-                tvPersonaSummary.setText(persona);
-            }
-        }
+        String personaKey = preferenceManager.getSelectedPersonaKey();
+        String personaName = preferenceManager.getPersonaName(personaKey);
+        tvPersonaSummary.setText(personaName);
 
         int maxTokens = preferenceManager.getMaxTokens();
         float temperature = preferenceManager.getTemperature();
@@ -481,35 +474,79 @@ public class SettingsActivity extends AppCompatActivity {
 
     private void showPersonaEditDialog() {
         BottomSheetDialog dialog = new BottomSheetDialog(this, R.style.CustomBottomSheetDialogTheme);
-        View view = getLayoutInflater().inflate(R.layout.dialog_rename_chat, null);
+        View view = getLayoutInflater().inflate(R.layout.bottom_sheet_persona_selection, null);
         dialog.setContentView(view);
 
-        TextView title = (TextView) ((android.view.ViewGroup)view).getChildAt(1); 
-        com.google.android.material.textfield.TextInputEditText input = view.findViewById(R.id.edit_text_rename);
-        MaterialButton btnSave = view.findViewById(R.id.btn_save_rename);
+        View cardGeneral = view.findViewById(R.id.card_persona_general);
+        View cardCode = view.findViewById(R.id.card_persona_code);
+        View cardWriter = view.findViewById(R.id.card_persona_writer);
+        View cardTutor = view.findViewById(R.id.card_persona_tutor);
+        View cardSummarizer = view.findViewById(R.id.card_persona_summarizer);
+        View cardCustom = view.findViewById(R.id.card_persona_custom);
 
-        title.setText("System Persona");
-        input.setHint("e.g. Be funny, Reply in Python...");
-        
-        if (preferenceManager.isCustomPersonaSet()) {
-            input.setText(preferenceManager.getSystemPersona());
-            if (input.getText() != null) {
-                input.setSelection(input.getText().length());
-            }
+        ImageView checkGeneral = view.findViewById(R.id.iv_check_general);
+        ImageView checkCode = view.findViewById(R.id.iv_check_code);
+        ImageView checkWriter = view.findViewById(R.id.iv_check_writer);
+        ImageView checkTutor = view.findViewById(R.id.iv_check_tutor);
+        ImageView checkSummarizer = view.findViewById(R.id.iv_check_summarizer);
+        ImageView checkCustom = view.findViewById(R.id.iv_check_custom);
+
+        View layoutCustom = view.findViewById(R.id.layout_custom_prompt_editor);
+        EditText etCustom = view.findViewById(R.id.et_custom_persona_prompt);
+
+        final String[] activeKey = {preferenceManager.getSelectedPersonaKey()};
+
+        if (etCustom != null) {
+            etCustom.setText(preferenceManager.getCustomPersona());
         }
 
-        btnSave.setOnClickListener(v -> {
-            String newPersona = input.getText() != null ? input.getText().toString().trim() : "";
-            if (newPersona.isEmpty()) {
-                preferenceManager.resetSystemPersona();
-                Toast.makeText(this, "Reset to Nex default", Toast.LENGTH_SHORT).show();
-            } else {
-                preferenceManager.setSystemPersona(newPersona);
-                Toast.makeText(this, "Persona updated", Toast.LENGTH_SHORT).show();
+        Runnable updateDialogSelection = () -> {
+            String key = activeKey[0];
+            if (checkGeneral != null) checkGeneral.setVisibility(PreferenceManager.PERSONA_GENERAL.equals(key) ? View.VISIBLE : View.GONE);
+            if (checkCode != null) checkCode.setVisibility(PreferenceManager.PERSONA_CODE.equals(key) ? View.VISIBLE : View.GONE);
+            if (checkWriter != null) checkWriter.setVisibility(PreferenceManager.PERSONA_WRITER.equals(key) ? View.VISIBLE : View.GONE);
+            if (checkTutor != null) checkTutor.setVisibility(PreferenceManager.PERSONA_TUTOR.equals(key) ? View.VISIBLE : View.GONE);
+            if (checkSummarizer != null) checkSummarizer.setVisibility(PreferenceManager.PERSONA_SUMMARIZER.equals(key) ? View.VISIBLE : View.GONE);
+            if (checkCustom != null) checkCustom.setVisibility(PreferenceManager.PERSONA_CUSTOM.equals(key) ? View.VISIBLE : View.GONE);
+
+            if (layoutCustom != null) {
+                layoutCustom.setVisibility(PreferenceManager.PERSONA_CUSTOM.equals(key) ? View.VISIBLE : View.GONE);
             }
-            updateUI();
-            dialog.dismiss();
-        });
+        };
+
+        updateDialogSelection.run();
+
+        if (cardGeneral != null) cardGeneral.setOnClickListener(v -> { activeKey[0] = PreferenceManager.PERSONA_GENERAL; updateDialogSelection.run(); });
+        if (cardCode != null) cardCode.setOnClickListener(v -> { activeKey[0] = PreferenceManager.PERSONA_CODE; updateDialogSelection.run(); });
+        if (cardWriter != null) cardWriter.setOnClickListener(v -> { activeKey[0] = PreferenceManager.PERSONA_WRITER; updateDialogSelection.run(); });
+        if (cardTutor != null) cardTutor.setOnClickListener(v -> { activeKey[0] = PreferenceManager.PERSONA_TUTOR; updateDialogSelection.run(); });
+        if (cardSummarizer != null) cardSummarizer.setOnClickListener(v -> { activeKey[0] = PreferenceManager.PERSONA_SUMMARIZER; updateDialogSelection.run(); });
+        if (cardCustom != null) cardCustom.setOnClickListener(v -> { activeKey[0] = PreferenceManager.PERSONA_CUSTOM; updateDialogSelection.run(); });
+
+        View btnCancel = view.findViewById(R.id.btn_cancel_persona);
+        if (btnCancel != null) btnCancel.setOnClickListener(v -> dialog.dismiss());
+
+        View btnSave = view.findViewById(R.id.btn_save_persona);
+        if (btnSave != null) {
+            btnSave.setOnClickListener(v -> {
+                String key = activeKey[0];
+                if (PreferenceManager.PERSONA_CUSTOM.equals(key)) {
+                    String customText = (etCustom != null && etCustom.getText() != null) ? etCustom.getText().toString().trim() : "";
+                    if (customText.isEmpty()) {
+                        preferenceManager.resetSystemPersona();
+                        Toast.makeText(this, "Reset to General Assistant", Toast.LENGTH_SHORT).show();
+                    } else {
+                        preferenceManager.setCustomPersona(customText);
+                        Toast.makeText(this, "Custom Persona saved", Toast.LENGTH_SHORT).show();
+                    }
+                } else {
+                    preferenceManager.setSelectedPersonaKey(key);
+                    Toast.makeText(this, preferenceManager.getPersonaName(key) + " active", Toast.LENGTH_SHORT).show();
+                }
+                updateUI();
+                dialog.dismiss();
+            });
+        }
 
         dialog.show();
     }

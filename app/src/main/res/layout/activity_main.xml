@@ -565,25 +565,44 @@
                     app:tint="@android:color/white" />
             </FrameLayout>
 
-            <!-- Message Text Input -->
-            <EditText
-                android:id="@+id/messageInput"
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginHorizontal="10dp"
-                android:layout_marginTop="2dp"
-                android:background="@android:color/transparent"
-                android:gravity="top|start"
-                android:hint="@string/input_hint"
-                android:imeOptions="actionSend"
-                android:importantForAutofill="no"
-                android:inputType="textMultiLine|textCapSentences"
-                android:lineSpacingExtra="3dp"
-                android:maxLines="6"
-                android:minHeight="44dp"
-                android:textColor="@android:color/white"
-                android:textColorHint="#626572"
-                android:textSize="15sp" />
+                android:orientation="horizontal"
+                android:gravity="center"
+                android:layout_marginBottom="4dp">
+                <!-- Message Text Input -->
+                <EditText
+                    android:id="@+id/messageInput"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginHorizontal="10dp"
+                    android:background="@android:color/transparent"
+                    android:gravity="top|start"
+                    android:hint="@string/input_hint"
+                    android:imeOptions="actionSend"
+                    android:importantForAutofill="no"
+                    android:inputType="textMultiLine|textCapSentences"
+                    android:lineSpacingExtra="3dp"
+                    android:maxLines="6"
+                    android:textColor="@android:color/white"
+                    android:textColorHint="#626572"
+                    android:textSize="15sp" />
+
+                <ImageButton
+                    android:id="@+id/btnVoiceInput"
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:layout_marginEnd="4dp"
+                    android:background="@drawable/bg_dot"
+                    android:backgroundTint="@android:color/transparent"
+                    android:contentDescription="Voice Input"
+                    android:padding="7dp"
+                    android:scaleType="fitCenter"
+                    android:src="@drawable/ic_mic"
+                    app:tint="@android:color/white" />
+            </LinearLayout>
 
             <!-- Composer Actions Row -->
             <RelativeLayout
@@ -634,7 +653,7 @@
                         android:padding="7dp"
                         android:scaleType="fitCenter"
                         android:src="@drawable/ic_image"
-                        app:tint="#8E929E" />
+                        app:tint="@android:color/white" />
                 </LinearLayout>
 
                 <!-- Right: Telemetry Count & Send Action -->

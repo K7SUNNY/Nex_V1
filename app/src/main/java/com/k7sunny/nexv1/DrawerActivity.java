@@ -31,12 +31,15 @@ import java.util.concurrent.Executors;
 
 public class DrawerActivity extends AppCompatActivity {
     private final ExecutorService dbExecutor = Executors.newSingleThreadExecutor();
+    private PreferenceManager preferenceManager;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
         setContentView(R.layout.activity_drawer);
+
+        preferenceManager = new PreferenceManager(this);
 
         View root = findViewById(R.id.drawer_root);
         ViewCompat.setOnApplyWindowInsetsListener(root, (v, insets) -> {
@@ -152,7 +155,7 @@ public class DrawerActivity extends AppCompatActivity {
                             refreshChats(recyclerView, historyManager, q);
                         });
                     }
-                });
+                }, preferenceManager);
                 recyclerView.setAdapter(adapter);
             });
         });

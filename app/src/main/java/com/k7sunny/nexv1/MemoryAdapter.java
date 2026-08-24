@@ -13,14 +13,20 @@ public class MemoryAdapter extends RecyclerView.Adapter<MemoryAdapter.ViewHolder
 
     private List<Memory> memories;
     private OnMemoryLongClickListener listener;
+    private final PreferenceManager preferenceManager;
 
     public interface OnMemoryLongClickListener {
         void onMemoryLongClick(Memory memory, int position);
     }
 
-    public MemoryAdapter(List<Memory> memories, OnMemoryLongClickListener listener) {
+    public MemoryAdapter(List<Memory> memories, OnMemoryLongClickListener listener, PreferenceManager preferenceManager) {
         this.memories = memories;
         this.listener = listener;
+        this.preferenceManager = preferenceManager;
+    }
+
+    public MemoryAdapter(List<Memory> memories, OnMemoryLongClickListener listener) {
+        this(memories, listener, null);
     }
 
     @NonNull
@@ -36,8 +42,10 @@ public class MemoryAdapter extends RecyclerView.Adapter<MemoryAdapter.ViewHolder
         holder.tvTitle.setText(memory.getTitle());
         holder.tvContent.setText(memory.getContent());
         
-        PreferenceManager pm = new PreferenceManager(holder.card.getContext());
-        holder.card.setHapticFeedbackEnabled(pm.isHapticFeedbackEnabled());
+        boolean hapticsEnabled = (preferenceManager != null) 
+                ? preferenceManager.isHapticFeedbackEnabled() 
+                : new PreferenceManager(holder.card.getContext()).isHapticFeedbackEnabled();
+        holder.card.setHapticFeedbackEnabled(hapticsEnabled);
         
         holder.card.setOnLongClickListener(v -> {
             listener.onMemoryLongClick(memory, position);

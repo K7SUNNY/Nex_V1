@@ -133,4 +133,55 @@ public class HistoryManager {
     public int getTotalAiCharacters() {
         return chatHistoryDao.getTotalAiCharacters();
     }
+
+    public String exportSessionToMarkdown(String sessionId) {
+        String title = getSessionTitle(sessionId);
+        if (title == null || title.isEmpty()) {
+            title = "Chat Session";
+        }
+        List<Message> messages = getMessages(sessionId);
+        StringBuilder sb = new StringBuilder();
+        sb.append("# ").append(title).append("\n\n");
+        sb.append("*Exported from Nex AI on ")
+          .append(new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault()).format(new java.util.Date()))
+          .append("*\n\n---\n\n");
+
+        for (Message msg : messages) {
+            if (msg.getType() == Message.TYPE_USER) {
+                sb.append("### 👤 User\n");
+                if (msg.getImageUri() != null && !msg.getImageUri().isEmpty()) {
+                    sb.append("*[Attached Image: ").append(msg.getImageUri()).append("]*\n\n");
+                }
+                sb.append(msg.getText() != null ? msg.getText() : "").append("\n\n");
+            } else if (msg.getType() == Message.TYPE_AI) {
+                sb.append("### ⚡ Nex AI\n");
+                if (msg.getMemoryTag() != null && !msg.getMemoryTag().isEmpty()) {
+                    sb.append("*[").append(msg.getMemoryTag()).append("]*\n\n");
+                }
+                sb.append(msg.getText() != null ? msg.getText() : "").append("\n\n");
+            }
+            sb.append("---\n\n");
+        }
+        return sb.toString();
+    }
+
+    public String exportSessionToPlainText(String sessionId) {
+        String title = getSessionTitle(sessionId);
+        if (title == null || title.isEmpty()) {
+            title = "Chat Session";
+        }
+        List<Message> messages = getMessages(sessionId);
+        StringBuilder sb = new StringBuilder();
+        sb.append("=== ").append(title).append(" ===\n");
+        sb.append("Exported from Nex AI\n\n");
+
+        for (Message msg : messages) {
+            if (msg.getType() == Message.TYPE_USER) {
+                sb.append("User: ").append(msg.getText() != null ? msg.getText() : "").append("\n\n");
+            } else if (msg.getType() == Message.TYPE_AI) {
+                sb.append("Nex AI: ").append(msg.getText() != null ? msg.getText() : "").append("\n\n");
+            }
+        }
+        return sb.toString();
+    }
 }

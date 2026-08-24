@@ -74,12 +74,12 @@ public class MemoryActivity extends AppCompatActivity {
 
         RecyclerView pinnedRecycler = findViewById(R.id.pinnedRecycler);
         pinnedRecycler.setLayoutManager(new LinearLayoutManager(this));
-        pinnedAdapter = new MemoryAdapter(pinnedMemories, this::showMemoryOptions);
+        pinnedAdapter = new MemoryAdapter(pinnedMemories, this::showMemoryOptions, pm);
         pinnedRecycler.setAdapter(pinnedAdapter);
 
         RecyclerView recentRecycler = findViewById(R.id.recentRecycler);
         recentRecycler.setLayoutManager(new LinearLayoutManager(this));
-        recentAdapter = new MemoryAdapter(recentMemories, this::showMemoryOptions);
+        recentAdapter = new MemoryAdapter(recentMemories, this::showMemoryOptions, pm);
         recentRecycler.setAdapter(recentAdapter);
 
         dbExecutor.execute(() -> {

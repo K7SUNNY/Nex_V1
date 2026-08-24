@@ -8,36 +8,34 @@ import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.Intent;
+import android.graphics.Color;
 import android.os.Handler;
 import android.os.Looper;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageButton;
+import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.appcompat.widget.PopupMenu;
 import androidx.recyclerview.widget.RecyclerView;
+import io.noties.markwon.AbstractMarkwonPlugin;
+import io.noties.markwon.Markwon;
+import io.noties.markwon.core.MarkwonTheme;
+import io.noties.markwon.ext.tables.TablePlugin;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import io.noties.markwon.Markwon;
-import io.noties.markwon.ext.tables.TablePlugin;
-import io.noties.markwon.AbstractMarkwonPlugin;
-import io.noties.markwon.core.MarkwonTheme;
-import android.graphics.Color;
-import android.widget.LinearLayout;
-import android.widget.ImageView;
-import java.util.ArrayList;
-import io.noties.markwon.AbstractMarkwonPlugin;
-import io.noties.markwon.core.MarkwonTheme;
-import android.graphics.Color;
 
 public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 
     private final List<Message> messages;
     private final OnMessageActionListener actionListener;
+    private final PreferenceManager preferenceManager;
     private boolean isGenerating = false;
     private Markwon markwon;
 
@@ -98,9 +96,10 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         void onDeleteMessage(int position);
     }
 
-    public ChatAdapter(List<Message> messages, OnMessageActionListener actionListener) {
+    public ChatAdapter(List<Message> messages, OnMessageActionListener actionListener, PreferenceManager preferenceManager) {
         this.messages = messages;
         this.actionListener = actionListener;
+        this.preferenceManager = preferenceManager;
         registerAdapterDataObserver(new RecyclerView.AdapterDataObserver() {
             @Override
             public void onItemRangeInserted(int positionStart, int itemCount) {
@@ -126,6 +125,10 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
                 }
             }
         });
+    }
+
+    public ChatAdapter(List<Message> messages, OnMessageActionListener actionListener) {
+        this(messages, actionListener, null);
     }
 
     public void setGenerating(boolean generating) {
@@ -171,8 +174,7 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         Message message = messages.get(position);
         View itemView = holder.itemView;
 
-        PreferenceManager pm = new PreferenceManager(itemView.getContext());
-        boolean hapticsEnabled = pm.isHapticFeedbackEnabled();
+        boolean hapticsEnabled = isHapticsEnabled(itemView.getContext());
         itemView.setHapticFeedbackEnabled(hapticsEnabled);
 
         if (holder instanceof UserViewHolder) {
@@ -212,20 +214,25 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
                 markwon.setMarkdown(userHolder.messageText, "");
             }
 
-            itemView.setOnLongClickListener(v -> {
-                if (message.getText() != null && !message.getText().isEmpty()) {
-                    copyToClipboard(v.getContext(), message.getText());
+            View.OnLongClickListener userLongClick = v -> {
+                int pos = holder.getBindingAdapterPosition();
+                if (pos != RecyclerView.NO_POSITION && pos < messages.size()) {
+                    Message msg = messages.get(pos);
+                    if (msg.getText() != null && !msg.getText().isEmpty()) {
+                        triggerHaptic(v, android.view.HapticFeedbackConstants.LONG_PRESS);
+                        copyToClipboard(v.getContext(), msg.getText());
+                        return true;
+                    }
                 }
-                return true;
-            });
+                return false;
+            };
+
+            userHolder.itemView.setOnLongClickListener(userLongClick);
+            if (userHolder.messageText != null) {
+                userHolder.messageText.setOnLongClickListener(userLongClick);
+            }
         } else if (holder instanceof AiViewHolder) {
             bindAiHolder((AiViewHolder) holder, message, position);
-            itemView.setOnLongClickListener(v -> {
-                if (message.getType() == Message.TYPE_AI) {
-                    toggleActionsWithTimeout(message, position);
-                }
-                return true;
-            });
         }
     }
 
@@ -233,8 +240,25 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position,
                                  @NonNull List<Object> payloads) {
         if (!payloads.isEmpty() && holder instanceof AiViewHolder) {
+            AiViewHolder aiHolder = (AiViewHolder) holder;
             Message message = messages.get(position);
-            bindAiHolder((AiViewHolder) holder, message, position);
+
+            if (payloads.contains("actions_visibility_update")) {
+                boolean isLastMessage = (position == messages.size() - 1);
+                boolean showActions = message.isActionsVisible() || (isLastMessage && !isGenerating);
+                if (aiHolder.aiActionContainer != null) {
+                    aiHolder.aiActionContainer.setVisibility(showActions ? View.VISIBLE : View.GONE);
+                }
+                bindAiClickListeners(aiHolder, message);
+                return;
+            }
+
+            if (payloads.contains("text_update")) {
+                bindAiStreaming(aiHolder, message);
+                return;
+            }
+
+            bindAiHolder(aiHolder, message, position);
         } else {
             super.onBindViewHolder(holder, position, payloads);
         }
@@ -246,6 +270,52 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         if (holder instanceof AiViewHolder) {
             stopTypingAnimation((AiViewHolder) holder);
         }
+    }
+
+    private void bindAiStreaming(AiViewHolder holder, Message message) {
+        if (message.getType() == Message.TYPE_TYPING) {
+            if (holder.messageText != null) holder.messageText.setVisibility(View.GONE);
+            if (holder.messageContainer != null) holder.messageContainer.setVisibility(View.GONE);
+            if (holder.typingIndicator != null) {
+                holder.typingIndicator.setVisibility(View.VISIBLE);
+                startTypingAnimation(holder);
+            }
+            if (holder.aiActionContainer != null) holder.aiActionContainer.setVisibility(View.GONE);
+            return;
+        }
+
+        if (holder.typingIndicator != null) {
+            holder.typingIndicator.setVisibility(View.GONE);
+            stopTypingAnimation(holder);
+        }
+        if (holder.aiActionContainer != null) {
+            holder.aiActionContainer.setVisibility(View.GONE);
+        }
+
+        String text = message.getText();
+        if (text == null) text = "";
+
+        // Fast streaming path: if pure text without code blocks, stream directly into messageText
+        if (!text.contains("```")) {
+            if (holder.messageContainer != null) {
+                holder.messageContainer.setVisibility(View.GONE);
+                holder.messageContainer.removeAllViews();
+            }
+            if (holder.messageText != null) {
+                holder.messageText.setVisibility(View.VISIBLE);
+                markwon.setMarkdown(holder.messageText, text);
+            }
+        } else {
+            // Stream contains code fences: use multi-block messageContainer
+            if (holder.messageText != null) {
+                holder.messageText.setVisibility(View.GONE);
+            }
+            if (holder.messageContainer != null) {
+                renderMessageBlocks(holder, text);
+            }
+        }
+
+        bindAiClickListeners(holder, message);
     }
 
     private void bindAiHolder(AiViewHolder holder, Message message, int position) {
@@ -264,60 +334,27 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
                 holder.aiActionContainer.setVisibility(View.GONE);
             }
         } else {
-            if (holder.messageText != null) {
-                holder.messageText.setVisibility(View.GONE);
-            }
-            if (holder.messageContainer != null) {
-                holder.messageContainer.removeAllViews();
-                holder.messageContainer.setVisibility(View.VISIBLE);
+            String text = message.getText();
+            if (text == null) text = "";
 
-                List<MessageBlock> blocks = parseBlocks(message.getText());
-                float density = holder.itemView.getContext().getResources().getDisplayMetrics().density;
-                for (MessageBlock block : blocks) {
-                    if (block.type == MessageBlock.TYPE_TEXT) {
-                        TextView tv = new TextView(holder.itemView.getContext());
-                        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-                            LinearLayout.LayoutParams.MATCH_PARENT,
-                            LinearLayout.LayoutParams.WRAP_CONTENT
-                        );
-                        lp.setMargins(0, 0, 0, (int) (6 * density));
-                        tv.setLayoutParams(lp);
-                        tv.setTextColor(Color.parseColor("#E3E3E3"));
-                        tv.setTextSize(15);
-                        tv.setLineSpacing(5, 1);
-                        markwon.setMarkdown(tv, block.content);
-                        holder.messageContainer.addView(tv);
-                    } else if (block.type == MessageBlock.TYPE_CODE) {
-                        View codeBlockView = LayoutInflater.from(holder.itemView.getContext())
-                            .inflate(R.layout.item_message_code_block, holder.messageContainer, false);
-
-                        TextView tvLanguage = codeBlockView.findViewById(R.id.tvLanguage);
-                        TextView tvCode = codeBlockView.findViewById(R.id.tvCode);
-                        View btnCopyCode = codeBlockView.findViewById(R.id.btnCopyCode);
-                        TextView tvCopyStatus = codeBlockView.findViewById(R.id.tvCopyStatus);
-
-                        tvLanguage.setText(block.language.toUpperCase());
-                        tvCode.setText(SyntaxHighlighter.formatCode(block.content, block.language));
-
-                        btnCopyCode.setOnClickListener(v -> {
-                            triggerHaptic(v, android.view.HapticFeedbackConstants.KEYBOARD_TAP);
-                            ClipboardManager clipboard = (ClipboardManager) v.getContext().getSystemService(Context.CLIPBOARD_SERVICE);
-                            ClipData clip = ClipData.newPlainText("Code block", block.content);
-                            if (clipboard != null) {
-                                clipboard.setPrimaryClip(clip);
-                                tvCopyStatus.setText("Copied!");
-                                v.postDelayed(() -> {
-                                    if (tvCopyStatus != null) {
-                                        tvCopyStatus.setText("Copy code");
-                                    }
-                                }, 2000);
-                            }
-                        });
-
-                        holder.messageContainer.addView(codeBlockView);
-                    }
+            if (!text.contains("```")) {
+                if (holder.messageContainer != null) {
+                    holder.messageContainer.setVisibility(View.GONE);
+                    holder.messageContainer.removeAllViews();
+                }
+                if (holder.messageText != null) {
+                    holder.messageText.setVisibility(View.VISIBLE);
+                    markwon.setMarkdown(holder.messageText, text);
+                }
+            } else {
+                if (holder.messageText != null) {
+                    holder.messageText.setVisibility(View.GONE);
+                }
+                if (holder.messageContainer != null) {
+                    renderMessageBlocks(holder, text);
                 }
             }
+
             if (holder.memoryIndicator != null) {
                 if (message.getMemoryTag() != null && !message.getMemoryTag().isEmpty()) {
                     holder.memoryIndicator.setText("• " + message.getMemoryTag());
@@ -334,42 +371,133 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             if (holder.aiActionContainer != null) {
                 boolean isLastMessage = (position == messages.size() - 1);
                 boolean showActions = message.isActionsVisible() || (isLastMessage && !isGenerating);
+                holder.aiActionContainer.setVisibility(showActions ? View.VISIBLE : View.GONE);
+            }
 
-                if (showActions) {
-                    holder.aiActionContainer.setVisibility(View.VISIBLE);
+            bindAiClickListeners(holder, message);
+        }
+    }
 
-                    if (holder.btnCopy != null) {
-                        holder.btnCopy.setOnClickListener(v -> {
-                            triggerHaptic(v, android.view.HapticFeedbackConstants.KEYBOARD_TAP);
-                            copyToClipboard(v.getContext(), message.getText());
-                        });
-                    }
-
-                    if (holder.btnShare != null) {
-                        holder.btnShare.setOnClickListener(v -> {
-                            triggerHaptic(v, android.view.HapticFeedbackConstants.KEYBOARD_TAP);
-                            shareText(v.getContext(), message.getText());
-                        });
-                    }
-
-                    if (holder.btnRegenerate != null) {
-                        holder.btnRegenerate.setOnClickListener(v -> {
-                            triggerHaptic(v, android.view.HapticFeedbackConstants.KEYBOARD_TAP);
-                            if (actionListener != null) {
-                                actionListener.onRegenerate(position);
-                            }
-                        });
-                    }
-
-                    if (holder.btnMore != null) {
-                        holder.btnMore.setOnClickListener(v -> {
-                            triggerHaptic(v, android.view.HapticFeedbackConstants.KEYBOARD_TAP);
-                            showMoreOptions(v.getContext(), holder.btnMore, message, position);
-                        });
-                    }
-                } else {
-                    holder.aiActionContainer.setVisibility(View.GONE);
+    private void bindAiClickListeners(AiViewHolder holder, Message message) {
+        View.OnLongClickListener aiLongClickListener = v -> {
+            int pos = holder.getBindingAdapterPosition();
+            if (pos != RecyclerView.NO_POSITION && pos < messages.size()) {
+                Message msg = messages.get(pos);
+                if (msg.getType() == Message.TYPE_AI) {
+                    triggerHaptic(v, android.view.HapticFeedbackConstants.LONG_PRESS);
+                    toggleActionsWithTimeout(msg, pos);
+                    return true;
                 }
+            }
+            return false;
+        };
+
+        holder.itemView.setOnLongClickListener(aiLongClickListener);
+        if (holder.messageText != null) {
+            holder.messageText.setOnLongClickListener(aiLongClickListener);
+        }
+        if (holder.messageContainer != null) {
+            holder.messageContainer.setOnLongClickListener(aiLongClickListener);
+        }
+
+        if (holder.btnCopy != null) {
+            holder.btnCopy.setOnClickListener(v -> {
+                triggerHaptic(v, android.view.HapticFeedbackConstants.KEYBOARD_TAP);
+                copyToClipboard(v.getContext(), message.getText());
+            });
+        }
+
+        if (holder.btnShare != null) {
+            holder.btnShare.setOnClickListener(v -> {
+                triggerHaptic(v, android.view.HapticFeedbackConstants.KEYBOARD_TAP);
+                shareText(v.getContext(), message.getText());
+            });
+        }
+
+        if (holder.btnRegenerate != null) {
+            holder.btnRegenerate.setOnClickListener(v -> {
+                triggerHaptic(v, android.view.HapticFeedbackConstants.KEYBOARD_TAP);
+                int pos = holder.getBindingAdapterPosition();
+                if (actionListener != null && pos != RecyclerView.NO_POSITION) {
+                    actionListener.onRegenerate(pos);
+                }
+            });
+        }
+
+        if (holder.btnMore != null) {
+            holder.btnMore.setOnClickListener(v -> {
+                triggerHaptic(v, android.view.HapticFeedbackConstants.KEYBOARD_TAP);
+                int pos = holder.getBindingAdapterPosition();
+                if (pos != RecyclerView.NO_POSITION) {
+                    showMoreOptions(v.getContext(), holder.btnMore, message, pos);
+                }
+            });
+        }
+    }
+
+    private void renderMessageBlocks(AiViewHolder holder, String text) {
+        holder.messageContainer.removeAllViews();
+        holder.messageContainer.setVisibility(View.VISIBLE);
+
+        View.OnLongClickListener blockLongClick = v -> {
+            int pos = holder.getBindingAdapterPosition();
+            if (pos != RecyclerView.NO_POSITION && pos < messages.size()) {
+                Message msg = messages.get(pos);
+                if (msg.getType() == Message.TYPE_AI) {
+                    triggerHaptic(v, android.view.HapticFeedbackConstants.LONG_PRESS);
+                    toggleActionsWithTimeout(msg, pos);
+                    return true;
+                }
+            }
+            return false;
+        };
+
+        List<MessageBlock> blocks = parseBlocks(text);
+        float density = holder.itemView.getContext().getResources().getDisplayMetrics().density;
+        for (MessageBlock block : blocks) {
+            if (block.type == MessageBlock.TYPE_TEXT) {
+                TextView tv = new TextView(holder.itemView.getContext());
+                LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                );
+                lp.setMargins(0, 0, 0, (int) (6 * density));
+                tv.setLayoutParams(lp);
+                tv.setTextColor(Color.parseColor("#E3E3E3"));
+                tv.setTextSize(15);
+                tv.setLineSpacing(5, 1);
+                markwon.setMarkdown(tv, block.content);
+                tv.setOnLongClickListener(blockLongClick);
+                holder.messageContainer.addView(tv);
+            } else if (block.type == MessageBlock.TYPE_CODE) {
+                View codeBlockView = LayoutInflater.from(holder.itemView.getContext())
+                    .inflate(R.layout.item_message_code_block, holder.messageContainer, false);
+
+                TextView tvLanguage = codeBlockView.findViewById(R.id.tvLanguage);
+                TextView tvCode = codeBlockView.findViewById(R.id.tvCode);
+                View btnCopyCode = codeBlockView.findViewById(R.id.btnCopyCode);
+                TextView tvCopyStatus = codeBlockView.findViewById(R.id.tvCopyStatus);
+
+                tvLanguage.setText(block.language.toUpperCase());
+                tvCode.setText(SyntaxHighlighter.formatCode(block.content, block.language));
+
+                btnCopyCode.setOnClickListener(v -> {
+                    triggerHaptic(v, android.view.HapticFeedbackConstants.KEYBOARD_TAP);
+                    ClipboardManager clipboard = (ClipboardManager) v.getContext().getSystemService(Context.CLIPBOARD_SERVICE);
+                    ClipData clip = ClipData.newPlainText("Code block", block.content);
+                    if (clipboard != null) {
+                        clipboard.setPrimaryClip(clip);
+                        tvCopyStatus.setText("Copied!");
+                        v.postDelayed(() -> {
+                            if (tvCopyStatus != null) {
+                                tvCopyStatus.setText("Copy code");
+                            }
+                        }, 2000);
+                    }
+                });
+
+                codeBlockView.setOnLongClickListener(blockLongClick);
+                holder.messageContainer.addView(codeBlockView);
             }
         }
     }
@@ -499,12 +627,16 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         popup.show();
     }
 
+    private boolean isHapticsEnabled(Context context) {
+        if (preferenceManager != null) {
+            return preferenceManager.isHapticFeedbackEnabled();
+        }
+        return new PreferenceManager(context).isHapticFeedbackEnabled();
+    }
+
     private void triggerHaptic(View view, int type) {
-        if (view != null) {
-            PreferenceManager pm = new PreferenceManager(view.getContext());
-            if (pm.isHapticFeedbackEnabled()) {
-                view.performHapticFeedback(type, android.view.HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING);
-            }
+        if (view != null && isHapticsEnabled(view.getContext())) {
+            view.performHapticFeedback(type, android.view.HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING);
         }
     }
 

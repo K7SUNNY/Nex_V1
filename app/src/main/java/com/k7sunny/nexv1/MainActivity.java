@@ -8,10 +8,14 @@ import android.content.IntentFilter;
 import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Color;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.speech.RecognitionListener;
+import android.speech.RecognizerIntent;
+import android.speech.SpeechRecognizer;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
@@ -26,6 +30,7 @@ import androidx.activity.result.PickVisualMediaRequest;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.PopupMenu;
 import androidx.core.content.ContextCompat;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
@@ -147,6 +152,20 @@ public class MainActivity extends AppCompatActivity {
                 }
             });
 
+    // Voice Input (STT)
+    private SpeechRecognizer speechRecognizer;
+    private boolean isListening = false;
+    private ImageButton btnVoiceInput;
+
+    private final ActivityResultLauncher<String> audioPermissionLauncher =
+            registerForActivityResult(new ActivityResultContracts.RequestPermission(), isGranted -> {
+                if (isGranted) {
+                    startVoiceRecognition();
+                } else {
+                    Toast.makeText(this, "Microphone permission is required for voice input", Toast.LENGTH_SHORT).show();
+                }
+            });
+
     // Views used by the model download card.
     private View downloadModelCard;
     private Button btnDownloadModel;
@@ -258,7 +277,7 @@ public class MainActivity extends AppCompatActivity {
             public void onDeleteMessage(int position) {
                 deleteMessageAt(position);
             }
-        });
+        }, preferenceManager);
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
         recyclerView.setAdapter(chatAdapter);
 
@@ -350,6 +369,28 @@ public class MainActivity extends AppCompatActivity {
                     startActivity(intent);
                 });
             }
+        }
+
+        // Voice Input (STT) Button Setup
+        btnVoiceInput = findViewById(R.id.btnVoiceInput);
+        if (btnVoiceInput != null) {
+            btnVoiceInput.setOnClickListener(v -> {
+                triggerHapticFeedback(v, android.view.HapticFeedbackConstants.KEYBOARD_TAP);
+                if (isListening) {
+                    stopVoiceRecognition();
+                } else {
+                    if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.RECORD_AUDIO) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                        startVoiceRecognition();
+                    } else {
+                        audioPermissionLauncher.launch(android.Manifest.permission.RECORD_AUDIO);
+                    }
+                }
+            });
+        }
+
+        // Synchronize active system persona prompt
+        if (aiManager != null && preferenceManager != null) {
+            aiManager.setSystemPrompt(preferenceManager.getSystemPersona());
         }
 
         // Listen for DownloadManager completion events.
@@ -1347,6 +1388,31 @@ public class MainActivity extends AppCompatActivity {
     private void cancelGeneration() {
         if (isGenerating) {
             aiManager.cancelInference();
+            setGeneratingState(false);
+
+            // Finalize active message if present
+            if (!messageList.isEmpty()) {
+                int lastIdx = messageList.size() - 1;
+                Message lastMsg = messageList.get(lastIdx);
+                if (lastMsg.getType() == Message.TYPE_TYPING) {
+                    if (lastMsg.getText() != null && !lastMsg.getText().trim().isEmpty()) {
+                        lastMsg.setType(Message.TYPE_AI);
+                        chatAdapter.notifyItemChanged(lastIdx);
+                    } else {
+                        messageList.remove(lastIdx);
+                        chatAdapter.notifyItemRemoved(lastIdx);
+                    }
+                } else if (lastMsg.getType() == Message.TYPE_AI) {
+                    chatAdapter.notifyItemChanged(lastIdx);
+                }
+
+                // Persist current state asynchronously
+                String title = getActiveSessionTitle();
+                List<Message> copyListForDb = deepCopyMessageList(messageList);
+                dbExecutor.execute(() -> {
+                    historyManager.saveSession(new ChatSession(currentSessionId, title, System.currentTimeMillis()), copyListForDb);
+                });
+            }
         }
     }
 
@@ -1367,6 +1433,12 @@ public class MainActivity extends AppCompatActivity {
     protected void onDestroy() {
         super.onDestroy();
         stopProgressPolling();
+        if (speechRecognizer != null) {
+            try {
+                speechRecognizer.destroy();
+            } catch (Exception ignored) {}
+            speechRecognizer = null;
+        }
         try {
             unregisterReceiver(onDownloadComplete);
         } catch (Exception e) {
@@ -1374,6 +1446,111 @@ public class MainActivity extends AppCompatActivity {
         }
         aiManager.release(); // Free native model resources.
         dbExecutor.shutdown(); // Shutdown database thread executor.
+    }
+
+    private void startVoiceRecognition() {
+        if (!SpeechRecognizer.isRecognitionAvailable(this)) {
+            Toast.makeText(this, "Speech recognition not available on this device", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        if (speechRecognizer == null) {
+            speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this);
+            speechRecognizer.setRecognitionListener(new RecognitionListener() {
+                @Override
+                public void onReadyForSpeech(Bundle params) {
+                    isListening = true;
+                    updateVoiceButtonState();
+                    Toast.makeText(MainActivity.this, "Listening...", Toast.LENGTH_SHORT).show();
+                }
+
+                @Override
+                public void onBeginningOfSpeech() {}
+
+                @Override
+                public void onRmsChanged(float rmsdB) {}
+
+                @Override
+                public void onBufferReceived(byte[] buffer) {}
+
+                @Override
+                public void onEndOfSpeech() {
+                    isListening = false;
+                    updateVoiceButtonState();
+                }
+
+                @Override
+                public void onError(int error) {
+                    isListening = false;
+                    updateVoiceButtonState();
+                    if (error != SpeechRecognizer.ERROR_NO_MATCH && error != SpeechRecognizer.ERROR_SPEECH_TIMEOUT) {
+                        Toast.makeText(MainActivity.this, "Voice recognition error", Toast.LENGTH_SHORT).show();
+                    }
+                }
+
+                @Override
+                public void onResults(Bundle results) {
+                    isListening = false;
+                    updateVoiceButtonState();
+                    if (results != null) {
+                        ArrayList<String> matches = results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
+                        if (matches != null && !matches.isEmpty()) {
+                            String text = matches.get(0);
+                            if (text != null && !text.isEmpty()) {
+                                String current = messageInput.getText() != null ? messageInput.getText().toString() : "";
+                                if (!current.isEmpty() && !current.endsWith(" ")) {
+                                    current += " ";
+                                }
+                                messageInput.setText(current + text);
+                                messageInput.setSelection(messageInput.getText().length());
+                            }
+                        }
+                    }
+                }
+
+                @Override
+                public void onPartialResults(Bundle partialResults) {}
+
+                @Override
+                public void onEvent(int eventType, Bundle params) {}
+            });
+        }
+
+        Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
+        intent.putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true);
+        try {
+            speechRecognizer.startListening(intent);
+            isListening = true;
+            updateVoiceButtonState();
+        } catch (Exception e) {
+            e.printStackTrace();
+            isListening = false;
+            updateVoiceButtonState();
+            Toast.makeText(this, "Failed to start microphone", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void stopVoiceRecognition() {
+        if (speechRecognizer != null && isListening) {
+            try {
+                speechRecognizer.stopListening();
+            } catch (Exception ignored) {}
+        }
+        isListening = false;
+        updateVoiceButtonState();
+    }
+
+    private void updateVoiceButtonState() {
+        if (btnVoiceInput != null) {
+            if (isListening) {
+                btnVoiceInput.setBackgroundTintList(android.content.res.ColorStateList.valueOf(Color.parseColor("#FF3B30")));
+                btnVoiceInput.setImageTintList(android.content.res.ColorStateList.valueOf(Color.WHITE));
+            } else {
+                btnVoiceInput.setBackgroundTintList(android.content.res.ColorStateList.valueOf(Color.parseColor("#1A1C22")));
+                btnVoiceInput.setImageTintList(android.content.res.ColorStateList.valueOf(Color.WHITE));
+            }
+        }
     }
 
     private boolean isEligibleForMemoryExtraction(String text) {

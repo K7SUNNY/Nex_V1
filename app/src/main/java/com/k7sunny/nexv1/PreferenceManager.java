@@ -6,22 +6,32 @@ import android.content.SharedPreferences;
 public class PreferenceManager {
     private static final String PREF_NAME = "nex_prefs";
     private static final String KEY_SYSTEM_PERSONA = "system_persona";
-    private static final String DEFAULT_PERSONA_FAST = "You are Nex, a professional offline AI assistant created by K7SUNNY.\n"
-            + "You remember personal facts and preferences shared by the user across conversations.";
+    private static final String KEY_SELECTED_PERSONA_PRESET = "selected_persona_preset";
 
-    private static final String DEFAULT_PERSONA_PRO = "You are Nex, a professional offline AI assistant created by K7SUNNY.\n"
-            + "You remember personal facts and preferences shared by the user across conversations.\n"
-            + "You help with programming, writing, and analytical tasks.\n"
-            + "Keep responses concise and accurate.";
+    public static final String PERSONA_GENERAL = "general";
+    public static final String PERSONA_CODE = "code";
+    public static final String PERSONA_WRITER = "writer";
+    public static final String PERSONA_TUTOR = "tutor";
+    public static final String PERSONA_SUMMARIZER = "summarizer";
+    public static final String PERSONA_CUSTOM = "custom";
 
-    private static final String DEFAULT_PERSONA_ULTRA = "You are Nex, a highly advanced offline AI assistant created by K7SUNNY.\n"
+    public static final String PROMPT_GENERAL = "You are Nex, a helpful and professional offline AI assistant created by K7SUNNY.\n"
             + "You remember personal facts and preferences shared by the user across conversations.\n"
-            + "You think deeply, formulate structured plans, write robust code, and analyze complex logical queries.\n"
-            + "Format your output beautifully and keep it accurate.";
+            + "Provide clear, direct, and well-structured answers.";
 
-    private static final String DEFAULT_PERSONA_VISION = "You are Nex Vision, an advanced offline multimodal AI assistant powered by Qwen2.5-VL.\n"
-            + "You remember personal facts and preferences shared by the user across conversations.\n"
-            + "You analyze images, read screenshots and UI elements, perform OCR, answer visual questions, and provide detailed observations locally.";
+    public static final String PROMPT_CODE = "You are Nex Code Expert, a senior software engineer and system architect.\n"
+            + "You write clean, idiomatic, robust, and well-commented code.\n"
+            + "Focus on best practices, performance, edge cases, and modern architectural patterns.\n"
+            + "Provide minimal fluff and format all code inside language-specific markdown blocks.";
+
+    public static final String PROMPT_WRITER = "You are Nex Storyteller, an imaginative and expressive creative writer.\n"
+            + "You craft engaging narratives, rich descriptions, and vivid creative ideas with evocative vocabulary.";
+
+    public static final String PROMPT_TUTOR = "You are Nex Tutor, a patient and thoughtful educational mentor.\n"
+            + "Guide the user step-by-step using clear analogies, intuitive reasoning, and thoughtful questions to foster understanding.";
+
+    public static final String PROMPT_SUMMARIZER = "You are Nex Summarizer, an ultra-concise executive summarizer.\n"
+            + "Condense queries into sharp bullet points, key takeaways, and structured lists with zero filler words.";
 
     private final SharedPreferences prefs;
 
@@ -37,26 +47,73 @@ public class PreferenceManager {
         prefs.edit().putString("selected_model", model).apply();
     }
 
-    private String getDefaultPersonaForModel(String model) {
-        if ("pro".equals(model)) {
-            return DEFAULT_PERSONA_PRO;
-        } else if ("ultra".equals(model)) {
-            return DEFAULT_PERSONA_ULTRA;
-        } else if ("vision".equals(model)) {
-            return DEFAULT_PERSONA_VISION;
-        } else {
-            return DEFAULT_PERSONA_FAST;
+    public String getSelectedPersonaKey() {
+        return prefs.getString(KEY_SELECTED_PERSONA_PRESET, PERSONA_GENERAL);
+    }
+
+    public void setSelectedPersonaKey(String key) {
+        prefs.edit().putString(KEY_SELECTED_PERSONA_PRESET, key).apply();
+    }
+
+    public String getPersonaName(String key) {
+        switch (key) {
+            case PERSONA_CODE: return "Code & Architecture Expert";
+            case PERSONA_WRITER: return "Creative Writer";
+            case PERSONA_TUTOR: return "Socratic Tutor";
+            case PERSONA_SUMMARIZER: return "Concise Summarizer";
+            case PERSONA_CUSTOM: return "Custom Persona";
+            case PERSONA_GENERAL:
+            default: return "General Assistant";
         }
     }
 
-    public void setSystemPersona(String persona) {
+    public String getPersonaDescription(String key) {
+        switch (key) {
+            case PERSONA_CODE: return "Writes clean code, reviews architecture & debugs.";
+            case PERSONA_WRITER: return "Storytelling, expressive prose and creative ideation.";
+            case PERSONA_TUTOR: return "Step-by-step guidance, intuitive analogies and explanations.";
+            case PERSONA_SUMMARIZER: return "Dense bullet points, key takeaways and no fluff.";
+            case PERSONA_CUSTOM: return "Your own tailored instructions and prompt.";
+            case PERSONA_GENERAL:
+            default: return "Balanced, helpful and direct offline companion.";
+        }
+    }
+
+    public String getPresetPrompt(String key) {
+        switch (key) {
+            case PERSONA_CODE: return PROMPT_CODE;
+            case PERSONA_WRITER: return PROMPT_WRITER;
+            case PERSONA_TUTOR: return PROMPT_TUTOR;
+            case PERSONA_SUMMARIZER: return PROMPT_SUMMARIZER;
+            case PERSONA_GENERAL: return PROMPT_GENERAL;
+            case PERSONA_CUSTOM:
+            default: return getCustomPersona();
+        }
+    }
+
+    public String getCustomPersona() {
         String model = getSelectedModel();
-        prefs.edit().putString(KEY_SYSTEM_PERSONA + "_" + model, persona).apply();
+        return prefs.getString(KEY_SYSTEM_PERSONA + "_" + model, PROMPT_GENERAL);
+    }
+
+    public void setCustomPersona(String persona) {
+        String model = getSelectedModel();
+        prefs.edit()
+             .putString(KEY_SYSTEM_PERSONA + "_" + model, persona)
+             .putString(KEY_SELECTED_PERSONA_PRESET, PERSONA_CUSTOM)
+             .apply();
+    }
+
+    public void setSystemPersona(String persona) {
+        setCustomPersona(persona);
     }
 
     public void resetSystemPersona() {
         String model = getSelectedModel();
-        prefs.edit().remove(KEY_SYSTEM_PERSONA + "_" + model).apply();
+        prefs.edit()
+             .remove(KEY_SYSTEM_PERSONA + "_" + model)
+             .putString(KEY_SELECTED_PERSONA_PRESET, PERSONA_GENERAL)
+             .apply();
     }
 
     public boolean isCustomPersonaSet() {
@@ -65,8 +122,11 @@ public class PreferenceManager {
     }
 
     public String getSystemPersona() {
-        String model = getSelectedModel();
-        return prefs.getString(KEY_SYSTEM_PERSONA + "_" + model, getDefaultPersonaForModel(model));
+        String key = getSelectedPersonaKey();
+        if (PERSONA_CUSTOM.equals(key)) {
+            return getCustomPersona();
+        }
+        return getPresetPrompt(key);
     }
 
     public int getMaxTokens() {
@@ -125,12 +185,6 @@ public class PreferenceManager {
         prefs.edit().putBoolean("manual_title_" + sessionId, manual).apply();
     }
 
-    /**
-     * FIX: per-session preference keys (currently just the manual-title flag)
-     * were never cleaned up when a session was deleted, leaking entries in
-     * SharedPreferences indefinitely. Call this whenever a chat session is
-     * permanently deleted.
-     */
     public void clearSessionData(String sessionId) {
         prefs.edit()
                 .remove("manual_title_" + sessionId)
