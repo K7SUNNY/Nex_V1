@@ -329,10 +329,28 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             }
         }
 
+        if (holder.tvAiModelLabel != null) {
+            String mName = message.getModelName();
+            if (mName != null && !mName.trim().isEmpty()) {
+                holder.tvAiModelLabel.setText(mName.toUpperCase(java.util.Locale.US));
+            } else {
+                holder.tvAiModelLabel.setText(R.string.nex_ai_label);
+            }
+        }
+
         bindAiClickListeners(holder, message);
     }
 
     private void bindAiHolder(AiViewHolder holder, Message message, int position) {
+        if (holder.tvAiModelLabel != null) {
+            String mName = message.getModelName();
+            if (mName != null && !mName.trim().isEmpty()) {
+                holder.tvAiModelLabel.setText(mName.toUpperCase(java.util.Locale.US));
+            } else {
+                holder.tvAiModelLabel.setText(R.string.nex_ai_label);
+            }
+        }
+
         if (message.getType() == Message.TYPE_TYPING) {
             if (holder.messageText != null) {
                 holder.messageText.setVisibility(View.GONE);
@@ -606,7 +624,7 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         ClipboardManager clipboard = (ClipboardManager) context.getSystemService(Context.CLIPBOARD_SERVICE);
         ClipData clip = ClipData.newPlainText("Nex Message", text);
         clipboard.setPrimaryClip(clip);
-        Toast.makeText(context, "Copied to clipboard", Toast.LENGTH_SHORT).show();
+        // Toast.makeText(context, "Copied to clipboard", Toast.LENGTH_SHORT).show();
     }
 
     private void shareText(Context context, String text) {
@@ -617,7 +635,7 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             context.startActivity(Intent.createChooser(intent, "Share response"));
         } catch (Exception e) {
             e.printStackTrace();
-            Toast.makeText(context, "Failed to share", Toast.LENGTH_SHORT).show();
+            // Toast.makeText(context, "Failed to share", Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -672,6 +690,7 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     }
 
     static class AiViewHolder extends RecyclerView.ViewHolder {
+        TextView tvAiModelLabel;
         TextView messageText;
         LinearLayout messageContainer;
         TextView memoryIndicator;
@@ -688,6 +707,7 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 
         AiViewHolder(View itemView) {
             super(itemView);
+            tvAiModelLabel = itemView.findViewById(R.id.tvAiModelLabel);
             messageText = itemView.findViewById(R.id.messageText);
             messageContainer = itemView.findViewById(R.id.messageContainer);
             memoryIndicator = itemView.findViewById(R.id.memoryIndicator);

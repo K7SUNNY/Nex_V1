@@ -165,7 +165,7 @@ public class MemoryActivity extends AppCompatActivity {
             ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
             ClipData clip = ClipData.newPlainText("Nex Memory", memory.getContent());
             clipboard.setPrimaryClip(clip);
-            Toast.makeText(this, R.string.copy_content, Toast.LENGTH_SHORT).show();
+            // Toast.makeText(this, R.string.copy_content, Toast.LENGTH_SHORT).show();
             dialog.dismiss();
         });
 
@@ -258,10 +258,10 @@ public class MemoryActivity extends AppCompatActivity {
                     memory.setContent(newContent);
                     saveAllToManager();
                     filterMemories(currentSearchQuery);
-                    Toast.makeText(this, "Memory updated", Toast.LENGTH_SHORT).show();
+                    // Toast.makeText(this, "Memory updated", Toast.LENGTH_SHORT).show();
                     editDialog.dismiss();
                 } else {
-                    Toast.makeText(this, "Title and details cannot be empty", Toast.LENGTH_SHORT).show();
+                    // Toast.makeText(this, "Title and details cannot be empty", Toast.LENGTH_SHORT).show();
                 }
             }
         });
@@ -296,10 +296,10 @@ public class MemoryActivity extends AppCompatActivity {
                     masterAllMemories.add(0, newMemory);
                     saveAllToManager();
                     filterMemories(currentSearchQuery);
-                    Toast.makeText(this, "Memory created", Toast.LENGTH_SHORT).show();
+                    // Toast.makeText(this, "Memory created", Toast.LENGTH_SHORT).show();
                     addDialog.dismiss();
                 } else {
-                    Toast.makeText(this, "Title and details cannot be empty", Toast.LENGTH_SHORT).show();
+                    // Toast.makeText(this, "Title and details cannot be empty", Toast.LENGTH_SHORT).show();
                 }
             }
         });

@@ -77,8 +77,18 @@ public class HistoryManager {
                 msg.getType()
             );
             entity.memoryTag = msg.getMemoryTag();
-            if (msg.getDocumentName() != null && !msg.getDocumentName().isEmpty()) {
-                entity.imageUri = "doc:" + msg.getDocumentName();
+            if (msg.getType() == Message.TYPE_USER) {
+                if (msg.getDocumentName() != null && !msg.getDocumentName().isEmpty()) {
+                    entity.imageUri = "doc:" + msg.getDocumentName();
+                } else {
+                    entity.imageUri = msg.getImageUri();
+                }
+            } else if (msg.getType() == Message.TYPE_AI) {
+                if (msg.getModelName() != null && !msg.getModelName().isEmpty()) {
+                    entity.imageUri = "model:" + msg.getModelName();
+                } else {
+                    entity.imageUri = null;
+                }
             } else {
                 entity.imageUri = msg.getImageUri();
             }
@@ -94,6 +104,10 @@ public class HistoryManager {
         for (ChatMessageEntity entity : entities) {
             Message msg = new Message(entity.text, entity.type, entity.imageUri);
             msg.setMemoryTag(entity.memoryTag);
+            if (entity.type == Message.TYPE_AI && entity.imageUri != null && entity.imageUri.startsWith("model:")) {
+                msg.setModelName(entity.imageUri.substring(6));
+                msg.setImageUri(null);
+            }
             list.add(msg);
         }
         return list;

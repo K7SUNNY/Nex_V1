@@ -177,7 +177,7 @@ public class MainActivity extends AppCompatActivity {
                 if (isGranted) {
                     startVoiceRecognition();
                 } else {
-                    Toast.makeText(this, "Microphone permission is required for voice input", Toast.LENGTH_SHORT).show();
+                    // Toast.makeText(this, "Microphone permission is required for voice input", Toast.LENGTH_SHORT).show();
                 }
             });
 
@@ -424,7 +424,7 @@ public class MainActivity extends AppCompatActivity {
             if (currentDownloadId == -1) {
                 startModelDownload();
             } else {
-                Toast.makeText(this, "Download already in progress", Toast.LENGTH_SHORT).show();
+                // Toast.makeText(this, "Download already in progress", Toast.LENGTH_SHORT).show();
             }
         });
 
@@ -490,11 +490,11 @@ public class MainActivity extends AppCompatActivity {
 
             if (success) {
                 Log.d(TAG_DOWNLOAD, "Download succeeded, checking model...");
-                Toast.makeText(context, "Model downloaded!", Toast.LENGTH_SHORT).show();
+                // Toast.makeText(context, "Model downloaded!", Toast.LENGTH_SHORT).show();
                 checkModelStatus(); // Load the model and refresh UI state.
             } else {
                 Log.e(TAG_DOWNLOAD, "Download failed or was cancelled, reason: " + reason);
-                Toast.makeText(context, "Download failed (reason: " + reason + "). Please try again.", Toast.LENGTH_SHORT).show();
+                // Toast.makeText(context, "Download failed (reason: " + reason + "). Please try again.", Toast.LENGTH_SHORT).show();
                 setDownloadIdleState("Download failed (reason: " + reason + "). Tap to retry.");
             }
         }
@@ -589,11 +589,11 @@ public class MainActivity extends AppCompatActivity {
                 String mmprojPath = modelManager.getMmprojPath();
                 Log.d(TAG, "Nex Vision found and verified, loading: " + modelPath + ", mmproj: " + mmprojPath);
                 aiManager.loadVisionModel(modelPath, mmprojPath);
-                Toast.makeText(this, "Nex Vision engine ready!", Toast.LENGTH_SHORT).show();
+                // Toast.makeText(this, "Nex Vision engine ready!", Toast.LENGTH_SHORT).show();
             } else {
                 Log.d(TAG, "Model found and verified, loading: " + modelPath);
                 aiManager.loadModel(modelPath);
-                Toast.makeText(this, "AI model ready!", Toast.LENGTH_SHORT).show();
+                // Toast.makeText(this, "AI model ready!", Toast.LENGTH_SHORT).show();
             }
         } else if (modelManager.isModelFilePresentWithCorrectSize(modelKey) && !modelManager.isModelVerified(modelKey)) {
             verifyModelInBackground();
@@ -628,7 +628,7 @@ public class MainActivity extends AppCompatActivity {
                 if (success) {
                     checkModelStatus();
                 } else {
-                    Toast.makeText(this, "Verification failed! Corrupted model.", Toast.LENGTH_LONG).show();
+                    // Toast.makeText(this, "Verification failed! Corrupted model.", Toast.LENGTH_LONG).show();
                     setDownloadIdleState("Model verification failed. Please re-download.");
                 }
             });
@@ -646,11 +646,11 @@ public class MainActivity extends AppCompatActivity {
         if (currentDownloadId != -1) {
             Log.d(TAG_DOWNLOAD, "Download started with ID: " + currentDownloadId);
             preferenceManager.setActiveDownloadId(currentDownloadId);
-            Toast.makeText(this, "Download started", Toast.LENGTH_SHORT).show();
+            // Toast.makeText(this, "Download started", Toast.LENGTH_SHORT).show();
             startProgressPolling(); // Start polling for real-time byte progress.
         } else {
             Log.e(TAG_DOWNLOAD, "DownloadManager failed to enqueue");
-            Toast.makeText(this, "Failed to start download", Toast.LENGTH_SHORT).show();
+            // Toast.makeText(this, "Failed to start download", Toast.LENGTH_SHORT).show();
             setDownloadIdleState("Could not start download. Tap to retry.");
         }
     }
@@ -695,7 +695,7 @@ public class MainActivity extends AppCompatActivity {
         }, modelManager, item -> {
             long activeId = preferenceManager.getActiveDownloadId();
             if (activeId != -1) {
-                Toast.makeText(this, "Cannot delete while a download is in progress.", Toast.LENGTH_SHORT).show();
+                // Toast.makeText(this, "Cannot delete while a download is in progress.", Toast.LENGTH_SHORT).show();
                 return;
             }
             new androidx.appcompat.app.AlertDialog.Builder(this)
@@ -704,13 +704,13 @@ public class MainActivity extends AppCompatActivity {
                     .setPositiveButton(R.string.delete, (d, which) -> {
                         boolean deleted = modelManager.deleteModel(item.getKey());
                         if (deleted) {
-                            Toast.makeText(this, item.getName() + " deleted from storage.", Toast.LENGTH_SHORT).show();
+                            // Toast.makeText(this, item.getName() + " deleted from storage.", Toast.LENGTH_SHORT).show();
                             if (adapterHolder[0] != null) {
                                 adapterHolder[0].notifyDataSetChanged();
                             }
                             checkModelStatus();
                         } else {
-                            Toast.makeText(this, "Failed to delete model file.", Toast.LENGTH_SHORT).show();
+                            // Toast.makeText(this, "Failed to delete model file.", Toast.LENGTH_SHORT).show();
                         }
                     })
                     .setNegativeButton(android.R.string.cancel, null)
@@ -864,7 +864,10 @@ public class MainActivity extends AppCompatActivity {
 
         setGeneratingState(true);
 
+        String activeModelName = modelManager.getCurrentModelDisplayName();
+
         Message typingMessage = new Message("", Message.TYPE_TYPING);
+        typingMessage.setModelName(activeModelName);
         messageList.add(typingMessage);
         chatAdapter.notifyItemInserted(messageList.size() - 1);
         recyclerView.scrollToPosition(messageList.size() - 1);
@@ -880,7 +883,9 @@ public class MainActivity extends AppCompatActivity {
                 Log.d(TAG_CHAT, "AI response (" + duration + "ms): " + response);
                 int index = messageList.indexOf(typingMessage);
                 if (index != -1) {
-                    messageList.set(index, new Message(response, Message.TYPE_AI));
+                    Message aiMsg = new Message(response, Message.TYPE_AI);
+                    aiMsg.setModelName(activeModelName);
+                    messageList.set(index, aiMsg);
                     chatAdapter.notifyItemChanged(index);
                     smartScrollToBottom();
 
@@ -911,6 +916,7 @@ public class MainActivity extends AppCompatActivity {
                     // If it's still marked as typing, change it to AI type on first token
                     if (msg.getType() == Message.TYPE_TYPING) {
                         msg.setType(Message.TYPE_AI);
+                        msg.setModelName(activeModelName);
                         triggerHapticFeedback(recyclerView, android.view.HapticFeedbackConstants.CONFIRM);
                     }
                     msg.setText(msg.getText() + token);
@@ -923,7 +929,7 @@ public class MainActivity extends AppCompatActivity {
 
             @Override
             public void onContextDropped() {
-                runOnUiThread(() -> Toast.makeText(MainActivity.this, "Older context dropped to fit window", Toast.LENGTH_SHORT).show());
+                // runOnUiThread(() -> Toast.makeText(MainActivity.this, "Older context dropped to fit window", Toast.LENGTH_SHORT).show());
             }
         });
     }
@@ -953,7 +959,10 @@ public class MainActivity extends AppCompatActivity {
         aiManager.setHistory(deepCopyMessageList(messageList));
 
         // Add typing indicator
+        String activeModelName = modelManager.getCurrentModelDisplayName();
+
         Message typingMessage = new Message("", Message.TYPE_TYPING);
+        typingMessage.setModelName(activeModelName);
         messageList.add(typingMessage);
         chatAdapter.notifyItemInserted(messageList.size() - 1);
         recyclerView.scrollToPosition(messageList.size() - 1);
@@ -970,7 +979,9 @@ public class MainActivity extends AppCompatActivity {
                 Log.d(TAG_CHAT, "AI response (" + duration + "ms): " + response);
                 int index = messageList.indexOf(typingMessage);
                 if (index != -1) {
-                    messageList.set(index, new Message(response, Message.TYPE_AI));
+                    Message aiMsg = new Message(response, Message.TYPE_AI);
+                    aiMsg.setModelName(activeModelName);
+                    messageList.set(index, aiMsg);
                     chatAdapter.notifyItemChanged(index);
                     smartScrollToBottom();
 
@@ -999,6 +1010,7 @@ public class MainActivity extends AppCompatActivity {
                     Message msg = messageList.get(index);
                     if (msg.getType() == Message.TYPE_TYPING) {
                         msg.setType(Message.TYPE_AI);
+                        msg.setModelName(activeModelName);
                         triggerHapticFeedback(recyclerView, android.view.HapticFeedbackConstants.CONFIRM);
                     }
                     msg.setText(msg.getText() + token);
@@ -1009,7 +1021,7 @@ public class MainActivity extends AppCompatActivity {
 
             @Override
             public void onContextDropped() {
-                runOnUiThread(() -> Toast.makeText(MainActivity.this, "Older context dropped to fit window", Toast.LENGTH_SHORT).show());
+                // runOnUiThread(() -> Toast.makeText(MainActivity.this, "Older context dropped to fit window", Toast.LENGTH_SHORT).show());
             }
         });
     }
@@ -1049,7 +1061,7 @@ public class MainActivity extends AppCompatActivity {
                     "application/octet-stream"
             });
         } catch (Exception e) {
-            Toast.makeText(this, "Unable to open document picker", Toast.LENGTH_SHORT).show();
+            // Toast.makeText(this, "Unable to open document picker", Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -1068,9 +1080,9 @@ public class MainActivity extends AppCompatActivity {
                 layoutDocumentPreview.setVisibility(View.VISIBLE);
             }
             clearSelectedImage(); // keep either image or document
-            Toast.makeText(this, "Document attached: " + info.name, Toast.LENGTH_SHORT).show();
+            // Toast.makeText(this, "Document attached: " + info.name, Toast.LENGTH_SHORT).show();
         } else {
-            Toast.makeText(this, "Could not extract text from document", Toast.LENGTH_SHORT).show();
+            // Toast.makeText(this, "Could not extract text from document", Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -1094,7 +1106,7 @@ public class MainActivity extends AppCompatActivity {
                 intent.setType("image/*");
                 legacyPickerLauncher.launch(intent);
             } catch (Exception ex) {
-                Toast.makeText(this, "Unable to open image picker", Toast.LENGTH_SHORT).show();
+                // Toast.makeText(this, "Unable to open image picker", Toast.LENGTH_SHORT).show();
             }
         }
     }
@@ -1175,11 +1187,11 @@ public class MainActivity extends AppCompatActivity {
                 preferenceManager.setSelectedModel(ModelManager.MODEL_VISION);
                 updateModelSelectorButton();
                 checkModelStatus();
-                Toast.makeText(this, "Switched to Nex Vision for image analysis", Toast.LENGTH_SHORT).show();
+                // Toast.makeText(this, "Switched to Nex Vision for image analysis", Toast.LENGTH_SHORT).show();
             }
         } catch (Exception e) {
             Log.e(TAG, "Failed to cache selected image", e);
-            Toast.makeText(this, "Failed to load selected image", Toast.LENGTH_SHORT).show();
+            // Toast.makeText(this, "Failed to load selected image", Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -1219,10 +1231,10 @@ public class MainActivity extends AppCompatActivity {
                     cachedMemories.clear();
                     cachedMemories.addAll(memoryStrings);
                     aiManager.setMemories(memoryStrings);
-                    Toast.makeText(MainActivity.this, "Added to AI memory", Toast.LENGTH_SHORT).show();
+                    // Toast.makeText(MainActivity.this, "Added to AI memory", Toast.LENGTH_SHORT).show();
                 });
             } else {
-                runOnUiThread(() -> Toast.makeText(MainActivity.this, "Already in memory", Toast.LENGTH_SHORT).show());
+                // runOnUiThread(() -> Toast.makeText(MainActivity.this, "Already in memory", Toast.LENGTH_SHORT).show());
             }
         });
     }
@@ -1244,7 +1256,7 @@ public class MainActivity extends AppCompatActivity {
                 aiManager.setHistory(deepCopyMessageList(messageList));
                 updateTokenCount("");
             }
-            Toast.makeText(this, "Message deleted", Toast.LENGTH_SHORT).show();
+            // Toast.makeText(this, "Message deleted", Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -1558,7 +1570,7 @@ public class MainActivity extends AppCompatActivity {
 
     private void startVoiceRecognition() {
         if (!SpeechRecognizer.isRecognitionAvailable(this)) {
-            Toast.makeText(this, "Speech recognition not available on this device", Toast.LENGTH_SHORT).show();
+            // Toast.makeText(this, "Speech recognition not available on this device", Toast.LENGTH_SHORT).show();
             return;
         }
 
@@ -1569,7 +1581,7 @@ public class MainActivity extends AppCompatActivity {
                 public void onReadyForSpeech(Bundle params) {
                     isListening = true;
                     updateVoiceButtonState();
-                    Toast.makeText(MainActivity.this, "Listening...", Toast.LENGTH_SHORT).show();
+                    // Toast.makeText(MainActivity.this, "Listening...", Toast.LENGTH_SHORT).show();
                 }
 
                 @Override
@@ -1592,7 +1604,7 @@ public class MainActivity extends AppCompatActivity {
                     isListening = false;
                     updateVoiceButtonState();
                     if (error != SpeechRecognizer.ERROR_NO_MATCH && error != SpeechRecognizer.ERROR_SPEECH_TIMEOUT) {
-                        Toast.makeText(MainActivity.this, "Voice recognition error", Toast.LENGTH_SHORT).show();
+                        // Toast.makeText(MainActivity.this, "Voice recognition error", Toast.LENGTH_SHORT).show();
                     }
                 }
 
@@ -1635,7 +1647,7 @@ public class MainActivity extends AppCompatActivity {
             e.printStackTrace();
             isListening = false;
             updateVoiceButtonState();
-            Toast.makeText(this, "Failed to start microphone", Toast.LENGTH_SHORT).show();
+            // Toast.makeText(this, "Failed to start microphone", Toast.LENGTH_SHORT).show();
         }
     }
 

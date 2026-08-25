@@ -104,7 +104,7 @@ public class SettingsActivity extends AppCompatActivity {
             if (currentDownloadId == -1) {
                 startModelDownload();
             } else {
-                Toast.makeText(this, "Download already in progress", Toast.LENGTH_SHORT).show();
+                // Toast.makeText(this, "Download already in progress", Toast.LENGTH_SHORT).show();
             }
         });
 
@@ -203,7 +203,7 @@ public class SettingsActivity extends AppCompatActivity {
     private void selectModel(String modelKey) {
         long activeId = preferenceManager.getActiveDownloadId();
         if (activeId != -1) {
-            Toast.makeText(this, "Cannot change model while download is in progress.", Toast.LENGTH_SHORT).show();
+            // Toast.makeText(this, "Cannot change model while download is in progress.", Toast.LENGTH_SHORT).show();
             return;
         }
 
@@ -215,7 +215,7 @@ public class SettingsActivity extends AppCompatActivity {
     private void confirmDeleteModel(ModelItem item) {
         long activeId = preferenceManager.getActiveDownloadId();
         if (activeId != -1) {
-            Toast.makeText(this, "Cannot delete while a download is in progress.", Toast.LENGTH_SHORT).show();
+            // Toast.makeText(this, "Cannot delete while a download is in progress.", Toast.LENGTH_SHORT).show();
             return;
         }
 
@@ -225,13 +225,13 @@ public class SettingsActivity extends AppCompatActivity {
                 .setPositiveButton(R.string.delete, (dialog, which) -> {
                     boolean deleted = modelManager.deleteModel(item.getKey());
                     if (deleted) {
-                        Toast.makeText(this, item.getName() + " deleted from storage.", Toast.LENGTH_SHORT).show();
+                        // Toast.makeText(this, item.getName() + " deleted from storage.", Toast.LENGTH_SHORT).show();
                         if (modelAdapter != null) {
                             modelAdapter.notifyDataSetChanged();
                         }
                         updateDownloadCardUI();
                     } else {
-                        Toast.makeText(this, "Failed to delete model file.", Toast.LENGTH_SHORT).show();
+                        // Toast.makeText(this, "Failed to delete model file.", Toast.LENGTH_SHORT).show();
                     }
                 })
                 .setNegativeButton(android.R.string.cancel, null)
@@ -318,7 +318,7 @@ public class SettingsActivity extends AppCompatActivity {
         if (currentDownloadId != -1) {
             Log.d(TAG_DOWNLOAD, "Download started with ID: " + currentDownloadId);
             preferenceManager.setActiveDownloadId(currentDownloadId);
-            Toast.makeText(this, "Download started", Toast.LENGTH_SHORT).show();
+            // Toast.makeText(this, "Download started", Toast.LENGTH_SHORT).show();
             
             ContextCompat.registerReceiver(this, onDownloadComplete,
                     new IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE),
@@ -328,7 +328,7 @@ public class SettingsActivity extends AppCompatActivity {
             updateDownloadCardUI();
         } else {
             Log.e(TAG_DOWNLOAD, "DownloadManager failed to enqueue");
-            Toast.makeText(this, "Failed to start download", Toast.LENGTH_SHORT).show();
+            // Toast.makeText(this, "Failed to start download", Toast.LENGTH_SHORT).show();
             updateDownloadCardUI();
         }
     }
@@ -362,7 +362,7 @@ public class SettingsActivity extends AppCompatActivity {
                                 stopProgressPolling();
                                 currentDownloadId = -1;
                                 preferenceManager.setActiveDownloadId(-1);
-                                Toast.makeText(SettingsActivity.this, "Download failed (reason: " + reason + ")", Toast.LENGTH_SHORT).show();
+                                // Toast.makeText(SettingsActivity.this, "Download failed (reason: " + reason + ")", Toast.LENGTH_SHORT).show();
                                 modelManager.cleanupCorruptedModel();
                                 updateDownloadCardUI();
                                 return;
@@ -413,10 +413,10 @@ public class SettingsActivity extends AppCompatActivity {
             runOnUiThread(() -> {
                 if (isFinishing() || isDestroyed()) return;
                 if (success) {
-                    Toast.makeText(this, "AI model ready!", Toast.LENGTH_SHORT).show();
+                    // Toast.makeText(this, "AI model ready!", Toast.LENGTH_SHORT).show();
                     updateDownloadCardUI();
                 } else {
-                    Toast.makeText(this, "Verification failed! Corrupted model.", Toast.LENGTH_LONG).show();
+                    // Toast.makeText(this, "Verification failed! Corrupted model.", Toast.LENGTH_LONG).show();
                     modelManager.cleanupCorruptedModel();
                     updateDownloadCardUI();
                 }
@@ -462,11 +462,11 @@ public class SettingsActivity extends AppCompatActivity {
 
             if (success) {
                 Log.d(TAG_DOWNLOAD, "Download succeeded, verifying model hash...");
-                Toast.makeText(context, "Model downloaded!", Toast.LENGTH_SHORT).show();
+                // Toast.makeText(context, "Model downloaded!", Toast.LENGTH_SHORT).show();
                 verifyModelInBackground();
             } else {
                 Log.e(TAG_DOWNLOAD, "Download failed or was cancelled, reason: " + reason);
-                Toast.makeText(context, "Download failed (reason: " + reason + "). Please try again.", Toast.LENGTH_SHORT).show();
+                // Toast.makeText(context, "Download failed (reason: " + reason + "). Please try again.", Toast.LENGTH_SHORT).show();
                 updateDownloadCardUI();
             }
         }
@@ -534,14 +534,14 @@ public class SettingsActivity extends AppCompatActivity {
                     String customText = (etCustom != null && etCustom.getText() != null) ? etCustom.getText().toString().trim() : "";
                     if (customText.isEmpty()) {
                         preferenceManager.resetSystemPersona();
-                        Toast.makeText(this, "Reset to General Assistant", Toast.LENGTH_SHORT).show();
+                        // Toast.makeText(this, "Reset to General Assistant", Toast.LENGTH_SHORT).show();
                     } else {
                         preferenceManager.setCustomPersona(customText);
-                        Toast.makeText(this, "Custom Persona saved", Toast.LENGTH_SHORT).show();
+                        // Toast.makeText(this, "Custom Persona saved", Toast.LENGTH_SHORT).show();
                     }
                 } else {
                     preferenceManager.setSelectedPersonaKey(key);
-                    Toast.makeText(this, preferenceManager.getPersonaName(key) + " active", Toast.LENGTH_SHORT).show();
+                    // Toast.makeText(this, preferenceManager.getPersonaName(key) + " active", Toast.LENGTH_SHORT).show();
                 }
                 updateUI();
                 dialog.dismiss();

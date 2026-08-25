@@ -11,6 +11,7 @@ public class Message {
     private String memoryTag = null;
     private String imageUri = null;
     private String documentName = null;
+    private String modelName = null;
 
     public Message(String text, int type) {
         this.text = text;
@@ -42,6 +43,7 @@ public class Message {
         this.memoryTag = other.memoryTag;
         this.imageUri = other.imageUri;
         this.documentName = other.documentName;
+        this.modelName = other.modelName;
     }
 
     public String getText() {
@@ -90,5 +92,13 @@ public class Message {
 
     public void setDocumentName(String documentName) {
         this.documentName = documentName;
+    }
+
+    public String getModelName() {
+        return modelName;
+    }
+
+    public void setModelName(String modelName) {
+        this.modelName = modelName;
     }
 }

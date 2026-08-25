@@ -26,6 +26,7 @@
             app:tint="@android:color/white" />
 
         <TextView
+            android:id="@+id/tvAiModelLabel"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="8dp"

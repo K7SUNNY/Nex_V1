@@ -33,6 +33,22 @@ public class ModelManager {
         return MODEL_VISION.equals(modelKey);
     }
 
+    public String getModelDisplayName(String modelKey) {
+        if (MODEL_PRO.equals(modelKey)) {
+            return "Nex Pro";
+        } else if (MODEL_ULTRA.equals(modelKey)) {
+            return "Nex Ultra";
+        } else if (MODEL_VISION.equals(modelKey)) {
+            return "Nex Vision";
+        } else {
+            return "Nex Fast";
+        }
+    }
+
+    public String getCurrentModelDisplayName() {
+        return getModelDisplayName(getCurrentModelKey());
+    }
+
     public String getModelFileName(String modelKey) {
         if (MODEL_PRO.equals(modelKey)) {
             return "qwen2.5-1.5b-instruct-q4_k_m.gguf";
