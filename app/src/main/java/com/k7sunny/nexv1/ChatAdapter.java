@@ -204,10 +204,24 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
                 }
             }
 
+            String docName = message.getDocumentName();
+            if (docName != null && !docName.isEmpty()) {
+                if (userHolder.cardAttachedDocument != null) {
+                    userHolder.cardAttachedDocument.setVisibility(View.VISIBLE);
+                }
+                if (userHolder.tvUserAttachedDocName != null) {
+                    userHolder.tvUserAttachedDocName.setText(docName);
+                }
+            } else {
+                if (userHolder.cardAttachedDocument != null) {
+                    userHolder.cardAttachedDocument.setVisibility(View.GONE);
+                }
+            }
+
             if (message.getText() != null && !message.getText().trim().isEmpty()) {
                 userHolder.messageText.setVisibility(View.VISIBLE);
                 markwon.setMarkdown(userHolder.messageText, message.getText());
-            } else if (imgUriStr != null && !imgUriStr.isEmpty()) {
+            } else if ((imgUriStr != null && !imgUriStr.isEmpty()) || (docName != null && !docName.isEmpty())) {
                 userHolder.messageText.setVisibility(View.GONE);
             } else {
                 userHolder.messageText.setVisibility(View.VISIBLE);
@@ -644,12 +658,16 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         TextView messageText;
         ImageView ivUserAttachedImage;
         View cardAttachedImage;
+        View cardAttachedDocument;
+        TextView tvUserAttachedDocName;
 
         UserViewHolder(View itemView) {
             super(itemView);
             messageText = itemView.findViewById(R.id.messageText);
             ivUserAttachedImage = itemView.findViewById(R.id.ivUserAttachedImage);
             cardAttachedImage = itemView.findViewById(R.id.card_attached_image);
+            cardAttachedDocument = itemView.findViewById(R.id.card_attached_document);
+            tvUserAttachedDocName = itemView.findViewById(R.id.tvUserAttachedDocName);
         }
     }
 

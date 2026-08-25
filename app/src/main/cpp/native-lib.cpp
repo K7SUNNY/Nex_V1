@@ -198,7 +198,7 @@ Java_com_k7sunny_nexv1_AIManager_loadModelNative(JNIEnv* env, jclass, jstring mo
 
         LOG_MODEL("Initializing context with %d threads", num_threads);
 
-        ctx_params.n_ctx = 2048;
+        ctx_params.n_ctx = 4096;
         ctx_params.n_threads = num_threads;
         ctx_params.n_threads_batch = num_threads;
         ctx_params.flash_attn_type = LLAMA_FLASH_ATTN_TYPE_ENABLED;
@@ -455,6 +455,22 @@ Java_com_k7sunny_nexv1_AIManager_runInferenceNative(
             return env->NewStringUTF("");
         }
 
+        // Clamp tokens to safe context window capacity to eliminate any possibility of SIGABRT crash
+        int n_ctx_avail = llama_n_ctx(g_ctx);
+        int max_prompt_tokens = n_ctx_avail - max_tokens - 16;
+        if (max_prompt_tokens < 64) max_prompt_tokens = n_ctx_avail / 2;
+
+        if ((int)all_tokens.size() > max_prompt_tokens) {
+            LOG_INFER("Prompt tokens (%zu) exceed max context limit (%d). Clamping safely.", all_tokens.size(), max_prompt_tokens);
+            size_t head_size = 128;
+            if (head_size >= (size_t)max_prompt_tokens) head_size = max_prompt_tokens / 4;
+            size_t tail_size = max_prompt_tokens - head_size;
+            std::vector<llama_token> clamped_tokens;
+            clamped_tokens.insert(clamped_tokens.end(), all_tokens.begin(), all_tokens.begin() + head_size);
+            clamped_tokens.insert(clamped_tokens.end(), all_tokens.end() - tail_size, all_tokens.end());
+            all_tokens = clamped_tokens;
+        }
+
         // ---- SMART KV CACHE REUSE (Token-based) ----
 
         int n_past = 0;
@@ -478,17 +494,29 @@ Java_com_k7sunny_nexv1_AIManager_runInferenceNative(
         LOG_INFER("Total tokens: %zu, New to decode: %zu", all_tokens.size(), new_tokens.size());
 
         if (!new_tokens.empty()) {
-            llama_batch_raii batch_wrapper(new_tokens.size(), 0, 1);
-            for (size_t i = 0; i < new_tokens.size(); i++) {
-                common_batch_add(batch_wrapper.batch, new_tokens[i], n_past + i, {0}, i == new_tokens.size() - 1);
-            }
+            int n_batch = llama_n_batch(g_ctx);
+            if (n_batch <= 0) n_batch = 512;
 
             int64_t start_eval = ggml_time_us();
-            if (llama_decode(g_ctx, batch_wrapper.batch) != 0) {
-                LOGE("Decode failed");
-                llama_memory_clear(llama_get_memory(g_ctx), true);
-                g_last_tokens.clear();
-                throw std::runtime_error("llama_decode failed during prompt evaluation");
+            for (size_t i = 0; i < new_tokens.size(); i += n_batch) {
+                if (g_cancel_inference.load()) {
+                    LOG_INFER("Prompt evaluation cancelled by user");
+                    break;
+                }
+                size_t n_eval = std::min((size_t)n_batch, new_tokens.size() - i);
+                llama_batch_raii batch_wrapper(n_eval, 0, 1);
+                for (size_t j = 0; j < n_eval; j++) {
+                    bool is_last = (i + j == new_tokens.size() - 1);
+                    common_batch_add(batch_wrapper.batch, new_tokens[i + j], n_past + (int)(i + j), {0}, is_last);
+                }
+
+                if (llama_decode(g_ctx, batch_wrapper.batch) != 0) {
+                    LOGE("llama_decode failed at token offset %zu (chunk size: %zu)", i, n_eval);
+                    llama_memory_clear(llama_get_memory(g_ctx), true);
+                    g_last_tokens.clear();
+                    throw std::runtime_error("llama_decode failed during prompt evaluation");
+                }
+                std::this_thread::yield();
             }
             LOG_INFER("Prompt decode took %lld ms", (long long)((ggml_time_us() - start_eval) / 1000));
         }

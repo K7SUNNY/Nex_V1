@@ -158,6 +158,7 @@ public class MainActivity extends AppCompatActivity {
     private ImageButton btnRemoveDocument;
     private String attachedDocName = null;
     private String attachedDocText = null;
+    private String attachedDocRenderedImage = null;
 
     private final ActivityResultLauncher<String[]> documentPickerLauncher =
             registerForActivityResult(new ActivityResultContracts.OpenDocument(), uri -> {
@@ -817,8 +818,11 @@ public class MainActivity extends AppCompatActivity {
     private void sendMessage() {
         String text = messageInput.getText().toString().trim();
         String imgPath = selectedImagePath;
+        String docName = attachedDocName;
+        String docText = attachedDocText;
+        String docRenderedImage = attachedDocRenderedImage;
 
-        if (text.isEmpty() && (imgPath == null || imgPath.isEmpty()) && (attachedDocText == null || attachedDocText.isEmpty())) return;
+        if (text.isEmpty() && (imgPath == null || imgPath.isEmpty()) && (docText == null || docText.isEmpty())) return;
 
         View sendButton = findViewById(R.id.sendButton);
         triggerHapticFeedback(sendButton != null ? sendButton : messageInput, android.view.HapticFeedbackConstants.KEYBOARD_TAP);
@@ -831,17 +835,18 @@ public class MainActivity extends AppCompatActivity {
         // Reset scroll state: user just sent a message, so they expect to see it
         isUserScrolledUp = false;
 
-        String displayText = text;
-        if (displayText.isEmpty() && attachedDocName != null) {
-            displayText = "Analyze attached document: " + attachedDocName;
-        }
-
         String promptToSend = text;
-        if (attachedDocText != null && !attachedDocText.isEmpty()) {
-            promptToSend = "[Document: " + (attachedDocName != null ? attachedDocName : "Attached File") + "]\n```\n" + attachedDocText + "\n```\n\n" + (text.isEmpty() ? "Please analyze and summarize this document." : text);
+        if (docText != null && !docText.isEmpty()) {
+            promptToSend = "[Document: " + (docName != null ? docName : "Attached File") + "]\n```\n" + docText + "\n```\n\n" + (text.isEmpty() ? "Please analyze and summarize this document." : text);
         }
 
-        Message userMsg = new Message(displayText, Message.TYPE_USER, imgPath);
+        // If vision model is active and document has a rendered page image, pass it to vision inference
+        String nativeImagePath = imgPath;
+        if (nativeImagePath == null && docRenderedImage != null && modelManager.isVisionModel()) {
+            nativeImagePath = docRenderedImage;
+        }
+
+        Message userMsg = new Message(text, Message.TYPE_USER, imgPath, docName);
         messageList.add(userMsg);
         chatAdapter.notifyItemInserted(messageList.size() - 1);
         recyclerView.scrollToPosition(messageList.size() - 1);
@@ -863,11 +868,11 @@ public class MainActivity extends AppCompatActivity {
         messageList.add(typingMessage);
         chatAdapter.notifyItemInserted(messageList.size() - 1);
         recyclerView.scrollToPosition(messageList.size() - 1);
-        Log.d(TAG_CHAT, "User message: '" + promptToSend + "' (image: " + imgPath + ")");
+        Log.d(TAG_CHAT, "User message: '" + promptToSend + "' (image: " + nativeImagePath + ", doc: " + docName + ")");
 
         long startTime = System.currentTimeMillis();
         final String finalUserPrompt = text;
-        aiManager.generateResponse(promptToSend, imgPath, new AIManager.ResponseCallback() {
+        aiManager.generateResponse(promptToSend, nativeImagePath, new AIManager.ResponseCallback() {
             @Override
             public void onResponse(String response) {
                 setGeneratingState(false);
@@ -1053,6 +1058,7 @@ public class MainActivity extends AppCompatActivity {
         if (info != null && info.content != null && !info.content.trim().isEmpty()) {
             attachedDocName = info.name;
             attachedDocText = info.content;
+            attachedDocRenderedImage = info.renderedImagePath;
 
             if (tvDocName != null) {
                 String label = info.name + (info.size.isEmpty() ? "" : " • " + info.size);
@@ -1071,6 +1077,7 @@ public class MainActivity extends AppCompatActivity {
     private void clearSelectedDocument() {
         attachedDocName = null;
         attachedDocText = null;
+        attachedDocRenderedImage = null;
         if (layoutDocumentPreview != null) {
             layoutDocumentPreview.setVisibility(View.GONE);
         }

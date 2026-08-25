@@ -77,7 +77,11 @@ public class HistoryManager {
                 msg.getType()
             );
             entity.memoryTag = msg.getMemoryTag();
-            entity.imageUri = msg.getImageUri();
+            if (msg.getDocumentName() != null && !msg.getDocumentName().isEmpty()) {
+                entity.imageUri = "doc:" + msg.getDocumentName();
+            } else {
+                entity.imageUri = msg.getImageUri();
+            }
             messageEntities.add(entity);
         }
 

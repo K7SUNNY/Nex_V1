@@ -10,6 +10,7 @@ public class Message {
     private boolean isActionsVisible = false;
     private String memoryTag = null;
     private String imageUri = null;
+    private String documentName = null;
 
     public Message(String text, int type) {
         this.text = text;
@@ -19,7 +20,19 @@ public class Message {
     public Message(String text, int type, String imageUri) {
         this.text = text;
         this.type = type;
+        if (imageUri != null && imageUri.startsWith("doc:")) {
+            this.documentName = imageUri.substring(4);
+            this.imageUri = null;
+        } else {
+            this.imageUri = imageUri;
+        }
+    }
+
+    public Message(String text, int type, String imageUri, String documentName) {
+        this.text = text;
+        this.type = type;
         this.imageUri = imageUri;
+        this.documentName = documentName;
     }
 
     public Message(Message other) {
@@ -28,6 +41,7 @@ public class Message {
         this.isActionsVisible = other.isActionsVisible;
         this.memoryTag = other.memoryTag;
         this.imageUri = other.imageUri;
+        this.documentName = other.documentName;
     }
 
     public String getText() {
@@ -68,5 +82,13 @@ public class Message {
 
     public void setImageUri(String imageUri) {
         this.imageUri = imageUri;
+    }
+
+    public String getDocumentName() {
+        return documentName;
+    }
+
+    public void setDocumentName(String documentName) {
+        this.documentName = documentName;
     }
 }

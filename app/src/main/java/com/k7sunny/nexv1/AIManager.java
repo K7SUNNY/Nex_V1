@@ -149,13 +149,27 @@ public class AIManager {
 
                 synchronized (chatHistory) {
                     chatHistory.add(new Message(cleanPrompt, Message.TYPE_USER, imagePath));
-                    for (Message m : chatHistory) {
+                    int historySize = chatHistory.size();
+                    for (int i = 0; i < historySize; i++) {
+                        Message m = chatHistory.get(i);
+                        boolean isCurrentTurn = (i == historySize - 1);
                         if (m.getType() == Message.TYPE_USER) {
                             roles.add("user");
-                            contents.add(m.getText());
+                            String content = m.getText();
+                            // If this is a historical turn (not the latest message being processed),
+                            // condense the raw document stream to avoid compounding token bloat in KV cache!
+                            if (!isCurrentTurn && content != null && content.startsWith("[Document:")) {
+                                int docEnd = content.indexOf("```\n\n");
+                                if (docEnd != -1 && docEnd + 5 < content.length()) {
+                                    int docHeaderEnd = content.indexOf("]\n```");
+                                    String docHeader = (docHeaderEnd != -1) ? content.substring(0, docHeaderEnd + 1) : "[Attached Document]";
+                                    content = docHeader + " " + content.substring(docEnd + 5);
+                                }
+                            }
+                            contents.add(content != null ? content : "");
                         } else if (m.getType() == Message.TYPE_AI) {
                             roles.add("assistant");
-                            contents.add(m.getText());
+                            contents.add(m.getText() != null ? m.getText() : "");
                         }
                     }
                 }
@@ -311,11 +325,23 @@ public class AIManager {
                 }
             }
 
-            int start = Math.max(0, size - 10);
+            int start = Math.max(0, size - 4);
             for (int i = start; i < size; i++) {
                 Message msg = chatHistory.get(i);
                 String speaker = (msg.getType() == Message.TYPE_USER) ? "User" : "Assistant";
-                transcriptBuilder.append(speaker).append(": ").append(msg.getText()).append("\n");
+                String text = msg.getText();
+                if (text == null || text.trim().isEmpty()) continue;
+                // If message starts with attached document blocks, strip or truncate for memory extraction
+                if (text.startsWith("[Document:")) {
+                    int docEnd = text.indexOf("```\n\n");
+                    if (docEnd != -1 && docEnd + 5 < text.length()) {
+                        text = text.substring(docEnd + 5);
+                    }
+                }
+                if (text.length() > 250) {
+                    text = text.substring(0, 250) + "...";
+                }
+                transcriptBuilder.append(speaker).append(": ").append(text).append("\n");
             }
         }
 
