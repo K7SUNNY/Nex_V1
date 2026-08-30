@@ -30,6 +30,7 @@ public class AIManager {
     private volatile int maxTokens = 256;
     private volatile float temperature = 0.7f;
     private volatile int contextWindowSize = 12;
+    private volatile boolean isCancelled = false;
 
     // JNI bridge methods
 
@@ -137,6 +138,7 @@ public class AIManager {
 
     public void generateResponse(String prompt, String imagePath, ResponseCallback callback) {
         executorService.execute(() -> {
+            isCancelled = false;
             String response;
 
             if (isModelLoaded) {
@@ -229,8 +231,17 @@ public class AIManager {
                     response = "Error: Native inference failed.";
                 }
 
-                if (response == null || response.trim().isEmpty()) {
-                    response = "No response generated.";
+                if (isCancelled || response == null || response.trim().isEmpty() || response.startsWith("Error:")) {
+                    // Rollback trailing user turn to prevent consecutive [User, User] prompt structure
+                    synchronized (chatHistory) {
+                        if (!chatHistory.isEmpty() && chatHistory.get(chatHistory.size() - 1).getType() == Message.TYPE_USER) {
+                            chatHistory.remove(chatHistory.size() - 1);
+                            Log.d(TAG_CHAT, "Rolled back un-answered user message from chatHistory (cancelled=" + isCancelled + ")");
+                        }
+                    }
+                    if (response == null || response.trim().isEmpty()) {
+                        response = isCancelled ? "Generation stopped." : "No response generated.";
+                    }
                 } else {
                     // 3. Add AI response to history
                     synchronized (chatHistory) {
@@ -495,6 +506,7 @@ public class AIManager {
     }
 
     public void cancelInference() {
+        isCancelled = true;
         try {
             cancelInferenceNative();
         } catch (RuntimeException e) {

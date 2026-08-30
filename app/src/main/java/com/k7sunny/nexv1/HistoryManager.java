@@ -15,8 +15,11 @@ public class HistoryManager {
         NexDatabase db = NexDatabase.getDatabase(context);
         this.chatHistoryDao = db.chatHistoryDao();
 
-        // Migrate legacy SharedPreferences data if present
-        migrateLegacyData(context);
+        // Migrate legacy SharedPreferences data asynchronously if present
+        android.content.SharedPreferences prefs = context.getSharedPreferences("chat_history", Context.MODE_PRIVATE);
+        if (prefs.contains("sessions")) {
+            java.util.concurrent.Executors.newSingleThreadExecutor().execute(() -> migrateLegacyData(context.getApplicationContext()));
+        }
     }
 
     private void migrateLegacyData(Context context) {

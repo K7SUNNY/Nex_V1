@@ -72,7 +72,7 @@ public class MainActivity extends AppCompatActivity {
     private MemoryManager memoryManager;
     private PreferenceManager preferenceManager;
     private ConversationAnalyzer conversationAnalyzer;
-    private final ExecutorService dbExecutor = Executors.newSingleThreadExecutor();
+    private ExecutorService dbExecutor;
     private final List<String> cachedMemories = new ArrayList<>();
     private String currentSessionId;
     private String currentSessionTitle = null;
@@ -200,7 +200,13 @@ public class MainActivity extends AppCompatActivity {
         WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
         setContentView(R.layout.activity_main);
 
-        aiManager = new AIManager();
+        if (getApplication() instanceof NexApplication) {
+            aiManager = ((NexApplication) getApplication()).getAiManager();
+            dbExecutor = ((NexApplication) getApplication()).getDbExecutor();
+        } else {
+            aiManager = new AIManager();
+            dbExecutor = Executors.newSingleThreadExecutor();
+        }
         modelManager = new ModelManager(this);
         historyManager = new HistoryManager(this);
         memoryManager = new MemoryManager(this);
@@ -1564,8 +1570,7 @@ public class MainActivity extends AppCompatActivity {
         } catch (Exception e) {
             Log.w(TAG, "Receiver already unregistered");
         }
-        aiManager.release(); // Free native model resources.
-        dbExecutor.shutdown(); // Shutdown database thread executor.
+        // AIManager and dbExecutor are managed as application-scoped singletons by NexApplication.
     }
 
     private void startVoiceRecognition() {

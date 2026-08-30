@@ -28,7 +28,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public class MemoryActivity extends AppCompatActivity {
-    private final ExecutorService dbExecutor = Executors.newSingleThreadExecutor();
+    private ExecutorService dbExecutor;
     private MemoryAdapter pinnedAdapter;
     private MemoryAdapter recentAdapter;
     private List<Memory> pinnedMemories;
@@ -42,6 +42,12 @@ public class MemoryActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
         setContentView(R.layout.activity_memory);
+
+        if (getApplication() instanceof NexApplication) {
+            dbExecutor = ((NexApplication) getApplication()).getDbExecutor();
+        } else {
+            dbExecutor = Executors.newSingleThreadExecutor();
+        }
 
         View root = findViewById(R.id.memory_root);
         ViewCompat.setOnApplyWindowInsetsListener(root, (v, insets) -> {
@@ -310,6 +316,5 @@ public class MemoryActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        dbExecutor.shutdown();
     }
 }

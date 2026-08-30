@@ -30,7 +30,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public class DrawerActivity extends AppCompatActivity {
-    private final ExecutorService dbExecutor = Executors.newSingleThreadExecutor();
+    private ExecutorService dbExecutor;
     private PreferenceManager preferenceManager;
 
     @Override
@@ -38,6 +38,12 @@ public class DrawerActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
         setContentView(R.layout.activity_drawer);
+
+        if (getApplication() instanceof NexApplication) {
+            dbExecutor = ((NexApplication) getApplication()).getDbExecutor();
+        } else {
+            dbExecutor = Executors.newSingleThreadExecutor();
+        }
 
         preferenceManager = new PreferenceManager(this);
 
@@ -229,7 +235,6 @@ public class DrawerActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        dbExecutor.shutdown();
     }
 
     @Override

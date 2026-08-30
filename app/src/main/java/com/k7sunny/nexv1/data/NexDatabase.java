@@ -41,6 +41,7 @@ public abstract class NexDatabase extends RoomDatabase {
                     INSTANCE = Room.databaseBuilder(context.getApplicationContext(),
                                     NexDatabase.class, "nex_database")
                             .addMigrations(MIGRATION_2_3, MIGRATION_3_4)
+                            .fallbackToDestructiveMigration()
                             .build();
                 }
             }

@@ -30,8 +30,9 @@ static llama_model* g_model = nullptr;
 static llama_context* g_ctx = nullptr;
 static mtmd_context* g_ctx_vision = nullptr;
 static std::vector<llama_token> g_last_tokens;
-static std::mutex g_mutex;
+static std::recursive_mutex g_mutex;
 static std::atomic<bool> g_cancel_inference{false};
+static bool g_backend_initialized = false;
 
 // RAII wrapper for llama_batch to ensure automatic freeing
 struct llama_batch_raii {
@@ -120,8 +121,12 @@ Java_com_k7sunny_nexv1_AIManager_stringFromJNI(
 extern "C" JNIEXPORT jboolean JNICALL
 Java_com_k7sunny_nexv1_AIManager_initNative(JNIEnv* env, jclass) {
     try {
-        llama_backend_init();
-        LOG_MODEL("Backend initialized");
+        std::lock_guard<std::recursive_mutex> lock(g_mutex);
+        if (!g_backend_initialized) {
+            llama_backend_init();
+            g_backend_initialized = true;
+            LOG_MODEL("Backend initialized");
+        }
         return JNI_TRUE;
     } catch (const std::exception& e) {
         LOGE("Exception in initNative: %s", e.what());
@@ -135,7 +140,7 @@ Java_com_k7sunny_nexv1_AIManager_initNative(JNIEnv* env, jclass) {
 }
 
 static void free_resources() {
-    std::lock_guard<std::mutex> lock(g_mutex);
+    std::lock_guard<std::recursive_mutex> lock(g_mutex);
     if (g_ctx_vision) {
         mtmd_free(g_ctx_vision);
         g_ctx_vision = nullptr;
@@ -171,7 +176,7 @@ Java_com_k7sunny_nexv1_AIManager_loadModelNative(JNIEnv* env, jclass, jstring mo
         llama_model_params model_params = llama_model_default_params();
         model_params.n_gpu_layers = 0; // CPU only for stability
 
-        std::lock_guard<std::mutex> lock(g_mutex);
+        std::lock_guard<std::recursive_mutex> lock(g_mutex);
         g_model = llama_model_load_from_file(path, model_params);
         env->ReleaseStringUTFChars(model_path, path);
         path = nullptr;
@@ -255,7 +260,7 @@ Java_com_k7sunny_nexv1_AIManager_loadVisionModelNative(
         llama_model_params model_params = llama_model_default_params();
         model_params.n_gpu_layers = 0;
 
-        std::lock_guard<std::mutex> lock(g_mutex);
+        std::lock_guard<std::recursive_mutex> lock(g_mutex);
         g_model = llama_model_load_from_file(m_path, model_params);
         if (!g_model) {
             throw std::runtime_error("llama_model_load_from_file failed for vision model");
@@ -333,7 +338,7 @@ Java_com_k7sunny_nexv1_AIManager_runInferenceNative(
     try {
         g_cancel_inference.store(false);
 
-        std::unique_lock<std::mutex> lock(g_mutex);
+        std::unique_lock<std::recursive_mutex> lock(g_mutex);
         if (!g_model || !g_ctx) {
             return env->NewStringUTF("Error: Model not loaded");
         }
@@ -490,6 +495,7 @@ Java_com_k7sunny_nexv1_AIManager_runInferenceNative(
 
         // Tokens we actually need to decode
         std::vector<llama_token> new_tokens(all_tokens.begin() + n_past, all_tokens.end());
+        bool cache_valid = true;
 
         LOG_INFER("Total tokens: %zu, New to decode: %zu", all_tokens.size(), new_tokens.size());
 
@@ -501,6 +507,7 @@ Java_com_k7sunny_nexv1_AIManager_runInferenceNative(
             for (size_t i = 0; i < new_tokens.size(); i += n_batch) {
                 if (g_cancel_inference.load()) {
                     LOG_INFER("Prompt evaluation cancelled by user");
+                    cache_valid = false;
                     break;
                 }
                 size_t n_eval = std::min((size_t)n_batch, new_tokens.size() - i);
@@ -540,13 +547,13 @@ Java_com_k7sunny_nexv1_AIManager_runInferenceNative(
 
         // Track tokens for next call
         std::vector<llama_token> current_tokens = all_tokens;
-        bool cache_valid = true;
 
         llama_batch_raii run_batch_wrapper(1, 0, 1);
 
         while (n_predict < max_tokens) {
             if (g_cancel_inference.load()) {
                 LOG_INFER("Inference cancelled by user");
+                cache_valid = false;
                 break;
             }
 
@@ -665,7 +672,7 @@ Java_com_k7sunny_nexv1_AIManager_runVisionInferenceNative(
     try {
         g_cancel_inference.store(false);
 
-        std::unique_lock<std::mutex> lock(g_mutex);
+        std::unique_lock<std::recursive_mutex> lock(g_mutex);
         if (!g_model || !g_ctx || !g_ctx_vision) {
             return env->NewStringUTF("Error: Vision model or mmproj projector not loaded");
         }
@@ -932,9 +939,13 @@ Java_com_k7sunny_nexv1_AIManager_runVisionInferenceNative(
 extern "C" JNIEXPORT void JNICALL
 Java_com_k7sunny_nexv1_AIManager_freeNative(JNIEnv* env, jclass) {
     try {
+        std::lock_guard<std::recursive_mutex> lock(g_mutex);
         free_resources();
-        llama_backend_free();
-        LOG_MODEL("Freed all resources");
+        if (g_backend_initialized) {
+            llama_backend_free();
+            g_backend_initialized = false;
+            LOG_MODEL("Freed all resources and backend");
+        }
     } catch (const std::exception& e) {
         LOGE("Exception in freeNative: %s", e.what());
         throw_java_exception(env, (std::string("Native error in freeNative: ") + e.what()).c_str());

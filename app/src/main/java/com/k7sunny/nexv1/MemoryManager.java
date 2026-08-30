@@ -14,8 +14,11 @@ public class MemoryManager {
         NexDatabase db = NexDatabase.getDatabase(context);
         this.memoryDao = db.memoryDao();
 
-        // Migrate legacy SharedPreferences data if present
-        migrateLegacyData(context);
+        // Migrate legacy SharedPreferences data asynchronously if present
+        android.content.SharedPreferences prefs = context.getSharedPreferences("nex_memories", Context.MODE_PRIVATE);
+        if (prefs.contains("memories")) {
+            java.util.concurrent.Executors.newSingleThreadExecutor().execute(() -> migrateLegacyData(context.getApplicationContext()));
+        }
     }
 
     private void migrateLegacyData(Context context) {
