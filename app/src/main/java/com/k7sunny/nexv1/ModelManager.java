@@ -438,11 +438,22 @@ public class ModelManager {
         return true;
     }
 
+    public static boolean isGgufHeaderValid(File file) {
+        if (file == null || !file.exists() || file.length() < 4) return false;
+        try (java.io.FileInputStream fis = new java.io.FileInputStream(file)) {
+            byte[] header = new byte[4];
+            int read = fis.read(header);
+            return read == 4 && header[0] == 'G' && header[1] == 'G' && header[2] == 'U' && header[3] == 'F';
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
     private boolean isValidModelFile(File file, String modelKey) {
-        return isModelFilePresentWithCorrectSize(modelKey) && isModelVerified(modelKey);
+        return isModelFilePresentWithCorrectSize(modelKey) && isGgufHeaderValid(file) && isModelVerified(modelKey);
     }
 
     private boolean isValidMmprojFile(File file, String modelKey) {
-        return isMmprojFilePresentWithCorrectSize(modelKey) && isMmprojVerified(modelKey);
+        return isMmprojFilePresentWithCorrectSize(modelKey) && isGgufHeaderValid(file) && isMmprojVerified(modelKey);
     }
 }

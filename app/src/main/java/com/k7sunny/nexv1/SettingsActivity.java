@@ -203,7 +203,7 @@ public class SettingsActivity extends AppCompatActivity {
     private void selectModel(String modelKey) {
         long activeId = preferenceManager.getActiveDownloadId();
         if (activeId != -1) {
-            // Toast.makeText(this, "Cannot change model while download is in progress.", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Cannot change model while download is in progress.", Toast.LENGTH_SHORT).show();
             return;
         }
 
@@ -215,7 +215,7 @@ public class SettingsActivity extends AppCompatActivity {
     private void confirmDeleteModel(ModelItem item) {
         long activeId = preferenceManager.getActiveDownloadId();
         if (activeId != -1) {
-            // Toast.makeText(this, "Cannot delete while a download is in progress.", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Cannot delete while a download is in progress.", Toast.LENGTH_SHORT).show();
             return;
         }
 
@@ -434,21 +434,21 @@ public class SettingsActivity extends AppCompatActivity {
 
             DownloadManager dm = (DownloadManager) getSystemService(Context.DOWNLOAD_SERVICE);
             DownloadManager.Query query = new DownloadManager.Query().setFilterById(id);
-            Cursor cursor = dm.query(query);
-
             boolean success = false;
             int reason = -1;
-            if (cursor != null && cursor.moveToFirst()) {
-                int statusCol = cursor.getColumnIndex(DownloadManager.COLUMN_STATUS);
-                int reasonCol = cursor.getColumnIndex(DownloadManager.COLUMN_REASON);
-                if (statusCol != -1) {
-                    int status = cursor.getInt(statusCol);
-                    success = (status == DownloadManager.STATUS_SUCCESSFUL);
+
+            try (Cursor cursor = dm.query(query)) {
+                if (cursor != null && cursor.moveToFirst()) {
+                    int statusCol = cursor.getColumnIndex(DownloadManager.COLUMN_STATUS);
+                    int reasonCol = cursor.getColumnIndex(DownloadManager.COLUMN_REASON);
+                    if (statusCol != -1) {
+                        int status = cursor.getInt(statusCol);
+                        success = (status == DownloadManager.STATUS_SUCCESSFUL);
+                    }
+                    if (reasonCol != -1) {
+                        reason = cursor.getInt(reasonCol);
+                    }
                 }
-                if (reasonCol != -1) {
-                    reason = cursor.getInt(reasonCol);
-                }
-                cursor.close();
             }
 
             currentDownloadId = -1;

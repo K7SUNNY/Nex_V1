@@ -468,7 +468,6 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     }
 
     private void renderMessageBlocks(AiViewHolder holder, String text) {
-        holder.messageContainer.removeAllViews();
         holder.messageContainer.setVisibility(View.VISIBLE);
 
         View.OnLongClickListener blockLongClick = v -> {
@@ -486,6 +485,46 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 
         List<MessageBlock> blocks = parseBlocks(text);
         float density = holder.itemView.getContext().getResources().getDisplayMetrics().density;
+
+        int currentChildCount = holder.messageContainer.getChildCount();
+        boolean canReuse = (currentChildCount == blocks.size());
+        if (canReuse) {
+            for (int i = 0; i < blocks.size(); i++) {
+                View child = holder.messageContainer.getChildAt(i);
+                MessageBlock block = blocks.get(i);
+                if (block.type == MessageBlock.TYPE_TEXT && !(child instanceof TextView)) {
+                    canReuse = false;
+                    break;
+                } else if (block.type == MessageBlock.TYPE_CODE && (child instanceof TextView || child.findViewById(R.id.tvCode) == null)) {
+                    canReuse = false;
+                    break;
+                }
+            }
+        }
+
+        if (canReuse) {
+            // Fast in-place update without view recreation / inflation
+            for (int i = 0; i < blocks.size(); i++) {
+                View child = holder.messageContainer.getChildAt(i);
+                MessageBlock block = blocks.get(i);
+                if (block.type == MessageBlock.TYPE_TEXT) {
+                    TextView tv = (TextView) child;
+                    markwon.setMarkdown(tv, block.content);
+                } else if (block.type == MessageBlock.TYPE_CODE) {
+                    TextView tvLanguage = child.findViewById(R.id.tvLanguage);
+                    TextView tvCode = child.findViewById(R.id.tvCode);
+                    if (tvLanguage != null) {
+                        tvLanguage.setText(block.language.toUpperCase(java.util.Locale.US));
+                    }
+                    if (tvCode != null) {
+                        tvCode.setText(SyntaxHighlighter.formatCode(block.content, block.language));
+                    }
+                }
+            }
+            return;
+        }
+
+        holder.messageContainer.removeAllViews();
         for (MessageBlock block : blocks) {
             if (block.type == MessageBlock.TYPE_TEXT) {
                 TextView tv = new TextView(holder.itemView.getContext());
@@ -510,23 +549,31 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
                 View btnCopyCode = codeBlockView.findViewById(R.id.btnCopyCode);
                 TextView tvCopyStatus = codeBlockView.findViewById(R.id.tvCopyStatus);
 
-                tvLanguage.setText(block.language.toUpperCase());
-                tvCode.setText(SyntaxHighlighter.formatCode(block.content, block.language));
+                if (tvLanguage != null) {
+                    tvLanguage.setText(block.language.toUpperCase(java.util.Locale.US));
+                }
+                if (tvCode != null) {
+                    tvCode.setText(SyntaxHighlighter.formatCode(block.content, block.language));
+                }
 
-                btnCopyCode.setOnClickListener(v -> {
-                    triggerHaptic(v, android.view.HapticFeedbackConstants.KEYBOARD_TAP);
-                    ClipboardManager clipboard = (ClipboardManager) v.getContext().getSystemService(Context.CLIPBOARD_SERVICE);
-                    ClipData clip = ClipData.newPlainText("Code block", block.content);
-                    if (clipboard != null) {
-                        clipboard.setPrimaryClip(clip);
-                        tvCopyStatus.setText("Copied!");
-                        v.postDelayed(() -> {
+                if (btnCopyCode != null) {
+                    btnCopyCode.setOnClickListener(v -> {
+                        triggerHaptic(v, android.view.HapticFeedbackConstants.KEYBOARD_TAP);
+                        ClipboardManager clipboard = (ClipboardManager) v.getContext().getSystemService(Context.CLIPBOARD_SERVICE);
+                        ClipData clip = ClipData.newPlainText("Code block", block.content);
+                        if (clipboard != null) {
+                            clipboard.setPrimaryClip(clip);
                             if (tvCopyStatus != null) {
-                                tvCopyStatus.setText("Copy code");
+                                tvCopyStatus.setText("Copied!");
                             }
-                        }, 2000);
-                    }
-                });
+                            v.postDelayed(() -> {
+                                if (tvCopyStatus != null) {
+                                    tvCopyStatus.setText("Copy code");
+                                }
+                            }, 2000);
+                        }
+                    });
+                }
 
                 codeBlockView.setOnLongClickListener(blockLongClick);
                 holder.messageContainer.addView(codeBlockView);

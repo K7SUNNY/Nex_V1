@@ -23,6 +23,8 @@ public class AIManager {
     // `false` silently skips title generation after the model has loaded.
     private volatile boolean isModelLoaded = false;
     private volatile boolean isVisionModel = false;
+    private volatile String currentLoadedModelPath = null;
+    private volatile String currentLoadedMmprojPath = null;
     private final java.util.List<Message> chatHistory = java.util.Collections.synchronizedList(new java.util.ArrayList<>());
     private static final int MAX_HISTORY = 12; // Keep last 6 rounds of chat
     private volatile String systemPrompt = "";
@@ -86,7 +88,15 @@ public class AIManager {
             return;
         }
 
+        if (isModelLoaded && !isVisionModel && modelPath.equals(currentLoadedModelPath)) {
+            Log.d(TAG_MODEL, "Text model is already loaded and active: " + modelPath + ", skipping reload.");
+            return;
+        }
+
         executorService.execute(() -> {
+            if (isModelLoaded && !isVisionModel && modelPath.equals(currentLoadedModelPath)) {
+                return;
+            }
             Log.d(TAG_MODEL, "Loading text model from: " + modelPath);
             isVisionModel = false;
             long modelPtr = 0;
@@ -98,9 +108,12 @@ public class AIManager {
 
             if (modelPtr != 0) {
                 isModelLoaded = true;
+                currentLoadedModelPath = modelPath;
+                currentLoadedMmprojPath = null;
                 Log.d(TAG_MODEL, "Model loaded successfully");
             } else {
                 isModelLoaded = false;
+                currentLoadedModelPath = null;
                 Log.e(TAG_MODEL, "Failed to load model");
             }
         });
@@ -112,7 +125,15 @@ public class AIManager {
             return;
         }
 
+        if (isModelLoaded && isVisionModel && modelPath.equals(currentLoadedModelPath) && mmprojPath.equals(currentLoadedMmprojPath)) {
+            Log.d(TAG_MODEL, "Vision model is already loaded and active, skipping reload.");
+            return;
+        }
+
         executorService.execute(() -> {
+            if (isModelLoaded && isVisionModel && modelPath.equals(currentLoadedModelPath) && mmprojPath.equals(currentLoadedMmprojPath)) {
+                return;
+            }
             Log.d(TAG_MODEL, "Loading vision model from: " + modelPath + ", mmproj: " + mmprojPath);
             isVisionModel = true;
             long modelPtr = 0;
@@ -124,9 +145,13 @@ public class AIManager {
 
             if (modelPtr != 0) {
                 isModelLoaded = true;
+                currentLoadedModelPath = modelPath;
+                currentLoadedMmprojPath = mmprojPath;
                 Log.d(TAG_MODEL, "Nex Vision model loaded successfully");
             } else {
                 isModelLoaded = false;
+                currentLoadedModelPath = null;
+                currentLoadedMmprojPath = null;
                 Log.e(TAG_MODEL, "Failed to load Nex Vision model");
             }
         });
@@ -525,6 +550,8 @@ public class AIManager {
                     Log.e(TAG_MODEL, "freeNative threw exception", e);
                 }
                 isModelLoaded = false;
+                currentLoadedModelPath = null;
+                currentLoadedMmprojPath = null;
             }
         });
         executorService.shutdown();

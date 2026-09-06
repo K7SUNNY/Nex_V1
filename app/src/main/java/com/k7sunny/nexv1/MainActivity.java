@@ -427,10 +427,10 @@ public class MainActivity extends AppCompatActivity {
                 ContextCompat.RECEIVER_EXPORTED);
 
         btnDownloadModel.setOnClickListener(v -> {
-            if (currentDownloadId == -1) {
+            if (currentDownloadId == -1 && (preferenceManager == null || preferenceManager.getActiveDownloadId() == -1)) {
                 startModelDownload();
             } else {
-                // Toast.makeText(this, "Download already in progress", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Download already in progress", Toast.LENGTH_SHORT).show();
             }
         });
 
@@ -473,21 +473,21 @@ public class MainActivity extends AppCompatActivity {
             // Read the final download status.
             DownloadManager dm = (DownloadManager) getSystemService(Context.DOWNLOAD_SERVICE);
             DownloadManager.Query query = new DownloadManager.Query().setFilterById(id);
-            Cursor cursor = dm.query(query);
 
             boolean success = false;
             int reason = -1;
-            if (cursor != null && cursor.moveToFirst()) {
-                int statusCol = cursor.getColumnIndex(DownloadManager.COLUMN_STATUS);
-                int reasonCol = cursor.getColumnIndex(DownloadManager.COLUMN_REASON);
-                if (statusCol != -1) {
-                    int status = cursor.getInt(statusCol);
-                    success = (status == DownloadManager.STATUS_SUCCESSFUL);
+            try (Cursor cursor = dm.query(query)) {
+                if (cursor != null && cursor.moveToFirst()) {
+                    int statusCol = cursor.getColumnIndex(DownloadManager.COLUMN_STATUS);
+                    int reasonCol = cursor.getColumnIndex(DownloadManager.COLUMN_REASON);
+                    if (statusCol != -1) {
+                        int status = cursor.getInt(statusCol);
+                        success = (status == DownloadManager.STATUS_SUCCESSFUL);
+                    }
+                    if (reasonCol != -1) {
+                        reason = cursor.getInt(reasonCol);
+                    }
                 }
-                if (reasonCol != -1) {
-                    reason = cursor.getInt(reasonCol);
-                }
-                cursor.close();
             }
 
             // Clear the active download ID in either case.
@@ -521,51 +521,50 @@ public class MainActivity extends AppCompatActivity {
                 DownloadManager dm = (DownloadManager) getSystemService(Context.DOWNLOAD_SERVICE);
                 DownloadManager.Query query = new DownloadManager.Query()
                         .setFilterById(currentDownloadId);
-                Cursor cursor = dm.query(query);
 
-                if (cursor != null && cursor.moveToFirst()) {
-                    int bytesDownloadedCol = cursor.getColumnIndex(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR);
-                    int bytesTotalCol = cursor.getColumnIndex(DownloadManager.COLUMN_TOTAL_SIZE_BYTES);
-                    int statusCol = cursor.getColumnIndex(DownloadManager.COLUMN_STATUS);
+                try (Cursor cursor = dm.query(query)) {
+                    if (cursor != null && cursor.moveToFirst()) {
+                        int bytesDownloadedCol = cursor.getColumnIndex(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR);
+                        int bytesTotalCol = cursor.getColumnIndex(DownloadManager.COLUMN_TOTAL_SIZE_BYTES);
+                        int statusCol = cursor.getColumnIndex(DownloadManager.COLUMN_STATUS);
 
-                    if (bytesDownloadedCol != -1 && bytesTotalCol != -1 && statusCol != -1) {
-                        long downloaded = cursor.getLong(bytesDownloadedCol);
-                        long total = cursor.getLong(bytesTotalCol);
-                        int status = cursor.getInt(statusCol);
+                        if (bytesDownloadedCol != -1 && bytesTotalCol != -1 && statusCol != -1) {
+                            long downloaded = cursor.getLong(bytesDownloadedCol);
+                            long total = cursor.getLong(bytesTotalCol);
+                            int status = cursor.getInt(statusCol);
 
-                        if (status == DownloadManager.STATUS_FAILED) {
-                            int reasonCol = cursor.getColumnIndex(DownloadManager.COLUMN_REASON);
-                            int reason = -1;
-                            if (reasonCol != -1) {
-                                reason = cursor.getInt(reasonCol);
+                            if (status == DownloadManager.STATUS_FAILED) {
+                                int reasonCol = cursor.getColumnIndex(DownloadManager.COLUMN_REASON);
+                                int reason = -1;
+                                if (reasonCol != -1) {
+                                    reason = cursor.getInt(reasonCol);
+                                }
+                                stopProgressPolling();
+                                currentDownloadId = -1;
+                                preferenceManager.setActiveDownloadId(-1);
+                                setDownloadIdleState("Download failed (reason: " + reason + "). Tap to retry.");
+                                return;
                             }
-                            cursor.close();
-                            stopProgressPolling();
-                            currentDownloadId = -1;
-                            preferenceManager.setActiveDownloadId(-1);
-                            setDownloadIdleState("Download failed (reason: " + reason + "). Tap to retry.");
-                            return;
-                        }
 
-                        if (total > 0) {
-                            // Update determinate progress when total size is known.
-                            int percent = (int) ((downloaded * 100L) / total);
-                            downloadProgress.setIndeterminate(false);
-                            downloadProgress.setMax(100);
-                            downloadProgress.setProgress(percent);
+                            if (total > 0) {
+                                // Update determinate progress when total size is known.
+                                int percent = (int) ((downloaded * 100L) / total);
+                                downloadProgress.setIndeterminate(false);
+                                downloadProgress.setMax(100);
+                                downloadProgress.setProgress(percent);
 
-                            // Show progress in MB for readability.
-                            long downloadedMB = downloaded / (1024 * 1024);
-                            long totalMB = total / (1024 * 1024);
-                            downloadStatusText.setText(
-                                    "Downloading... " + downloadedMB + " MB / " + totalMB + " MB (" + percent + "%)");
-                        } else {
-                            // Keep indeterminate mode when total size is unknown.
-                            downloadProgress.setIndeterminate(true);
-                            downloadStatusText.setText("Downloading model... Please wait.");
+                                // Show progress in MB for readability.
+                                long downloadedMB = downloaded / (1024 * 1024);
+                                long totalMB = total / (1024 * 1024);
+                                downloadStatusText.setText(
+                                        "Downloading... " + downloadedMB + " MB / " + totalMB + " MB (" + percent + "%)");
+                            } else {
+                                // Keep indeterminate mode when total size is unknown.
+                                downloadProgress.setIndeterminate(true);
+                                downloadStatusText.setText("Downloading model... Please wait.");
+                            }
                         }
                     }
-                    cursor.close();
                 }
 
                 // Queue the next progress check.
@@ -603,6 +602,11 @@ public class MainActivity extends AppCompatActivity {
             }
         } else if (modelManager.isModelFilePresentWithCorrectSize(modelKey) && !modelManager.isModelVerified(modelKey)) {
             verifyModelInBackground();
+        } else if (currentDownloadId != -1 || preferenceManager.getActiveDownloadId() != -1) {
+            downloadModelCard.setVisibility(View.VISIBLE);
+            downloadProgress.setVisibility(View.VISIBLE);
+            btnDownloadModel.setEnabled(false);
+            btnDownloadModel.setText("Downloading...");
         } else if ("vision".equals(modelKey) && modelManager.isModelFilePresentWithCorrectSize("vision") && modelManager.isModelVerified("vision")) {
             downloadModelCard.setVisibility(View.VISIBLE);
             downloadProgress.setVisibility(View.GONE);
@@ -643,6 +647,7 @@ public class MainActivity extends AppCompatActivity {
 
     private void startModelDownload() {
         btnDownloadModel.setEnabled(false);
+        btnDownloadModel.setText("Downloading...");
         downloadProgress.setVisibility(View.VISIBLE);
         downloadProgress.setIndeterminate(true); // Stay indeterminate until total size is available.
         downloadStatusText.setText("Starting download...");
@@ -676,6 +681,12 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void showModelSelection() {
+        long activeId = preferenceManager.getActiveDownloadId();
+        if (activeId != -1 || currentDownloadId != -1) {
+            Toast.makeText(this, "Cannot change model while a download is in progress.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
         BottomSheetDialog dialog = new BottomSheetDialog(this);
         View view = getLayoutInflater().inflate(R.layout.bottom_sheet_model_selection, null);
         dialog.setContentView(view);
@@ -691,6 +702,12 @@ public class MainActivity extends AppCompatActivity {
 
         final ModelAdapter[] adapterHolder = new ModelAdapter[1];
         adapterHolder[0] = new ModelAdapter(modelItems, preferenceManager.getSelectedModel(), item -> {
+            long currentActiveId = preferenceManager.getActiveDownloadId();
+            if (currentActiveId != -1 || currentDownloadId != -1) {
+                Toast.makeText(this, "Cannot change model while a download is in progress.", Toast.LENGTH_SHORT).show();
+                dialog.dismiss();
+                return;
+            }
             preferenceManager.setSelectedModel(item.getKey());
             if (aiManager != null) {
                 aiManager.setSystemPrompt(preferenceManager.getSystemPersona());
@@ -699,9 +716,9 @@ public class MainActivity extends AppCompatActivity {
             checkModelStatus();
             dialog.dismiss();
         }, modelManager, item -> {
-            long activeId = preferenceManager.getActiveDownloadId();
-            if (activeId != -1) {
-                // Toast.makeText(this, "Cannot delete while a download is in progress.", Toast.LENGTH_SHORT).show();
+            long currentActiveId = preferenceManager.getActiveDownloadId();
+            if (currentActiveId != -1 || currentDownloadId != -1) {
+                Toast.makeText(this, "Cannot delete while a download is in progress.", Toast.LENGTH_SHORT).show();
                 return;
             }
             new androidx.appcompat.app.AlertDialog.Builder(this)
@@ -813,8 +830,13 @@ public class MainActivity extends AppCompatActivity {
 
     /** Resets the download card to idle/error state without hiding it. */
     private void setDownloadIdleState(String statusMessage) {
+        String modelKey = preferenceManager != null ? preferenceManager.getSelectedModel() : "";
         btnDownloadModel.setEnabled(true);
-        btnDownloadModel.setText("Download Model");
+        if ("vision".equals(modelKey) && modelManager.isModelFilePresentWithCorrectSize("vision") && modelManager.isModelVerified("vision")) {
+            btnDownloadModel.setText("Download Projector");
+        } else {
+            btnDownloadModel.setText("Download Model");
+        }
         downloadProgress.setVisibility(View.GONE);
         downloadStatusText.setText(statusMessage);
     }
@@ -1072,24 +1094,36 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void handleSelectedDocument(Uri uri) {
-        DocumentHelper.DocumentInfo info = DocumentHelper.parseDocument(this, uri);
-        if (info != null && info.content != null && !info.content.trim().isEmpty()) {
-            attachedDocName = info.name;
-            attachedDocText = info.content;
-            attachedDocRenderedImage = info.renderedImagePath;
-
-            if (tvDocName != null) {
-                String label = info.name + (info.size.isEmpty() ? "" : " • " + info.size);
-                tvDocName.setText(label);
-            }
-            if (layoutDocumentPreview != null) {
-                layoutDocumentPreview.setVisibility(View.VISIBLE);
-            }
-            clearSelectedImage(); // keep either image or document
-            // Toast.makeText(this, "Document attached: " + info.name, Toast.LENGTH_SHORT).show();
-        } else {
-            // Toast.makeText(this, "Could not extract text from document", Toast.LENGTH_SHORT).show();
+        if (uri == null) return;
+        if (tvDocName != null) {
+            tvDocName.setText("Reading document...");
         }
+        if (layoutDocumentPreview != null) {
+            layoutDocumentPreview.setVisibility(View.VISIBLE);
+        }
+        clearSelectedImage(); // keep either image or document
+
+        dbExecutor.execute(() -> {
+            DocumentHelper.DocumentInfo info = DocumentHelper.parseDocument(MainActivity.this, uri);
+            runOnUiThread(() -> {
+                if (isFinishing() || isDestroyed()) return;
+                if (info != null && info.content != null && !info.content.trim().isEmpty()) {
+                    attachedDocName = info.name;
+                    attachedDocText = info.content;
+                    attachedDocRenderedImage = info.renderedImagePath;
+
+                    if (tvDocName != null) {
+                        String label = info.name + (info.size.isEmpty() ? "" : " • " + info.size);
+                        tvDocName.setText(label);
+                    }
+                    if (layoutDocumentPreview != null) {
+                        layoutDocumentPreview.setVisibility(View.VISIBLE);
+                    }
+                } else {
+                    clearSelectedDocument();
+                }
+            });
+        });
     }
 
     private void clearSelectedDocument() {
@@ -1190,10 +1224,13 @@ public class MainActivity extends AppCompatActivity {
             }
             // Auto switch to vision model if currently on a text-only model
             if (!modelManager.isVisionModel()) {
-                preferenceManager.setSelectedModel(ModelManager.MODEL_VISION);
-                updateModelSelectorButton();
-                checkModelStatus();
-                // Toast.makeText(this, "Switched to Nex Vision for image analysis", Toast.LENGTH_SHORT).show();
+                long activeId = preferenceManager != null ? preferenceManager.getActiveDownloadId() : -1;
+                if (activeId == -1 && currentDownloadId == -1) {
+                    preferenceManager.setSelectedModel(ModelManager.MODEL_VISION);
+                    updateModelSelectorButton();
+                    checkModelStatus();
+                    // Toast.makeText(this, "Switched to Nex Vision for image analysis", Toast.LENGTH_SHORT).show();
+                }
             }
         } catch (Exception e) {
             Log.e(TAG, "Failed to cache selected image", e);
@@ -1686,15 +1723,18 @@ public class MainActivity extends AppCompatActivity {
         // 1. Skip questions (ending with ?)
         if (clean.endsWith("?")) return false;
 
-        // 2. Skip common question words at the start of sentences
-        String lower = clean.toLowerCase();
-        String[] questionStarters = {
-            "what", "why", "how", "who", "where", "when", 
+        // 2. Skip common question words & imperative command starters
+        String lower = clean.toLowerCase(java.util.Locale.US);
+        String[] skipStarters = {
+            "what", "why", "how", "who", "where", "when", "which",
             "do", "does", "did", "is", "are", "was", "were", 
-            "can", "could", "should", "would", "will", "tell me about",
-            "explain", "show me"
+            "can", "could", "should", "would", "will", "tell me",
+            "explain", "show me", "write", "compose", "generate",
+            "summarize", "translate", "code", "create", "list",
+            "draft", "fix", "debug", "review", "convert", "calculate",
+            "solve", "help me", "give me", "find", "search"
         };
-        for (String starter : questionStarters) {
+        for (String starter : skipStarters) {
             if (lower.startsWith(starter + " ") || lower.startsWith(starter + "'")) {
                 return false;
             }

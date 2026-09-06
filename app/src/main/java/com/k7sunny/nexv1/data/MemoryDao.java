@@ -37,7 +37,8 @@ public abstract class MemoryDao {
 
         if (newMemories != null) {
             for (MemoryEntity newMem : newMemories) {
-                String key = newMem.content.toLowerCase().trim();
+                if (newMem == null) continue;
+                String key = newMem.content != null ? newMem.content.toLowerCase().trim() : "";
                 MemoryEntity match = existingMap.get(key);
                 if (match != null) {
                     // Row matches existing. Update fields if they changed.
@@ -45,7 +46,7 @@ public abstract class MemoryDao {
                     newMem.id = match.id;
                     idsToKeep.add(match.id);
                     
-                    if (!match.title.equals(newMem.title) || 
+                    if (!java.util.Objects.equals(match.title, newMem.title) || 
                         match.isPinned != newMem.isPinned || 
                         match.position != newMem.position) {
                         updates.add(newMem);
