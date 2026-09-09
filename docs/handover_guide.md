@@ -40,7 +40,7 @@ The app supports 4 distinct model options:
 | :--- | :--- | :--- | :--- |
 | `fast` | **Nex Fast** | `qwen2.5-0.5b-instruct-q4_k_m.gguf` | *None* |
 | `pro` | **Nex Pro** | `qwen2.5-1.5b-instruct-q4_k_m.gguf` | *None* |
-| `ultra` | **Nex Ultra** | `qwen2.5-3b-instruct-q4_k_m.gguf` | *None* |
+| `ultra` | **Nex Ultra** | `llama-3.2-3b-instruct-q4_k_m.gguf` | *None* |
 | `vision` | **Nex Vision** | `Qwen2.5-VL-3B-Instruct-Q4_K_M.gguf` | `mmproj-Qwen2.5-VL-3B-Instruct-f16.gguf` |
 
 ### Automatic & Manual Provisioning

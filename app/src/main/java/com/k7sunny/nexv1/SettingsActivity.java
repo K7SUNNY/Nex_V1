@@ -80,11 +80,7 @@ public class SettingsActivity extends AppCompatActivity {
         RecyclerView recyclerModels = findViewById(R.id.recycler_settings_models);
         recyclerModels.setLayoutManager(new androidx.recyclerview.widget.LinearLayoutManager(this));
 
-        List<ModelItem> modelItems = new java.util.ArrayList<>();
-        modelItems.add(new ModelItem("fast", "Nex Fast", "~450MB", "Optimized for speed and efficiency.", R.drawable.ic_bolt));
-        modelItems.add(new ModelItem("pro", "Nex Pro", "~1.1GB", "Smart and conversational model.", R.drawable.app_icon));
-        modelItems.add(new ModelItem("ultra", "Nex Ultra", "~2.0GB", "Deep reasoning and advanced coding.", R.drawable.ic_persona));
-        modelItems.add(new ModelItem("vision", "Nex Vision", "~2.7GB", "Offline image analysis, vision & OCR.", R.drawable.ic_vision, "VISION"));
+        List<ModelItem> modelItems = modelManager.getAvailableModels();
 
         modelAdapter = new ModelAdapter(modelItems, preferenceManager.getSelectedModel(), item -> {
             selectModel(item.getKey());
@@ -256,7 +252,7 @@ public class SettingsActivity extends AppCompatActivity {
             btnActionDownload.setEnabled(true);
             btnActionDownload.setText("Download");
 
-            String sizeStr = "fast".equals(currentModel) ? "~450MB" : ("pro".equals(currentModel) ? "~1.1GB" : ("ultra".equals(currentModel) ? "~2.0GB" : "~2.7GB"));
+            String sizeStr = modelManager.getModelSize(currentModel);
             
             if (modelManager.isModelFileCorrupted()) {
                 tvDownloadTitle.setText("Corrupted Model Detected");

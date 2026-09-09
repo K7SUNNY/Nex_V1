@@ -23,7 +23,7 @@ The goal is to create a fast, private, and controllable AI assistant that actual
 - **4 Model Choices:**
   - **Nex Fast:** Qwen2.5-0.5B (ultra-fast, instant streaming).
   - **Nex Pro:** Qwen2.5-1.5B (balanced reasoning and speed).
-  - **Nex Ultra:** Qwen2.5-3B (deep reasoning and complex planning).
+  - **Nex Ultra:** Llama-3.2-3B (deep reasoning and advanced coding).
   - **Nex Vision:** Qwen2.5-VL-3B (multimodal text + vision).
 - **Intelligent Memory System:** Automatically extracts, sanitizes, and stores personal facts and plans to personalize future interactions.
 - **Smart Context Management:** Optimized token-based KV cache reuse for lightning-fast multi-turn conversations.
@@ -44,7 +44,7 @@ The goal is to create a fast, private, and controllable AI assistant that actual
 - **Thread-Safe Architecture:** Mutex synchronization across JNI operations prevents race conditions during concurrent inference and cancellations.
 
 ### Models
-- **Text Models:** Qwen2.5-0.5B, 1.5B, 3B Instruct (GGUF, Q4_K_M).
+- **Text Models:** Qwen2.5-0.5B, Qwen2.5-1.5B, Llama-3.2-3B Instruct (GGUF, Q4_K_M).
 - **Vision Model:** Qwen2.5-VL-3B-Instruct (GGUF, Q4_K_M) paired with `mmproj-Qwen2.5-VL-3B-Instruct-f16.gguf` projector.
 
 ---

@@ -329,27 +329,39 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             }
         }
 
-        if (holder.tvAiModelLabel != null) {
-            String mName = message.getModelName();
-            if (mName != null && !mName.trim().isEmpty()) {
-                holder.tvAiModelLabel.setText(mName.toUpperCase(java.util.Locale.US));
-            } else {
-                holder.tvAiModelLabel.setText(R.string.nex_ai_label);
-            }
-        }
-
+        bindAiModelDisplay(holder, message);
         bindAiClickListeners(holder, message);
     }
 
-    private void bindAiHolder(AiViewHolder holder, Message message, int position) {
+    private void bindAiModelDisplay(AiViewHolder holder, Message message) {
+        String mName = message.getModelName();
         if (holder.tvAiModelLabel != null) {
-            String mName = message.getModelName();
             if (mName != null && !mName.trim().isEmpty()) {
                 holder.tvAiModelLabel.setText(mName.toUpperCase(java.util.Locale.US));
             } else {
                 holder.tvAiModelLabel.setText(R.string.nex_ai_label);
             }
         }
+        if (holder.aiAvatar != null) {
+            if (mName != null) {
+                String mLower = mName.toLowerCase(java.util.Locale.US);
+                if (mLower.contains("vision")) {
+                    holder.aiAvatar.setImageResource(R.drawable.ic_vision);
+                } else if (mLower.contains("ultra")) {
+                    holder.aiAvatar.setImageResource(R.drawable.ic_persona);
+                } else if (mLower.contains("pro")) {
+                    holder.aiAvatar.setImageResource(R.drawable.app_icon);
+                } else {
+                    holder.aiAvatar.setImageResource(R.drawable.ic_bolt);
+                }
+            } else {
+                holder.aiAvatar.setImageResource(R.drawable.ic_bolt);
+            }
+        }
+    }
+
+    private void bindAiHolder(AiViewHolder holder, Message message, int position) {
+        bindAiModelDisplay(holder, message);
 
         if (message.getType() == Message.TYPE_TYPING) {
             if (holder.messageText != null) {
@@ -737,6 +749,7 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     }
 
     static class AiViewHolder extends RecyclerView.ViewHolder {
+        ImageView aiAvatar;
         TextView tvAiModelLabel;
         TextView messageText;
         LinearLayout messageContainer;
@@ -754,6 +767,7 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 
         AiViewHolder(View itemView) {
             super(itemView);
+            aiAvatar = itemView.findViewById(R.id.aiAvatar);
             tvAiModelLabel = itemView.findViewById(R.id.tvAiModelLabel);
             messageText = itemView.findViewById(R.id.messageText);
             messageContainer = itemView.findViewById(R.id.messageContainer);

@@ -443,19 +443,8 @@ public class MainActivity extends AppCompatActivity {
         MaterialButton modelSelector = findViewById(R.id.modelSelector);
         if (modelSelector != null) {
             String model = preferenceManager.getSelectedModel();
-            if ("pro".equals(model)) {
-                modelSelector.setText("Nex Pro");
-                modelSelector.setIconResource(R.drawable.app_icon);
-            } else if ("ultra".equals(model)) {
-                modelSelector.setText("Nex Ultra");
-                modelSelector.setIconResource(R.drawable.ic_persona);
-            } else if ("vision".equals(model)) {
-                modelSelector.setText("Nex Vision");
-                modelSelector.setIconResource(R.drawable.ic_vision);
-            } else {
-                modelSelector.setText(R.string.nex_fast);
-                modelSelector.setIconResource(R.drawable.ic_bolt);
-            }
+            modelSelector.setText(modelManager.getModelDisplayName(model));
+            modelSelector.setIconResource(modelManager.getModelIconRes(model));
         }
     }
 
@@ -694,11 +683,7 @@ public class MainActivity extends AppCompatActivity {
         androidx.recyclerview.widget.RecyclerView recycler = view.findViewById(R.id.recycler_model_selection);
         recycler.setLayoutManager(new androidx.recyclerview.widget.LinearLayoutManager(this));
 
-        List<ModelItem> modelItems = new java.util.ArrayList<>();
-        modelItems.add(new ModelItem("fast", "Nex Fast", "~450MB", "Optimized for speed and efficiency.", R.drawable.ic_bolt));
-        modelItems.add(new ModelItem("pro", "Nex Pro", "~1.1GB", "Smart and conversational model.", R.drawable.app_icon));
-        modelItems.add(new ModelItem("ultra", "Nex Ultra", "~2.0GB", "Deep reasoning and advanced coding.", R.drawable.ic_persona));
-        modelItems.add(new ModelItem("vision", "Nex Vision", "~2.7GB", "Offline image analysis, vision & OCR.", R.drawable.ic_vision, "VISION"));
+        List<ModelItem> modelItems = modelManager.getAvailableModels();
 
         final ModelAdapter[] adapterHolder = new ModelAdapter[1];
         adapterHolder[0] = new ModelAdapter(modelItems, preferenceManager.getSelectedModel(), item -> {

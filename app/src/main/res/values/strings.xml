@@ -33,9 +33,12 @@
     <string name="delete_memory">Delete memory</string>
     <string name="select_model">SELECT MODEL</string>
     <string name="nex_fast_desc">Optimized for speed and efficiency.</string>
-    <string name="nex_pro_desc">Smart and conversational model (~1.1GB).</string>
+    <string name="nex_pro">Nex Pro</string>
+    <string name="nex_pro_desc">Smart and conversational model.</string>
     <string name="nex_ultra">Nex Ultra</string>
-    <string name="nex_ultra_desc">Deep reasoning and advanced coding (~2.0GB).</string>
+    <string name="nex_ultra_desc">Deep reasoning and advanced coding.</string>
+    <string name="nex_vision">Nex Vision</string>
+    <string name="nex_vision_desc">Offline image analysis, vision &amp; OCR.</string>
     <string name="menu_options">Options</string>
     <string name="edit">Edit</string>
     <string name="delete">Delete</string>
