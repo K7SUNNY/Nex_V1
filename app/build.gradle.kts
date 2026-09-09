@@ -22,8 +22,8 @@ abstract class GitVersionValueSource : ValueSource<String, ValueSourceParameters
                 return getFallbackVersion()
             }
 
-            val commitMsg = runCommand(listOf("git", "log", "--grep=Stage [0-9]\\+", "-n", "1", "--pretty=format:%s"))
-            val commitHash = runCommand(listOf("git", "log", "--grep=Stage [0-9]\\+", "-n", "1", "--pretty=format:%H"))
+            val commitMsg = runCommand(listOf("git", "log", "--grep=Stage", "-n", "1", "--pretty=format:%s"))
+            val commitHash = runCommand(listOf("git", "log", "--grep=Stage", "-n", "1", "--pretty=format:%H"))
 
             val minor: String
             val patch: String
@@ -32,10 +32,30 @@ abstract class GitVersionValueSource : ValueSource<String, ValueSourceParameters
                 minor = "0"
                 patch = runCommand(listOf("git", "rev-list", "HEAD", "--count"))
             } else {
-                val regex = Regex("\\bStage\\s+(\\d+)\\b")
-                val match = regex.find(commitMsg)
-                minor = match?.groupValues?.get(1) ?: "0"
-                patch = runCommand(listOf("git", "rev-list", "${commitHash.trim()}..HEAD", "--count"))
+                val version3Regex = Regex("\\bStage\\s+1\\.(\\d+)\\.(\\d+)\\b", RegexOption.IGNORE_CASE)
+                val version2Regex = Regex("\\bStage\\s+1\\.(\\d+)\\b", RegexOption.IGNORE_CASE)
+                val stageNumRegex = Regex("\\bStage\\s+(\\d+)\\b", RegexOption.IGNORE_CASE)
+
+                val commitsSince = runCommand(listOf("git", "rev-list", "${commitHash.trim()}..HEAD", "--count")).toIntOrNull() ?: 0
+
+                val v3Match = version3Regex.find(commitMsg)
+                val v2Match = version2Regex.find(commitMsg)
+                val numMatch = stageNumRegex.find(commitMsg)
+
+                if (v3Match != null) {
+                    minor = v3Match.groupValues[1]
+                    val basePatch = v3Match.groupValues[2].toIntOrNull() ?: 0
+                    patch = (basePatch + commitsSince).toString()
+                } else if (v2Match != null) {
+                    minor = v2Match.groupValues[1]
+                    patch = commitsSince.toString()
+                } else if (numMatch != null) {
+                    minor = numMatch.groupValues[1]
+                    patch = commitsSince.toString()
+                } else {
+                    minor = "0"
+                    patch = commitsSince.toString()
+                }
             }
 
             val dirtyStatus = runCommand(listOf("git", "status", "--porcelain"))
