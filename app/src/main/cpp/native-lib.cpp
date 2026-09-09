@@ -156,8 +156,13 @@ static void free_resources() {
     g_last_tokens.clear();
 }
 
+extern "C" JNIEXPORT jboolean JNICALL
+Java_com_k7sunny_nexv1_AIManager_isGpuSupportedNative(JNIEnv*, jclass) {
+    return llama_supports_gpu_offload() ? JNI_TRUE : JNI_FALSE;
+}
+
 extern "C" JNIEXPORT jlong JNICALL
-Java_com_k7sunny_nexv1_AIManager_loadModelNative(JNIEnv* env, jclass, jstring model_path) {
+Java_com_k7sunny_nexv1_AIManager_loadModelNative(JNIEnv* env, jclass, jstring model_path, jboolean use_gpu) {
     const char* path = nullptr;
     try {
         // Free existing resources first to prevent memory leaks when switching models
@@ -174,7 +179,8 @@ Java_com_k7sunny_nexv1_AIManager_loadModelNative(JNIEnv* env, jclass, jstring mo
         LOG_MODEL("Loading model from: %s", path);
 
         llama_model_params model_params = llama_model_default_params();
-        model_params.n_gpu_layers = 0; // CPU only for stability
+        model_params.n_gpu_layers = use_gpu ? 99 : 0;
+        LOG_MODEL("Model params configured (GPU offload=%s, n_gpu_layers=%d)", use_gpu ? "ENABLED" : "DISABLED", model_params.n_gpu_layers);
 
         std::lock_guard<std::recursive_mutex> lock(g_mutex);
         g_model = llama_model_load_from_file(path, model_params);
@@ -214,7 +220,7 @@ Java_com_k7sunny_nexv1_AIManager_loadModelNative(JNIEnv* env, jclass, jstring mo
             throw std::runtime_error("llama_init_from_model failed (returned nullptr)");
         }
 
-        LOG_MODEL("Model + Context ready");
+        LOG_MODEL("Model + Context ready (GPU=%s)", use_gpu ? "YES" : "NO");
         return reinterpret_cast<jlong>(g_model);
     } catch (const std::exception& e) {
         LOGE("Exception in loadModelNative: %s", e.what());
@@ -239,7 +245,8 @@ extern "C" JNIEXPORT jlong JNICALL
 Java_com_k7sunny_nexv1_AIManager_loadVisionModelNative(
         JNIEnv* env, jclass,
         jstring model_path,
-        jstring mmproj_path) {
+        jstring mmproj_path,
+        jboolean use_gpu) {
     const char* m_path = nullptr;
     const char* p_path = nullptr;
     try {
@@ -258,7 +265,8 @@ Java_com_k7sunny_nexv1_AIManager_loadVisionModelNative(
         LOG_MODEL("Loading vision model from: %s, mmproj from: %s", m_path, p_path);
 
         llama_model_params model_params = llama_model_default_params();
-        model_params.n_gpu_layers = 0;
+        model_params.n_gpu_layers = use_gpu ? 99 : 0;
+        LOG_MODEL("Vision model params configured (GPU offload=%s, n_gpu_layers=%d)", use_gpu ? "ENABLED" : "DISABLED", model_params.n_gpu_layers);
 
         std::lock_guard<std::recursive_mutex> lock(g_mutex);
         g_model = llama_model_load_from_file(m_path, model_params);
@@ -284,7 +292,7 @@ Java_com_k7sunny_nexv1_AIManager_loadVisionModelNative(
         }
 
         mtmd_context_params mparams = mtmd_context_params_default();
-        mparams.use_gpu = false;
+        mparams.use_gpu = use_gpu ? true : false;
         mparams.n_threads = num_threads;
         mparams.flash_attn_type = LLAMA_FLASH_ATTN_TYPE_ENABLED;
         mparams.warmup = false;
@@ -301,7 +309,7 @@ Java_com_k7sunny_nexv1_AIManager_loadVisionModelNative(
         m_path = nullptr;
         p_path = nullptr;
 
-        LOG_MODEL("Nex Vision (Qwen2.5-VL + mmproj) ready");
+        LOG_MODEL("Nex Vision (Qwen2.5-VL + mmproj) ready (GPU=%s)", use_gpu ? "YES" : "NO");
         return reinterpret_cast<jlong>(g_model);
     } catch (const std::exception& e) {
         LOGE("Exception in loadVisionModelNative: %s", e.what());
@@ -791,7 +799,7 @@ Java_com_k7sunny_nexv1_AIManager_runVisionInferenceNative(
 
         // Load media bitmap using mtmd helper
         LOG_INFER("Loading image from file: %s", image_path.c_str());
-        auto bitmap_wrapper = mtmd_helper_bitmap_init_from_file(g_ctx_vision, image_path.c_str(), false);
+        auto bitmap_wrapper = mtmd_helper_bitmap_init_from_file(g_ctx_vision, image_path.c_str(), false, mtmd_helper_init_opt_default());
         if (!bitmap_wrapper.bitmap) {
             throw std::runtime_error("Failed to decode image from path: " + image_path);
         }

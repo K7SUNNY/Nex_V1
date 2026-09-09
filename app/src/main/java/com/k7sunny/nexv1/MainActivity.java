@@ -579,14 +579,15 @@ public class MainActivity extends AppCompatActivity {
             downloadProgress.setVisibility(View.GONE);
 
             String modelPath = modelManager.getModelPath();
+            boolean useGpu = preferenceManager.isGpuAccelerationEnabled();
             if ("vision".equals(modelKey)) {
                 String mmprojPath = modelManager.getMmprojPath();
-                Log.d(TAG, "Nex Vision found and verified, loading: " + modelPath + ", mmproj: " + mmprojPath);
-                aiManager.loadVisionModel(modelPath, mmprojPath);
+                Log.d(TAG, "Nex Vision found and verified, loading: " + modelPath + ", mmproj: " + mmprojPath + " (GPU=" + useGpu + ")");
+                aiManager.loadVisionModel(modelPath, mmprojPath, useGpu);
                 // Toast.makeText(this, "Nex Vision engine ready!", Toast.LENGTH_SHORT).show();
             } else {
-                Log.d(TAG, "Model found and verified, loading: " + modelPath);
-                aiManager.loadModel(modelPath);
+                Log.d(TAG, "Model found and verified, loading: " + modelPath + " (GPU=" + useGpu + ")");
+                aiManager.loadModel(modelPath, useGpu);
                 // Toast.makeText(this, "AI model ready!", Toast.LENGTH_SHORT).show();
             }
         } else if (modelManager.isModelFilePresentWithCorrectSize(modelKey) && !modelManager.isModelVerified(modelKey)) {
