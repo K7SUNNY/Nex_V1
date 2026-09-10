@@ -129,7 +129,7 @@ Nex V1 features a sophisticated, local "Personal Knowledge Base":
 **Sunny** - Creator of Nex AI
 
 ---
-
+GPU Acceleration is in progress
 ## Inspiration
 
 Built as the next evolution after the **Spark AI** project, Nex V1 pushes the boundaries of what's possible with local-only AI on mobile hardware.
