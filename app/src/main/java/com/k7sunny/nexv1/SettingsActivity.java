@@ -245,7 +245,16 @@ public class SettingsActivity extends AppCompatActivity {
         boolean downloaded = modelManager.isModelDownloaded();
 
         if (downloaded) {
-            cardDownloadManager.setVisibility(View.GONE);
+            if (modelManager.isMmprojMissing(currentModel)) {
+                cardDownloadManager.setVisibility(View.VISIBLE);
+                pbDownloadProgress.setVisibility(View.GONE);
+                btnActionDownload.setEnabled(true);
+                btnActionDownload.setText("Enable Vision");
+                tvDownloadTitle.setText("Vision Projector Available");
+                tvDownloadStatus.setText("Download the companion vision projector (" + modelManager.getMmprojSize(currentModel) + ") to enable offline image analysis & OCR.");
+            } else {
+                cardDownloadManager.setVisibility(View.GONE);
+            }
         } else {
             cardDownloadManager.setVisibility(View.VISIBLE);
             pbDownloadProgress.setVisibility(View.GONE);
@@ -258,10 +267,6 @@ public class SettingsActivity extends AppCompatActivity {
                 tvDownloadTitle.setText("Corrupted Model Detected");
                 tvDownloadStatus.setText("The existing file is incomplete or corrupted. Tap below to delete and download a clean copy (" + sizeStr + ").");
                 btnActionDownload.setText("Clean & Download");
-            } else if ("vision".equals(currentModel) && modelManager.isModelFilePresentWithCorrectSize("vision") && modelManager.isModelVerified("vision")) {
-                tvDownloadTitle.setText("Vision Projector Required");
-                tvDownloadStatus.setText("Download the vision projector (~668MB) to enable offline image analysis.");
-                btnActionDownload.setText("Download Projector");
             } else {
                 tvDownloadTitle.setText("Model Download Required");
                 tvDownloadStatus.setText("Download the core AI engine (" + sizeStr + ") to use this model offline.");

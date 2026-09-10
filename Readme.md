@@ -19,12 +19,12 @@ The goal is to create a fast, private, and controllable AI assistant that actual
 ## Features
 
 - **Fully Offline AI:** No internet required, no API costs, total privacy.
-- **Multimodal Nex Vision:** Offline image reasoning, screenshot analysis, OCR, and visual Q&A powered by Qwen2.5-VL 3B and `mtmd`.
-- **4 Model Choices:**
-  - **Nex Fast:** Qwen2.5-0.5B (ultra-fast, instant streaming).
-  - **Nex Pro:** Qwen2.5-1.5B (balanced reasoning and speed).
-  - **Nex Ultra:** Llama-3.2-3B (deep reasoning and advanced coding).
-  - **Nex Vision:** Qwen2.5-VL-3B (multimodal text + vision).
+- **Native Multimodal AI & Vision:** Offline image reasoning, screenshot analysis, document OCR, and visual Q&A powered by the Qwen 3.5 multimodal architecture and `mtmd`.
+- **3 Unified Model Tiers:**
+  - **Nex Fast (0.8B):** Qwen3.5-0.8B (ultra-fast responses, instant memory summaries).
+  - **Nex Pro (2B):** Qwen3.5-2B (smart everyday conversational AI, reasoning, and coding).
+  - **Nex Ultra (4B):** Qwen3.5-4B (heavyweight reasoning, math, and advanced logic).
+- **Thinking Mode Support:** Graceful UI formatting for chain-of-thought `<think>` reasoning traces.
 - **Intelligent Memory System:** Automatically extracts, sanitizes, and stores personal facts and plans to personalize future interactions.
 - **Smart Context Management:** Optimized token-based KV cache reuse for lightning-fast multi-turn conversations.
 - **Auto-Title Generation & Drift Detection:** Automatically generates descriptive session titles and detects topic shifts.
@@ -44,8 +44,11 @@ The goal is to create a fast, private, and controllable AI assistant that actual
 - **Thread-Safe Architecture:** Mutex synchronization across JNI operations prevents race conditions during concurrent inference and cancellations.
 
 ### Models
-- **Text Models:** Qwen2.5-0.5B, Qwen2.5-1.5B, Llama-3.2-3B Instruct (GGUF, Q4_K_M).
-- **Vision Model:** Qwen2.5-VL-3B-Instruct (GGUF, Q4_K_M) paired with `mmproj-Qwen2.5-VL-3B-Instruct-f16.gguf` projector.
+- **Qwen 3.5 Family (GGUF, Q4_K_M):**
+  - `Qwen3.5-0.8B-Instruct` (~550MB)
+  - `Qwen3.5-2B-Instruct` (~1.3GB)
+  - `Qwen3.5-4B-Instruct` (~2.6GB)
+- **Backward Compatible:** Preserves legacy Qwen 2.5 and Llama 3.2 on-device files.
 
 ---
 

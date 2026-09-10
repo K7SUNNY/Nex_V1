@@ -57,13 +57,54 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         }
     }
 
+    public static String formatThinkingContent(String text) {
+        if (text == null || !text.contains("<think>")) {
+            return text;
+        }
+        int thinkStart = text.indexOf("<think>");
+        int thinkEnd = text.indexOf("</think>");
+
+        if (thinkEnd != -1 && thinkEnd > thinkStart) {
+            String before = text.substring(0, thinkStart);
+            String thinkBody = text.substring(thinkStart + 7, thinkEnd).trim();
+            String after = text.substring(thinkEnd + 8).trim();
+
+            StringBuilder sb = new StringBuilder();
+            if (!before.isEmpty()) sb.append(before).append("\n\n");
+            if (!thinkBody.isEmpty()) {
+                sb.append("> 💭 *Thinking Process*\n");
+                String[] lines = thinkBody.split("\n");
+                for (String line : lines) {
+                    sb.append("> ").append(line).append("\n");
+                }
+            }
+            if (!after.isEmpty()) {
+                sb.append("\n").append(after);
+            }
+            return sb.toString();
+        } else {
+            // Incomplete / streaming <think> block
+            String before = text.substring(0, thinkStart);
+            String thinkBody = text.substring(thinkStart + 7);
+            StringBuilder sb = new StringBuilder();
+            if (!before.isEmpty()) sb.append(before).append("\n\n");
+            sb.append("> 💭 *Thinking...*\n");
+            String[] lines = thinkBody.split("\n");
+            for (String line : lines) {
+                sb.append("> ").append(line).append("\n");
+            }
+            return sb.toString();
+        }
+    }
+
     public static List<MessageBlock> parseBlocks(String text) {
         List<MessageBlock> blocks = new ArrayList<>();
         if (text == null || text.isEmpty()) {
             return blocks;
         }
 
-        String[] parts = text.split("```", -1);
+        String formattedText = formatThinkingContent(text);
+        String[] parts = formattedText.split("```", -1);
         for (int i = 0; i < parts.length; i++) {
             String part = parts[i];
             if (i % 2 == 0) {
@@ -317,7 +358,7 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             }
             if (holder.messageText != null) {
                 holder.messageText.setVisibility(View.VISIBLE);
-                markwon.setMarkdown(holder.messageText, text);
+                markwon.setMarkdown(holder.messageText, formatThinkingContent(text));
             }
         } else {
             // Stream contains code fences: use multi-block messageContainer
@@ -388,7 +429,7 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
                 }
                 if (holder.messageText != null) {
                     holder.messageText.setVisibility(View.VISIBLE);
-                    markwon.setMarkdown(holder.messageText, text);
+                    markwon.setMarkdown(holder.messageText, formatThinkingContent(text));
                 }
             } else {
                 if (holder.messageText != null) {

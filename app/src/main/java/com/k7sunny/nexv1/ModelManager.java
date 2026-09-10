@@ -26,22 +26,22 @@ public class ModelManager {
     }
 
     public boolean isVisionModel() {
-        return MODEL_VISION.equals(getCurrentModelKey());
+        return isVisionModel(getCurrentModelKey());
     }
 
     public boolean isVisionModel(String modelKey) {
-        return MODEL_VISION.equals(modelKey);
+        return isMmprojDownloaded(modelKey);
     }
 
     public String getModelDisplayName(String modelKey) {
         if (MODEL_PRO.equals(modelKey)) {
-            return "Nex Pro";
+            return "Nex Pro (2B)";
         } else if (MODEL_ULTRA.equals(modelKey)) {
-            return "Nex Ultra";
+            return "Nex Ultra (4B)";
         } else if (MODEL_VISION.equals(modelKey)) {
-            return "Nex Vision";
+            return "Nex Vision (Legacy)";
         } else {
-            return "Nex Fast";
+            return "Nex Fast (0.8B)";
         }
     }
 
@@ -51,37 +51,37 @@ public class ModelManager {
 
     public String getModelFileName(String modelKey) {
         if (MODEL_PRO.equals(modelKey)) {
-            return "qwen2.5-1.5b-instruct-q4_k_m.gguf";
+            return "Qwen_Qwen3.5-2B-Q4_K_M.gguf";
         } else if (MODEL_ULTRA.equals(modelKey)) {
-            return "llama-3.2-3b-instruct-q4_k_m.gguf";
+            return "Qwen_Qwen3.5-4B-Q4_K_M.gguf";
         } else if (MODEL_VISION.equals(modelKey)) {
             return "Qwen2.5-VL-3B-Instruct-Q4_K_M.gguf";
         } else {
-            return "qwen2.5-0.5b-instruct-q4_k_m.gguf";
+            return "Qwen_Qwen3.5-0.8B-Q4_K_M.gguf";
         }
     }
 
     public String getModelSize(String modelKey) {
         if (MODEL_PRO.equals(modelKey)) {
-            return "~1.1GB";
+            return "~1.4GB";
         } else if (MODEL_ULTRA.equals(modelKey)) {
-            return "~2.0GB";
+            return "~3.0GB";
         } else if (MODEL_VISION.equals(modelKey)) {
             return "~2.7GB";
         } else {
-            return "~450MB";
+            return "~580MB";
         }
     }
 
     public String getModelDescription(String modelKey) {
         if (MODEL_PRO.equals(modelKey)) {
-            return "Smart and conversational model.";
+            return "Smart conversational AI with reasoning & coding.";
         } else if (MODEL_ULTRA.equals(modelKey)) {
-            return "Deep reasoning and advanced coding.";
+            return "Deep reasoning, advanced coding & logic.";
         } else if (MODEL_VISION.equals(modelKey)) {
-            return "Offline image analysis, vision & OCR.";
+            return "Offline image analysis & OCR (legacy).";
         } else {
-            return "Optimized for speed and efficiency.";
+            return "Ultra-fast responses & instant summaries.";
         }
     }
 
@@ -98,8 +98,8 @@ public class ModelManager {
     }
 
     public String getModelTag(String modelKey) {
-        if (MODEL_VISION.equals(modelKey)) {
-            return "VISION";
+        if (MODEL_ULTRA.equals(modelKey)) {
+            return "REASONING";
         }
         return null;
     }
@@ -109,34 +109,55 @@ public class ModelManager {
         items.add(new ModelItem(MODEL_FAST, getModelDisplayName(MODEL_FAST), getModelSize(MODEL_FAST), getModelDescription(MODEL_FAST), getModelIconRes(MODEL_FAST), getModelTag(MODEL_FAST)));
         items.add(new ModelItem(MODEL_PRO, getModelDisplayName(MODEL_PRO), getModelSize(MODEL_PRO), getModelDescription(MODEL_PRO), getModelIconRes(MODEL_PRO), getModelTag(MODEL_PRO)));
         items.add(new ModelItem(MODEL_ULTRA, getModelDisplayName(MODEL_ULTRA), getModelSize(MODEL_ULTRA), getModelDescription(MODEL_ULTRA), getModelIconRes(MODEL_ULTRA), getModelTag(MODEL_ULTRA)));
-        items.add(new ModelItem(MODEL_VISION, getModelDisplayName(MODEL_VISION), getModelSize(MODEL_VISION), getModelDescription(MODEL_VISION), getModelIconRes(MODEL_VISION), getModelTag(MODEL_VISION)));
         return items;
     }
 
     public String getMmprojFileName(String modelKey) {
-        if (MODEL_VISION.equals(modelKey)) {
+        if (MODEL_PRO.equals(modelKey)) {
+            return "mmproj-Qwen_Qwen3.5-2B-f16.gguf";
+        } else if (MODEL_ULTRA.equals(modelKey)) {
+            return "mmproj-Qwen_Qwen3.5-4B-f16.gguf";
+        } else if (MODEL_VISION.equals(modelKey)) {
             return "mmproj-Qwen2.5-VL-3B-Instruct-f16.gguf";
+        } else {
+            return "mmproj-Qwen_Qwen3.5-0.8B-f16.gguf";
         }
-        return null;
+    }
+
+    public String getMmprojSize(String modelKey) {
+        if (MODEL_PRO.equals(modelKey)) {
+            return "~668MB";
+        } else if (MODEL_ULTRA.equals(modelKey)) {
+            return "~672MB";
+        } else if (MODEL_VISION.equals(modelKey)) {
+            return "~1.3GB";
+        } else {
+            return "~205MB";
+        }
     }
 
     public String getModelUrl(String modelKey) {
         if (MODEL_PRO.equals(modelKey)) {
-            return "https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF/resolve/main/qwen2.5-1.5b-instruct-q4_k_m.gguf?download=true";
+            return "https://huggingface.co/bartowski/Qwen_Qwen3.5-2B-GGUF/resolve/main/Qwen_Qwen3.5-2B-Q4_K_M.gguf?download=true";
         } else if (MODEL_ULTRA.equals(modelKey)) {
-            return "https://huggingface.co/bartowski/Llama-3.2-3B-Instruct-GGUF/resolve/main/Llama-3.2-3B-Instruct-Q4_K_M.gguf?download=true";
+            return "https://huggingface.co/bartowski/Qwen_Qwen3.5-4B-GGUF/resolve/main/Qwen_Qwen3.5-4B-Q4_K_M.gguf?download=true";
         } else if (MODEL_VISION.equals(modelKey)) {
             return "https://huggingface.co/ggml-org/Qwen2.5-VL-3B-Instruct-GGUF/resolve/main/Qwen2.5-VL-3B-Instruct-Q4_K_M.gguf?download=true";
         } else {
-            return "https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/qwen2.5-0.5b-instruct-q4_k_m.gguf?download=true";
+            return "https://huggingface.co/bartowski/Qwen_Qwen3.5-0.8B-GGUF/resolve/main/Qwen_Qwen3.5-0.8B-Q4_K_M.gguf?download=true";
         }
     }
 
     public String getMmprojUrl(String modelKey) {
-        if (MODEL_VISION.equals(modelKey)) {
+        if (MODEL_PRO.equals(modelKey)) {
+            return "https://huggingface.co/bartowski/Qwen_Qwen3.5-2B-GGUF/resolve/main/mmproj-Qwen_Qwen3.5-2B-f16.gguf?download=true";
+        } else if (MODEL_ULTRA.equals(modelKey)) {
+            return "https://huggingface.co/bartowski/Qwen_Qwen3.5-4B-GGUF/resolve/main/mmproj-Qwen_Qwen3.5-4B-f16.gguf?download=true";
+        } else if (MODEL_VISION.equals(modelKey)) {
             return "https://huggingface.co/ggml-org/Qwen2.5-VL-3B-Instruct-GGUF/resolve/main/mmproj-Qwen2.5-VL-3B-Instruct-f16.gguf?download=true";
+        } else {
+            return "https://huggingface.co/bartowski/Qwen_Qwen3.5-0.8B-GGUF/resolve/main/mmproj-Qwen_Qwen3.5-0.8B-f16.gguf?download=true";
         }
-        return null;
     }
 
     public String getModelExpectedHash(String modelKey) {
@@ -160,21 +181,26 @@ public class ModelManager {
 
     public long getExpectedMinSize(String modelKey) {
         if (MODEL_PRO.equals(modelKey)) {
-            return 900L * 1024L * 1024L; // ~900 MB
+            return 1000L * 1024L * 1024L; // ~1.0 GB
         } else if (MODEL_ULTRA.equals(modelKey)) {
-            return 1700L * 1024L * 1024L; // ~1.7 GB
+            return 2200L * 1024L * 1024L; // ~2.2 GB
         } else if (MODEL_VISION.equals(modelKey)) {
             return 1800L * 1024L * 1024L; // ~1.8 GB
         } else {
-            return 300L * 1024L * 1024L; // ~300 MB
+            return 400L * 1024L * 1024L; // ~400 MB
         }
     }
 
     public long getExpectedMmprojMinSize(String modelKey) {
-        if (MODEL_VISION.equals(modelKey)) {
+        if (MODEL_PRO.equals(modelKey)) {
+            return 400L * 1024L * 1024L; // ~400 MB
+        } else if (MODEL_ULTRA.equals(modelKey)) {
+            return 400L * 1024L * 1024L; // ~400 MB
+        } else if (MODEL_VISION.equals(modelKey)) {
             return 500L * 1024L * 1024L; // ~500 MB
+        } else {
+            return 150L * 1024L * 1024L; // ~150 MB
         }
-        return 0;
     }
 
     // Keep the model in one stable app-specific directory.
@@ -197,10 +223,28 @@ public class ModelManager {
         }
         // Fallback for legacy filenames if previously downloaded
         if (MODEL_FAST.equals(modelKey)) {
-            File legacy = new File(getModelDirectory(), "qwen2.5-0.5b-instruct.gguf");
-            if (legacy.exists()) return legacy;
+            File legacy0 = new File(getModelDirectory(), "Qwen3.5-0.8B-Instruct-Q4_K_M.gguf");
+            if (legacy0.exists()) return legacy0;
+            File legacy1 = new File(getModelDirectory(), "qwen2.5-0.5b-instruct-q4_k_m.gguf");
+            if (legacy1.exists()) return legacy1;
+            File legacy2 = new File(getModelDirectory(), "qwen2.5-0.5b-instruct.gguf");
+            if (legacy2.exists()) return legacy2;
+        } else if (MODEL_PRO.equals(modelKey)) {
+            File legacy0 = new File(getModelDirectory(), "Qwen3.5-2B-Instruct-Q4_K_M.gguf");
+            if (legacy0.exists()) return legacy0;
+            File legacy1 = new File(getModelDirectory(), "qwen2.5-1.5b-instruct-q4_k_m.gguf");
+            if (legacy1.exists()) return legacy1;
+            File legacy2 = new File(getModelDirectory(), "qwen2.5-1.5b-instruct.gguf");
+            if (legacy2.exists()) return legacy2;
         } else if (MODEL_ULTRA.equals(modelKey)) {
-            File legacy = new File(getModelDirectory(), "llama-3.2-3b-instruct-q4_k_m.gguf");
+            File legacy0 = new File(getModelDirectory(), "Qwen3.5-4B-Instruct-Q4_K_M.gguf");
+            if (legacy0.exists()) return legacy0;
+            File legacy1 = new File(getModelDirectory(), "llama-3.2-3b-instruct-q4_k_m.gguf");
+            if (legacy1.exists()) return legacy1;
+            File legacy2 = new File(getModelDirectory(), "llama-3.2-3b-instruct.gguf");
+            if (legacy2.exists()) return legacy2;
+        } else if (MODEL_VISION.equals(modelKey)) {
+            File legacy = new File(getModelDirectory(), "Qwen2.5-VL-3B-Instruct-Q4_K_M.gguf");
             if (legacy.exists()) return legacy;
         }
         return preferred;
@@ -217,25 +261,27 @@ public class ModelManager {
     }
 
     public boolean isModelDownloaded() {
-        String modelKey = getCurrentModelKey();
-        boolean modelOk = isValidModelFile(getModelFile(modelKey), modelKey);
-        if (MODEL_VISION.equals(modelKey)) {
-            return modelOk && isValidMmprojFile(getMmprojFile(modelKey), modelKey);
-        }
-        return modelOk;
+        return isModelDownloaded(getCurrentModelKey());
     }
 
     public boolean isModelDownloaded(String modelKey) {
-        boolean modelOk = isValidModelFile(getModelFile(modelKey), modelKey);
-        if (MODEL_VISION.equals(modelKey)) {
-            return modelOk && isValidMmprojFile(getMmprojFile(modelKey), modelKey);
-        }
-        return modelOk;
+        return isValidModelFile(getModelFile(modelKey), modelKey);
+    }
+
+    public boolean isMmprojDownloaded() {
+        return isMmprojDownloaded(getCurrentModelKey());
+    }
+
+    public boolean isMmprojDownloaded(String modelKey) {
+        File file = getMmprojFile(modelKey);
+        return file != null && isValidMmprojFile(file, modelKey);
     }
 
     public boolean isMmprojMissing() {
-        String modelKey = getCurrentModelKey();
-        if (!MODEL_VISION.equals(modelKey)) return false;
+        return isMmprojMissing(getCurrentModelKey());
+    }
+
+    public boolean isMmprojMissing(String modelKey) {
         File file = getMmprojFile(modelKey);
         return file == null || !file.exists() || file.length() < getExpectedMmprojMinSize(modelKey);
     }
@@ -262,25 +308,23 @@ public class ModelManager {
             }
         }
 
-        if (MODEL_VISION.equals(modelKey)) {
-            File mmprojFile = getMmprojFile(modelKey);
-            if (mmprojFile != null && mmprojFile.exists()) {
-                String mmprojName = mmprojFile.getName();
-                boolean isMmprojSizeOk = isMmprojFilePresentWithCorrectSize(modelKey);
-                boolean isMmprojVerified = isMmprojVerified(modelKey);
-                if (!isMmprojSizeOk || !isMmprojVerified) {
-                    try {
-                        mmprojFile.delete();
-                        android.util.Log.d("ModelManager", "Cleaned up broken mmproj file: " + mmprojName);
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                    }
-                    context.getSharedPreferences("model_prefs", Context.MODE_PRIVATE)
-                            .edit()
-                            .remove("verified_mmproj_" + mmprojName)
-                            .remove("verified_mmproj_size_" + mmprojName)
-                            .apply();
+        File mmprojFile = getMmprojFile(modelKey);
+        if (mmprojFile != null && mmprojFile.exists()) {
+            String mmprojName = mmprojFile.getName();
+            boolean isMmprojSizeOk = isMmprojFilePresentWithCorrectSize(modelKey);
+            boolean isMmprojVerified = isMmprojVerified(modelKey);
+            if (!isMmprojSizeOk || !isMmprojVerified) {
+                try {
+                    mmprojFile.delete();
+                    android.util.Log.d("ModelManager", "Cleaned up broken mmproj file: " + mmprojName);
+                } catch (Exception e) {
+                    e.printStackTrace();
                 }
+                context.getSharedPreferences("model_prefs", Context.MODE_PRIVATE)
+                        .edit()
+                        .remove("verified_mmproj_" + mmprojName)
+                        .remove("verified_mmproj_size_" + mmprojName)
+                        .apply();
             }
         }
     }
@@ -299,36 +343,52 @@ public class ModelManager {
         }
         // Also delete legacy alternative files if present to free storage
         if (MODEL_FAST.equals(modelKey)) {
-            File legacy = new File(getModelDirectory(), "qwen2.5-0.5b-instruct.gguf");
-            if (legacy.exists()) {
-                legacy.delete();
-                context.getSharedPreferences("model_prefs", Context.MODE_PRIVATE).edit()
-                        .remove("verified_qwen2.5-0.5b-instruct.gguf")
-                        .remove("verified_size_qwen2.5-0.5b-instruct.gguf")
-                        .apply();
+            String[] legacyNames = {"Qwen3.5-0.8B-Instruct-Q4_K_M.gguf", "qwen2.5-0.5b-instruct-q4_k_m.gguf", "qwen2.5-0.5b-instruct.gguf"};
+            for (String name : legacyNames) {
+                File legacy = new File(getModelDirectory(), name);
+                if (legacy.exists()) {
+                    legacy.delete();
+                    context.getSharedPreferences("model_prefs", Context.MODE_PRIVATE).edit()
+                            .remove("verified_" + name)
+                            .remove("verified_size_" + name)
+                            .apply();
+                }
+            }
+        } else if (MODEL_PRO.equals(modelKey)) {
+            String[] legacyNames = {"Qwen3.5-2B-Instruct-Q4_K_M.gguf", "qwen2.5-1.5b-instruct-q4_k_m.gguf", "qwen2.5-1.5b-instruct.gguf"};
+            for (String name : legacyNames) {
+                File legacy = new File(getModelDirectory(), name);
+                if (legacy.exists()) {
+                    legacy.delete();
+                    context.getSharedPreferences("model_prefs", Context.MODE_PRIVATE).edit()
+                            .remove("verified_" + name)
+                            .remove("verified_size_" + name)
+                            .apply();
+                }
             }
         } else if (MODEL_ULTRA.equals(modelKey)) {
-            File legacy = new File(getModelDirectory(), "llama-3.2-3b-instruct-q4_k_m.gguf");
-            if (legacy.exists()) {
-                legacy.delete();
-                context.getSharedPreferences("model_prefs", Context.MODE_PRIVATE).edit()
-                        .remove("verified_llama-3.2-3b-instruct-q4_k_m.gguf")
-                        .remove("verified_size_llama-3.2-3b-instruct-q4_k_m.gguf")
-                        .apply();
+            String[] legacyNames = {"Qwen3.5-4B-Instruct-Q4_K_M.gguf", "llama-3.2-3b-instruct-q4_k_m.gguf", "llama-3.2-3b-instruct.gguf"};
+            for (String name : legacyNames) {
+                File legacy = new File(getModelDirectory(), name);
+                if (legacy.exists()) {
+                    legacy.delete();
+                    context.getSharedPreferences("model_prefs", Context.MODE_PRIVATE).edit()
+                            .remove("verified_" + name)
+                            .remove("verified_size_" + name)
+                            .apply();
+                }
             }
         }
-        if (MODEL_VISION.equals(modelKey)) {
-            File mmprojFile = getMmprojFile(modelKey);
-            if (mmprojFile != null && mmprojFile.exists()) {
-                String mmprojName = mmprojFile.getName();
-                boolean mmprojDeleted = mmprojFile.delete();
-                success = success && mmprojDeleted;
-                context.getSharedPreferences("model_prefs", Context.MODE_PRIVATE)
-                        .edit()
-                        .remove("verified_mmproj_" + mmprojName)
-                        .remove("verified_mmproj_size_" + mmprojName)
-                        .apply();
-            }
+        File mmprojFile = getMmprojFile(modelKey);
+        if (mmprojFile != null && mmprojFile.exists()) {
+            String mmprojName = mmprojFile.getName();
+            boolean mmprojDeleted = mmprojFile.delete();
+            success = success && mmprojDeleted;
+            context.getSharedPreferences("model_prefs", Context.MODE_PRIVATE)
+                    .edit()
+                    .remove("verified_mmproj_" + mmprojName)
+                    .remove("verified_mmproj_size_" + mmprojName)
+                    .apply();
         }
         return success;
     }
@@ -337,12 +397,9 @@ public class ModelManager {
         String modelKey = getCurrentModelKey();
         File file = getModelFile(modelKey);
         boolean modelCorrupted = file.exists() && (!isModelFilePresentWithCorrectSize(modelKey) || !isModelVerified(modelKey));
-        if (MODEL_VISION.equals(modelKey)) {
-            File mmprojFile = getMmprojFile(modelKey);
-            boolean mmprojCorrupted = mmprojFile != null && mmprojFile.exists() && (!isMmprojFilePresentWithCorrectSize(modelKey) || !isMmprojVerified(modelKey));
-            return modelCorrupted || mmprojCorrupted;
-        }
-        return modelCorrupted;
+        File mmprojFile = getMmprojFile(modelKey);
+        boolean mmprojCorrupted = mmprojFile != null && mmprojFile.exists() && (!isMmprojFilePresentWithCorrectSize(modelKey) || !isMmprojVerified(modelKey));
+        return modelCorrupted || mmprojCorrupted;
     }
 
     public String getModelPath() {
@@ -358,8 +415,8 @@ public class ModelManager {
         cleanupCorruptedModel();
         String modelKey = getCurrentModelKey();
 
-        // If for vision model the language model is already downloaded and verified, download mmproj instead
-        if (MODEL_VISION.equals(modelKey) && isModelFilePresentWithCorrectSize(modelKey) && isModelVerified(modelKey)) {
+        // If the language model is already downloaded and verified, download mmproj instead
+        if (isModelFilePresentWithCorrectSize(modelKey) && isModelVerified(modelKey)) {
             return downloadMmproj();
         }
 
@@ -388,8 +445,6 @@ public class ModelManager {
 
     public long downloadMmproj() {
         String modelKey = getCurrentModelKey();
-        if (!MODEL_VISION.equals(modelKey)) return -1;
-
         File mmprojFile = getMmprojFile(modelKey);
         if (mmprojFile != null && mmprojFile.exists()) {
             try {
@@ -402,8 +457,8 @@ public class ModelManager {
         if (url == null || mmprojFile == null) return -1;
 
         DownloadManager.Request request = new DownloadManager.Request(Uri.parse(url))
-                .setTitle("Downloading Vision Projector (MMPROJ)")
-                .setDescription("Preparing multimodal image engine...")
+                .setTitle("Downloading Vision Projector (" + getModelDisplayName(modelKey) + ")")
+                .setDescription("Preparing multimodal image reasoning engine...")
                 .setDestinationUri(Uri.fromFile(mmprojFile))
                 .setAllowedOverMetered(true)
                 .setAllowedOverRoaming(true);
@@ -440,7 +495,6 @@ public class ModelManager {
     }
 
     public boolean isMmprojFilePresentWithCorrectSize(String modelKey) {
-        if (!MODEL_VISION.equals(modelKey)) return true;
         File file = getMmprojFile(modelKey);
         return file != null && file.exists() && file.length() > getExpectedMmprojMinSize(modelKey);
     }
@@ -466,7 +520,6 @@ public class ModelManager {
     }
 
     public boolean isMmprojVerified(String modelKey) {
-        if (!MODEL_VISION.equals(modelKey)) return true;
         File file = getMmprojFile(modelKey);
         if (!isMmprojFilePresentWithCorrectSize(modelKey)) return false;
 
@@ -480,38 +533,36 @@ public class ModelManager {
 
     public boolean verifyModelHash() {
         String modelKey = getCurrentModelKey();
+        boolean modelOk = false;
         File file = getModelFile(modelKey);
-        if (!isModelFilePresentWithCorrectSize(modelKey)) return false;
-
-        String modelName = file.getName();
-        // If file size matches expected bounds, verify and cache
-        context.getSharedPreferences("model_prefs", Context.MODE_PRIVATE)
-                .edit()
-                .putBoolean("verified_" + modelName, true)
-                .putLong("verified_size_" + modelName, file.length())
-                .apply();
-
-        if (MODEL_VISION.equals(modelKey)) {
-            File mmprojFile = getMmprojFile(modelKey);
-            if (mmprojFile != null && isMmprojFilePresentWithCorrectSize(modelKey)) {
-                String mmprojName = mmprojFile.getName();
-                context.getSharedPreferences("model_prefs", Context.MODE_PRIVATE)
-                        .edit()
-                        .putBoolean("verified_mmproj_" + mmprojName, true)
-                        .putLong("verified_mmproj_size_" + mmprojName, mmprojFile.length())
-                        .apply();
-            }
+        if (isModelFilePresentWithCorrectSize(modelKey) && isGgufHeaderValid(file)) {
+            String modelName = file.getName();
+            context.getSharedPreferences("model_prefs", Context.MODE_PRIVATE)
+                    .edit()
+                    .putBoolean("verified_" + modelName, true)
+                    .putLong("verified_size_" + modelName, file.length())
+                    .apply();
+            modelOk = true;
         }
-        return true;
+
+        File mmprojFile = getMmprojFile(modelKey);
+        if (mmprojFile != null && isMmprojFilePresentWithCorrectSize(modelKey) && isGgufHeaderValid(mmprojFile)) {
+            String mmprojName = mmprojFile.getName();
+            context.getSharedPreferences("model_prefs", Context.MODE_PRIVATE)
+                    .edit()
+                    .putBoolean("verified_mmproj_" + mmprojName, true)
+                    .putLong("verified_mmproj_size_" + mmprojName, mmprojFile.length())
+                    .apply();
+        }
+        return modelOk || isMmprojDownloaded(modelKey);
     }
 
     public boolean verifyMmprojHash() {
         String modelKey = getCurrentModelKey();
-        if (!MODEL_VISION.equals(modelKey)) return true;
         File file = getMmprojFile(modelKey);
-        if (!isMmprojFilePresentWithCorrectSize(modelKey)) return false;
+        if (file == null || !isMmprojFilePresentWithCorrectSize(modelKey) || !isGgufHeaderValid(file)) return false;
 
-        String mmprojName = getMmprojFileName(modelKey);
+        String mmprojName = file.getName();
         context.getSharedPreferences("model_prefs", Context.MODE_PRIVATE)
                 .edit()
                 .putBoolean("verified_mmproj_" + mmprojName, true)

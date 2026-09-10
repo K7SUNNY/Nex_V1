@@ -579,15 +579,15 @@ public class MainActivity extends AppCompatActivity {
             downloadProgress.setVisibility(View.GONE);
 
             String modelPath = modelManager.getModelPath();
-            if ("vision".equals(modelKey)) {
+            if (modelManager.isMmprojDownloaded(modelKey)) {
                 String mmprojPath = modelManager.getMmprojPath();
-                Log.d(TAG, "Nex Vision found and verified, loading: " + modelPath + ", mmproj: " + mmprojPath);
+                Log.d(TAG, "Model with vision projector found, loading: " + modelPath + ", mmproj: " + mmprojPath);
                 aiManager.loadVisionModel(modelPath, mmprojPath);
-                // Toast.makeText(this, "Nex Vision engine ready!", Toast.LENGTH_SHORT).show();
+            } else if (modelManager.isMmprojFilePresentWithCorrectSize(modelKey) && !modelManager.isMmprojVerified(modelKey)) {
+                verifyModelInBackground();
             } else {
-                Log.d(TAG, "Model found and verified, loading: " + modelPath);
+                Log.d(TAG, "Model found and verified, loading text: " + modelPath);
                 aiManager.loadModel(modelPath);
-                // Toast.makeText(this, "AI model ready!", Toast.LENGTH_SHORT).show();
             }
         } else if (modelManager.isModelFilePresentWithCorrectSize(modelKey) && !modelManager.isModelVerified(modelKey)) {
             verifyModelInBackground();
@@ -596,19 +596,13 @@ public class MainActivity extends AppCompatActivity {
             downloadProgress.setVisibility(View.VISIBLE);
             btnDownloadModel.setEnabled(false);
             btnDownloadModel.setText("Downloading...");
-        } else if ("vision".equals(modelKey) && modelManager.isModelFilePresentWithCorrectSize("vision") && modelManager.isModelVerified("vision")) {
-            downloadModelCard.setVisibility(View.VISIBLE);
-            downloadProgress.setVisibility(View.GONE);
-            btnDownloadModel.setEnabled(true);
-            btnDownloadModel.setText("Download Projector");
-            downloadStatusText.setText("Download the vision projector (~668MB) to enable offline image analysis.");
         } else {
             downloadModelCard.setVisibility(View.VISIBLE);
             downloadProgress.setVisibility(View.GONE);
             btnDownloadModel.setEnabled(true);
             btnDownloadModel.setText("Download Model");
 
-            String sizeStr = "fast".equals(modelKey) ? "~450MB" : ("pro".equals(modelKey) ? "~1.1GB" : ("ultra".equals(modelKey) ? "~2.0GB" : "~2.7GB"));
+            String sizeStr = modelManager.getModelSize(modelKey);
             downloadStatusText.setText("Download the core AI engine (" + sizeStr + ") to start chatting offline.");
         }
     }
@@ -652,6 +646,25 @@ public class MainActivity extends AppCompatActivity {
             Log.e(TAG_DOWNLOAD, "DownloadManager failed to enqueue");
             // Toast.makeText(this, "Failed to start download", Toast.LENGTH_SHORT).show();
             setDownloadIdleState("Could not start download. Tap to retry.");
+        }
+    }
+
+    private void startMmprojDownload() {
+        btnDownloadModel.setEnabled(false);
+        btnDownloadModel.setText("Downloading Vision...");
+        downloadModelCard.setVisibility(View.VISIBLE);
+        downloadProgress.setVisibility(View.VISIBLE);
+        downloadProgress.setIndeterminate(true);
+        downloadStatusText.setText("Starting companion vision projector download...");
+
+        currentDownloadId = modelManager.downloadMmproj();
+        if (currentDownloadId != -1) {
+            Log.d(TAG_DOWNLOAD, "Vision projector download started with ID: " + currentDownloadId);
+            preferenceManager.setActiveDownloadId(currentDownloadId);
+            startProgressPolling();
+        } else {
+            Log.e(TAG_DOWNLOAD, "DownloadManager failed to enqueue mmproj");
+            setDownloadIdleState("Could not start vision download. Tap to retry.");
         }
     }
 
@@ -857,6 +870,28 @@ public class MainActivity extends AppCompatActivity {
         String nativeImagePath = imgPath;
         if (nativeImagePath == null && docRenderedImage != null && modelManager.isVisionModel()) {
             nativeImagePath = docRenderedImage;
+        }
+
+        if (nativeImagePath != null && !nativeImagePath.isEmpty()) {
+            String modelKey = preferenceManager.getSelectedModel();
+            if (!modelManager.isMmprojDownloaded(modelKey)) {
+                new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+                        .setTitle("Vision Projector Required")
+                        .setMessage("To analyze images & OCR with " + modelManager.getModelDisplayName(modelKey) + ", download the companion vision projector (" + modelManager.getMmprojSize(modelKey) + ").")
+                        .setPositiveButton("Download Vision", (d, w) -> {
+                            startMmprojDownload();
+                        })
+                        .setNeutralButton("Send Text Only", (d, w) -> {
+                            clearSelectedImage();
+                            clearSelectedDocument();
+                            sendMessage();
+                        })
+                        .setNegativeButton("Cancel", null)
+                        .show();
+                return;
+            } else if (!aiManager.isVisionModel()) {
+                aiManager.loadVisionModel(modelManager.getModelPath(), modelManager.getMmprojPath());
+            }
         }
 
         Message userMsg = new Message(text, Message.TYPE_USER, imgPath, docName);
@@ -1207,15 +1242,23 @@ public class MainActivity extends AppCompatActivity {
             if (layoutImagePreview != null) {
                 layoutImagePreview.setVisibility(View.VISIBLE);
             }
-            // Auto switch to vision model if currently on a text-only model
-            if (!modelManager.isVisionModel()) {
-                long activeId = preferenceManager != null ? preferenceManager.getActiveDownloadId() : -1;
-                if (activeId == -1 && currentDownloadId == -1) {
-                    preferenceManager.setSelectedModel(ModelManager.MODEL_VISION);
-                    updateModelSelectorButton();
-                    checkModelStatus();
-                    // Toast.makeText(this, "Switched to Nex Vision for image analysis", Toast.LENGTH_SHORT).show();
+
+            // If vision projector is already downloaded, ensure vision model is loaded
+            String modelKey = preferenceManager.getSelectedModel();
+            if (modelManager.isMmprojDownloaded(modelKey)) {
+                if (!aiManager.isVisionModel() && modelManager.isModelDownloaded(modelKey)) {
+                    aiManager.loadVisionModel(modelManager.getModelPath(), modelManager.getMmprojPath());
                 }
+            } else if (modelManager.isMmprojMissing(modelKey)) {
+                // Prompt user to download companion vision projector for image reasoning
+                new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+                        .setTitle("Vision Projector Required")
+                        .setMessage("To analyze images & OCR with " + modelManager.getModelDisplayName(modelKey) + ", download the companion vision projector (" + modelManager.getMmprojSize(modelKey) + ").")
+                        .setPositiveButton("Download Vision", (d, w) -> {
+                            startMmprojDownload();
+                        })
+                        .setNegativeButton("Cancel", (d, w) -> clearSelectedImage())
+                        .show();
             }
         } catch (Exception e) {
             Log.e(TAG, "Failed to cache selected image", e);

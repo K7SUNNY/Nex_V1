@@ -40,7 +40,12 @@ public class PreferenceManager {
     }
 
     public String getSelectedModel() {
-        return prefs.getString("selected_model", "fast");
+        String model = prefs.getString("selected_model", "fast");
+        if ("vision".equals(model)) {
+            model = "fast";
+            setSelectedModel(model);
+        }
+        return model;
     }
 
     public void setSelectedModel(String model) {

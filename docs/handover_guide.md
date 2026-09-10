@@ -6,7 +6,7 @@ This guide is designed for developers taking over the development of Nex V1. It 
 
 ## 1. Project Background & Context
 
-Nex V1 is an offline-first, local AI chat application for Android. It demonstrates that high-performance, private, and personalized text and multimodal vision AI is achievable on consumer mobile hardware without internet access or API usage costs. It features local fact-extraction (Memory), sub-millisecond response context caching (KV cache recycling), and multimodal image reasoning via Qwen2.5-VL and `mtmd`.
+Nex V1 is an offline-first, local AI chat application for Android. It demonstrates that high-performance, private, and personalized text, reasoning, and multimodal vision AI is achievable on consumer mobile hardware without internet access or API usage costs. It features local fact-extraction (Memory), sub-millisecond response context caching (KV cache recycling), thinking mode rendering (`<think>` reasoning), and multimodal image reasoning via Qwen 3.5 and `mtmd`.
 
 ---
 
@@ -34,21 +34,19 @@ Nex V1 is an offline-first, local AI chat application for Android. It demonstrat
 
 ## 3. Model Provisioning
 
-The app supports 4 distinct model options:
+The app supports 3 primary unified model tiers from the **Qwen 3.5** family (with backward compatibility for legacy files):
 
-| Model ID | Model Name | Base File (.gguf) | Vision Projector (mmproj) |
-| :--- | :--- | :--- | :--- |
-| `fast` | **Nex Fast** | `qwen2.5-0.5b-instruct-q4_k_m.gguf` | *None* |
-| `pro` | **Nex Pro** | `qwen2.5-1.5b-instruct-q4_k_m.gguf` | *None* |
-| `ultra` | **Nex Ultra** | `llama-3.2-3b-instruct-q4_k_m.gguf` | *None* |
-| `vision` | **Nex Vision** | `Qwen2.5-VL-3B-Instruct-Q4_K_M.gguf` | `mmproj-Qwen2.5-VL-3B-Instruct-f16.gguf` |
+| Model ID | Model Name | Base File (.gguf) | Size (Q4_K_M) | Capabilities |
+| :--- | :--- | :--- | :--- | :--- |
+| `fast` | **Nex Fast (0.8B)** | `Qwen3.5-0.8B-Instruct-Q4_K_M.gguf` | ~550 MB | Ultra-fast responses, instant memory summaries, multimodal-ready |
+| `pro` | **Nex Pro (2B)** | `Qwen3.5-2B-Instruct-Q4_K_M.gguf` | ~1.3 GB | Smart conversational AI, reasoning, coding, multimodal-ready |
+| `ultra` | **Nex Ultra (4B)** | `Qwen3.5-4B-Instruct-Q4_K_M.gguf` | ~2.6 GB | Heavyweight reasoning, math, advanced logic, multimodal-ready |
 
 ### Automatic & Manual Provisioning
 - **In-App Download**: `ModelManager.java` supports automated downloading directly from HuggingFace repositories into app-scoped external storage (`/storage/emulated/0/Android/data/com.k7sunny.nexv1/files/models/`).
 - **Manual ADB Push**:
   ```powershell
-  adb push Qwen2.5-VL-3B-Instruct-Q4_K_M.gguf /sdcard/Android/data/com.k7sunny.nexv1/files/models/
-  adb push mmproj-Qwen2.5-VL-3B-Instruct-f16.gguf /sdcard/Android/data/com.k7sunny.nexv1/files/models/
+  adb push Qwen3.5-0.8B-Instruct-Q4_K_M.gguf /sdcard/Android/data/com.k7sunny.nexv1/files/models/
   ```
 
 ---
