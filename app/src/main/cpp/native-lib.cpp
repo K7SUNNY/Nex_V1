@@ -68,6 +68,71 @@ struct common_sampler_raii {
     common_sampler_raii& operator=(const common_sampler_raii&) = delete;
 };
 
+// Helper: buffer streaming UTF-8 bytes to ensure only valid UTF-8 sequences are passed to JNI NewStringUTF
+struct Utf8Buffer {
+    std::string pending;
+
+    std::string process(const std::string& piece) {
+        pending += piece;
+        size_t valid_len = 0;
+        size_t i = 0;
+        size_t n = pending.size();
+
+        while (i < n) {
+            unsigned char c = static_cast<unsigned char>(pending[i]);
+            size_t char_len = 0;
+            if (c <= 0x7F) {
+                char_len = 1;
+            } else if ((c & 0xE0) == 0xC0) {
+                char_len = 2;
+            } else if ((c & 0xF0) == 0xE0) {
+                char_len = 3;
+            } else if ((c & 0xF8) == 0xF0) {
+                char_len = 4;
+            } else {
+                // Invalid leading byte, skip it to prevent deadlock
+                i++;
+                valid_len = i;
+                continue;
+            }
+
+            if (i + char_len <= n) {
+                bool valid = true;
+                for (size_t j = 1; j < char_len; j++) {
+                    unsigned char cb = static_cast<unsigned char>(pending[i + j]);
+                    if ((cb & 0xC0) != 0x80) {
+                        valid = false;
+                        break;
+                    }
+                }
+                if (valid) {
+                    i += char_len;
+                    valid_len = i;
+                } else {
+                    i++;
+                    valid_len = i;
+                }
+            } else {
+                // Incomplete multi-byte sequence at the tail; wait for next token
+                break;
+            }
+        }
+
+        if (valid_len > 0) {
+            std::string result = pending.substr(0, valid_len);
+            pending.erase(0, valid_len);
+            return result;
+        }
+        return "";
+    }
+
+    std::string flush() {
+        std::string result = pending;
+        pending.clear();
+        return result;
+    }
+};
+
 // Helper: throw Java RuntimeException
 static void throw_java_exception(JNIEnv* env, const char* message) {
     jclass clazz = env->FindClass("java/lang/RuntimeException");
@@ -156,13 +221,8 @@ static void free_resources() {
     g_last_tokens.clear();
 }
 
-extern "C" JNIEXPORT jboolean JNICALL
-Java_com_k7sunny_nexv1_AIManager_isGpuSupportedNative(JNIEnv*, jclass) {
-    return llama_supports_gpu_offload() ? JNI_TRUE : JNI_FALSE;
-}
-
 extern "C" JNIEXPORT jlong JNICALL
-Java_com_k7sunny_nexv1_AIManager_loadModelNative(JNIEnv* env, jclass, jstring model_path, jboolean use_gpu) {
+Java_com_k7sunny_nexv1_AIManager_loadModelNative(JNIEnv* env, jclass, jstring model_path) {
     const char* path = nullptr;
     try {
         // Free existing resources first to prevent memory leaks when switching models
@@ -179,8 +239,7 @@ Java_com_k7sunny_nexv1_AIManager_loadModelNative(JNIEnv* env, jclass, jstring mo
         LOG_MODEL("Loading model from: %s", path);
 
         llama_model_params model_params = llama_model_default_params();
-        model_params.n_gpu_layers = use_gpu ? 99 : 0;
-        LOG_MODEL("Model params configured (GPU offload=%s, n_gpu_layers=%d)", use_gpu ? "ENABLED" : "DISABLED", model_params.n_gpu_layers);
+        model_params.n_gpu_layers = 0; // CPU only for stability
 
         std::lock_guard<std::recursive_mutex> lock(g_mutex);
         g_model = llama_model_load_from_file(path, model_params);
@@ -220,7 +279,7 @@ Java_com_k7sunny_nexv1_AIManager_loadModelNative(JNIEnv* env, jclass, jstring mo
             throw std::runtime_error("llama_init_from_model failed (returned nullptr)");
         }
 
-        LOG_MODEL("Model + Context ready (GPU=%s)", use_gpu ? "YES" : "NO");
+        LOG_MODEL("Model + Context ready");
         return reinterpret_cast<jlong>(g_model);
     } catch (const std::exception& e) {
         LOGE("Exception in loadModelNative: %s", e.what());
@@ -245,8 +304,7 @@ extern "C" JNIEXPORT jlong JNICALL
 Java_com_k7sunny_nexv1_AIManager_loadVisionModelNative(
         JNIEnv* env, jclass,
         jstring model_path,
-        jstring mmproj_path,
-        jboolean use_gpu) {
+        jstring mmproj_path) {
     const char* m_path = nullptr;
     const char* p_path = nullptr;
     try {
@@ -265,8 +323,7 @@ Java_com_k7sunny_nexv1_AIManager_loadVisionModelNative(
         LOG_MODEL("Loading vision model from: %s, mmproj from: %s", m_path, p_path);
 
         llama_model_params model_params = llama_model_default_params();
-        model_params.n_gpu_layers = use_gpu ? 99 : 0;
-        LOG_MODEL("Vision model params configured (GPU offload=%s, n_gpu_layers=%d)", use_gpu ? "ENABLED" : "DISABLED", model_params.n_gpu_layers);
+        model_params.n_gpu_layers = 0;
 
         std::lock_guard<std::recursive_mutex> lock(g_mutex);
         g_model = llama_model_load_from_file(m_path, model_params);
@@ -292,7 +349,7 @@ Java_com_k7sunny_nexv1_AIManager_loadVisionModelNative(
         }
 
         mtmd_context_params mparams = mtmd_context_params_default();
-        mparams.use_gpu = use_gpu ? true : false;
+        mparams.use_gpu = false;
         mparams.n_threads = num_threads;
         mparams.flash_attn_type = LLAMA_FLASH_ATTN_TYPE_ENABLED;
         mparams.warmup = false;
@@ -309,7 +366,7 @@ Java_com_k7sunny_nexv1_AIManager_loadVisionModelNative(
         m_path = nullptr;
         p_path = nullptr;
 
-        LOG_MODEL("Nex Vision (Qwen2.5-VL + mmproj) ready (GPU=%s)", use_gpu ? "YES" : "NO");
+        LOG_MODEL("Nex Vision (Qwen2.5-VL + mmproj) ready");
         return reinterpret_cast<jlong>(g_model);
     } catch (const std::exception& e) {
         LOGE("Exception in loadVisionModelNative: %s", e.what());
@@ -547,6 +604,7 @@ Java_com_k7sunny_nexv1_AIManager_runInferenceNative(
         common_sampler_raii sampler_wrapper(g_model, sparams);
 
         std::string response;
+        Utf8Buffer utf8_buffer;
         llama_token token = common_sampler_sample(sampler_wrapper.sampler, g_ctx, -1);
         common_sampler_accept(sampler_wrapper.sampler, token, true);
 
@@ -570,11 +628,14 @@ Java_com_k7sunny_nexv1_AIManager_runInferenceNative(
             std::string piece = common_token_to_piece(g_ctx, token);
             response += piece;
 
-            // Stream the token back to Java
-            jstring jpiece = env->NewStringUTF(piece.c_str());
-            if (jpiece) {
-                env->CallVoidMethod(jcallback, onTokenMethod, jpiece);
-                env->DeleteLocalRef(jpiece);
+            // Stream safe valid UTF-8 token piece back to Java
+            std::string safe_piece = utf8_buffer.process(piece);
+            if (!safe_piece.empty()) {
+                jstring jpiece = env->NewStringUTF(safe_piece.c_str());
+                if (jpiece) {
+                    env->CallVoidMethod(jcallback, onTokenMethod, jpiece);
+                    env->DeleteLocalRef(jpiece);
+                }
             }
 
             // Check for stop patterns
@@ -596,6 +657,16 @@ Java_com_k7sunny_nexv1_AIManager_runInferenceNative(
             token = common_sampler_sample(sampler_wrapper.sampler, g_ctx, -1);
             common_sampler_accept(sampler_wrapper.sampler, token, true);
             n_predict++;
+        }
+
+        // Flush any remaining valid or trailing bytes
+        std::string remaining_piece = utf8_buffer.flush();
+        if (!remaining_piece.empty()) {
+            jstring jpiece = env->NewStringUTF(remaining_piece.c_str());
+            if (jpiece) {
+                env->CallVoidMethod(jcallback, onTokenMethod, jpiece);
+                env->DeleteLocalRef(jpiece);
+            }
         }
 
         if (cache_valid) {
@@ -867,6 +938,7 @@ Java_com_k7sunny_nexv1_AIManager_runVisionInferenceNative(
         common_sampler_raii sampler_wrapper(g_model, sparams);
 
         std::string response;
+        Utf8Buffer utf8_buffer;
         llama_token token = common_sampler_sample(sampler_wrapper.sampler, g_ctx, -1);
         common_sampler_accept(sampler_wrapper.sampler, token, true);
 
@@ -885,10 +957,14 @@ Java_com_k7sunny_nexv1_AIManager_runVisionInferenceNative(
             std::string piece = common_token_to_piece(g_ctx, token);
             response += piece;
 
-            jstring jpiece = env->NewStringUTF(piece.c_str());
-            if (jpiece) {
-                env->CallVoidMethod(jcallback, onTokenMethod, jpiece);
-                env->DeleteLocalRef(jpiece);
+            // Stream safe valid UTF-8 token piece back to Java
+            std::string safe_piece = utf8_buffer.process(piece);
+            if (!safe_piece.empty()) {
+                jstring jpiece = env->NewStringUTF(safe_piece.c_str());
+                if (jpiece) {
+                    env->CallVoidMethod(jcallback, onTokenMethod, jpiece);
+                    env->DeleteLocalRef(jpiece);
+                }
             }
 
             if (check_stop_patterns(response)) {
@@ -907,6 +983,16 @@ Java_com_k7sunny_nexv1_AIManager_runVisionInferenceNative(
             token = common_sampler_sample(sampler_wrapper.sampler, g_ctx, -1);
             common_sampler_accept(sampler_wrapper.sampler, token, true);
             n_predict++;
+        }
+
+        // Flush any remaining valid or trailing bytes
+        std::string remaining_piece = utf8_buffer.flush();
+        if (!remaining_piece.empty()) {
+            jstring jpiece = env->NewStringUTF(remaining_piece.c_str());
+            if (jpiece) {
+                env->CallVoidMethod(jcallback, onTokenMethod, jpiece);
+                env->DeleteLocalRef(jpiece);
+            }
         }
 
         LOG_INFER("Vision generated %d tokens, response: %zu chars", n_predict, response.length());

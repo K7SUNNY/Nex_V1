@@ -25,7 +25,6 @@ public class AIManager {
     private volatile boolean isVisionModel = false;
     private volatile String currentLoadedModelPath = null;
     private volatile String currentLoadedMmprojPath = null;
-    private volatile boolean currentLoadedUseGpu = true;
     private final java.util.List<Message> chatHistory = java.util.Collections.synchronizedList(new java.util.ArrayList<>());
     private static final int MAX_HISTORY = 12; // Keep last 6 rounds of chat
     private volatile String systemPrompt = "";
@@ -39,9 +38,8 @@ public class AIManager {
 
     public native String stringFromJNI();
     public native boolean initNative();
-    public native boolean isGpuSupportedNative();
-    public native long loadModelNative(String modelPath, boolean useGpu);
-    public native long loadVisionModelNative(String modelPath, String mmprojPath, boolean useGpu);
+    public native long loadModelNative(String modelPath);
+    public native long loadVisionModelNative(String modelPath, String mmprojPath);
     public native String runInferenceNative(String systemPrompt, String[] roles, String[] contents, int maxTokens, float temperature, ResponseCallback callback);
     public native String runVisionInferenceNative(String systemPrompt, String[] roles, String[] contents, String imagePath, int maxTokens, float temperature, ResponseCallback callback);
     public native void cancelInferenceNative();
@@ -85,29 +83,25 @@ public class AIManager {
     }
 
     public void loadModel(String modelPath) {
-        loadModel(modelPath, true);
-    }
-
-    public void loadModel(String modelPath, boolean useGpu) {
         if (modelPath == null || modelPath.isEmpty()) {
             Log.e(TAG_MODEL, "loadModel called with null or empty path");
             return;
         }
 
-        if (isModelLoaded && !isVisionModel && modelPath.equals(currentLoadedModelPath) && currentLoadedUseGpu == useGpu) {
-            Log.d(TAG_MODEL, "Text model is already loaded and active (GPU=" + useGpu + "): " + modelPath + ", skipping reload.");
+        if (isModelLoaded && !isVisionModel && modelPath.equals(currentLoadedModelPath)) {
+            Log.d(TAG_MODEL, "Text model is already loaded and active: " + modelPath + ", skipping reload.");
             return;
         }
 
         executorService.execute(() -> {
-            if (isModelLoaded && !isVisionModel && modelPath.equals(currentLoadedModelPath) && currentLoadedUseGpu == useGpu) {
+            if (isModelLoaded && !isVisionModel && modelPath.equals(currentLoadedModelPath)) {
                 return;
             }
-            Log.d(TAG_MODEL, "Loading text model from: " + modelPath + " (GPU=" + useGpu + ")");
+            Log.d(TAG_MODEL, "Loading text model from: " + modelPath);
             isVisionModel = false;
             long modelPtr = 0;
             try {
-                modelPtr = loadModelNative(modelPath, useGpu);
+                modelPtr = loadModelNative(modelPath);
             } catch (RuntimeException e) {
                 Log.e(TAG_MODEL, "Native model load threw exception", e);
             }
@@ -116,8 +110,7 @@ public class AIManager {
                 isModelLoaded = true;
                 currentLoadedModelPath = modelPath;
                 currentLoadedMmprojPath = null;
-                currentLoadedUseGpu = useGpu;
-                Log.d(TAG_MODEL, "Model loaded successfully (GPU=" + useGpu + ")");
+                Log.d(TAG_MODEL, "Model loaded successfully");
             } else {
                 isModelLoaded = false;
                 currentLoadedModelPath = null;
@@ -127,29 +120,25 @@ public class AIManager {
     }
 
     public void loadVisionModel(String modelPath, String mmprojPath) {
-        loadVisionModel(modelPath, mmprojPath, true);
-    }
-
-    public void loadVisionModel(String modelPath, String mmprojPath, boolean useGpu) {
         if (modelPath == null || modelPath.isEmpty() || mmprojPath == null || mmprojPath.isEmpty()) {
             Log.e(TAG_MODEL, "loadVisionModel called with missing model or mmproj path");
             return;
         }
 
-        if (isModelLoaded && isVisionModel && modelPath.equals(currentLoadedModelPath) && mmprojPath.equals(currentLoadedMmprojPath) && currentLoadedUseGpu == useGpu) {
-            Log.d(TAG_MODEL, "Vision model is already loaded and active (GPU=" + useGpu + "), skipping reload.");
+        if (isModelLoaded && isVisionModel && modelPath.equals(currentLoadedModelPath) && mmprojPath.equals(currentLoadedMmprojPath)) {
+            Log.d(TAG_MODEL, "Vision model is already loaded and active, skipping reload.");
             return;
         }
 
         executorService.execute(() -> {
-            if (isModelLoaded && isVisionModel && modelPath.equals(currentLoadedModelPath) && mmprojPath.equals(currentLoadedMmprojPath) && currentLoadedUseGpu == useGpu) {
+            if (isModelLoaded && isVisionModel && modelPath.equals(currentLoadedModelPath) && mmprojPath.equals(currentLoadedMmprojPath)) {
                 return;
             }
-            Log.d(TAG_MODEL, "Loading vision model from: " + modelPath + ", mmproj: " + mmprojPath + " (GPU=" + useGpu + ")");
+            Log.d(TAG_MODEL, "Loading vision model from: " + modelPath + ", mmproj: " + mmprojPath);
             isVisionModel = true;
             long modelPtr = 0;
             try {
-                modelPtr = loadVisionModelNative(modelPath, mmprojPath, useGpu);
+                modelPtr = loadVisionModelNative(modelPath, mmprojPath);
             } catch (RuntimeException e) {
                 Log.e(TAG_MODEL, "Native vision model load threw exception", e);
             }
@@ -158,8 +147,7 @@ public class AIManager {
                 isModelLoaded = true;
                 currentLoadedModelPath = modelPath;
                 currentLoadedMmprojPath = mmprojPath;
-                currentLoadedUseGpu = useGpu;
-                Log.d(TAG_MODEL, "Nex Vision model loaded successfully (GPU=" + useGpu + ")");
+                Log.d(TAG_MODEL, "Nex Vision model loaded successfully");
             } else {
                 isModelLoaded = false;
                 currentLoadedModelPath = null;
@@ -583,9 +571,5 @@ public class AIManager {
 
     public boolean isVisionModel() {
         return isVisionModel;
-    }
-
-    public boolean isGpuAccelerationActive() {
-        return currentLoadedUseGpu && isModelLoaded;
     }
 }

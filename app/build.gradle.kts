@@ -120,7 +120,7 @@ android {
 
     defaultConfig {
         applicationId = "com.k7sunny.nexv1"
-        minSdk = 28
+        minSdk = 24
         targetSdk = 36
         versionCode = versionProps["VERSION_CODE"].toString().toInt()
         versionName = versionProps["VERSION_NAME"].toString()
@@ -130,7 +130,7 @@ android {
         externalNativeBuild {
             cmake {
                 cppFlags("-O3", "-fno-finite-math-only")
-                arguments("-DGGML_OPENMP=ON", "-DGGML_VULKAN=ON", "-DGGML_LLAMAFILE=OFF", "-DCMAKE_BUILD_TYPE=Release")
+                arguments("-DGGML_OPENMP=ON", "-DGGML_LLAMAFILE=OFF", "-DCMAKE_BUILD_TYPE=Release")
                 abiFilters("arm64-v8a")
             }
         }

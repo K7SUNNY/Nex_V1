@@ -25,7 +25,6 @@ The goal is to create a fast, private, and controllable AI assistant that actual
   - **Nex Pro:** Qwen2.5-1.5B (balanced reasoning and speed).
   - **Nex Ultra:** Llama-3.2-3B (deep reasoning and advanced coding).
   - **Nex Vision:** Qwen2.5-VL-3B (multimodal text + vision).
-- **Vulkan GPU Acceleration:** Hardware acceleration across all text and vision models via Vulkan compute (`libvulkan.so`), with seamless fallback to optimized CPU/OpenMP.
 - **Intelligent Memory System:** Automatically extracts, sanitizes, and stores personal facts and plans to personalize future interactions.
 - **Smart Context Management:** Optimized token-based KV cache reuse for lightning-fast multi-turn conversations.
 - **Auto-Title Generation & Drift Detection:** Automatically generates descriptive session titles and detects topic shifts.
@@ -36,13 +35,12 @@ The goal is to create a fast, private, and controllable AI assistant that actual
 
 ## AI Engine and Model Architecture
 
-### Engine: llama.cpp + mtmd + Vulkan (Native C++)
+### Engine: llama.cpp + mtmd (Native C++)
 - Integrated via **Android NDK and JNI bridge**.
-- **Hardware Acceleration:** Native Vulkan backend (`GGML_VULKAN=ON`) offloading model layers to mobile GPUs (Adreno, Mali, Immortalis) for ultra-fast prompt evaluation and token generation.
 - **Multimodal Subsystem (`mtmd`):** Uses llama.cpp's `mtmd` engine for vision tokenization, image patch embedding, and spatial merging.
-- **Visual Token Clamping & Patch Alignment:** Dynamically limits vision tokens to 256 and pre-scales images to patch-aligned 392px to ensure 3–5s vision inference on mobile devices without memory thrashing.
+- **Visual Token Clamping & Patch Alignment:** Dynamically limits vision tokens to 256 and pre-scales images to patch-aligned 392px to ensure 3–5s vision inference on mobile CPUs without memory thrashing.
 - **Token-based KV Cache Reuse:** Drastically reduces processing time for long multi-turn conversations by only decoding new tokens.
-- **Compiler Optimizations:** Built with Release mode `-O3`, ARM NEON SIMD vectorization, and OpenMP multi-threading.
+- **Compiler Optimizations:** Built with Release mode `-O3` and ARM NEON SIMD vectorization.
 - **Thread-Safe Architecture:** Mutex synchronization across JNI operations prevents race conditions during concurrent inference and cancellations.
 
 ### Models

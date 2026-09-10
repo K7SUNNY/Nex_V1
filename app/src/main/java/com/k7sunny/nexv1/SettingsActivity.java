@@ -125,19 +125,6 @@ public class SettingsActivity extends AppCompatActivity {
             });
         }
 
-        com.google.android.material.materialswitch.MaterialSwitch switchGpu = findViewById(R.id.switch_gpu);
-        View layoutGpu = findViewById(R.id.layout_gpu_acceleration);
-        if (switchGpu != null) {
-            switchGpu.setChecked(preferenceManager.isGpuAccelerationEnabled());
-            switchGpu.setOnCheckedChangeListener((btn, isChecked) -> {
-                preferenceManager.setGpuAccelerationEnabled(isChecked);
-                Toast.makeText(this, isChecked ? "GPU acceleration enabled" : "GPU acceleration disabled (CPU mode)", Toast.LENGTH_SHORT).show();
-            });
-            if (layoutGpu != null) {
-                layoutGpu.setOnClickListener(v -> switchGpu.toggle());
-            }
-        }
-
         com.google.android.material.materialswitch.MaterialSwitch switchHaptic = findViewById(R.id.switch_haptic);
         View layoutHaptic = findViewById(R.id.layout_haptic_feedback);
         if (switchHaptic != null) {

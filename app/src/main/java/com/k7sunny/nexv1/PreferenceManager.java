@@ -153,14 +153,6 @@ public class PreferenceManager {
         prefs.edit().putBoolean("haptic_feedback", enabled).apply();
     }
 
-    public boolean isGpuAccelerationEnabled() {
-        return prefs.getBoolean("gpu_acceleration", true);
-    }
-
-    public void setGpuAccelerationEnabled(boolean enabled) {
-        prefs.edit().putBoolean("gpu_acceleration", enabled).apply();
-    }
-
     public int getContextWindow() {
         return prefs.getInt("context_window", 12);
     }
