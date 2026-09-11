@@ -176,7 +176,7 @@ public class ConversationAnalyzer {
 
         // Strip Qwen3 / CoT <think>...</think> reasoning blocks if present
         if (clean.contains("<think>")) {
-            int thinkEnd = clean.lastIndexOf("</think>");
+            int thinkEnd = clean.indexOf("</think>");
             if (thinkEnd != -1) {
                 clean = clean.substring(thinkEnd + 8).trim();
             } else {
@@ -328,8 +328,11 @@ public class ConversationAnalyzer {
      */
     private boolean isNativeErrorResponse(String response) {
         String trimmed = response.trim();
-        return trimmed.equalsIgnoreCase("Error") || trimmed.regionMatches(true, 0, "Error:", 0, 6)
-                || trimmed.equalsIgnoreCase("Error: Model not loaded");
+        return trimmed.equalsIgnoreCase("Error") || 
+               trimmed.regionMatches(true, 0, "Error:", 0, 6) ||
+               trimmed.equalsIgnoreCase("Error: Model not loaded") ||
+               trimmed.equalsIgnoreCase("Generation stopped.") ||
+               trimmed.equalsIgnoreCase("Model is not ready yet.");
     }
 
     // --- FallbackTitleGenerator (Section 6 & 10) ---

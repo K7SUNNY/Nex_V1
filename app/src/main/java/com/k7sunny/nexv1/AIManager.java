@@ -329,7 +329,10 @@ public class AIManager {
             } catch (RuntimeException e) {
                 Log.e(TAG_CHAT, "Native short inference threw exception", e);
             }
-            String finalResponse = (response != null) ? response.trim() : null;
+            final String finalResponse = (response != null) ?
+                    response.replaceAll("<think>[\\s\\S]*?</think>", "")
+                            .replaceAll("<think>[\\s\\S]*", "")
+                            .trim() : null;
             mainHandler.post(() -> callback.onResponse(finalResponse));
         });
     }
@@ -429,7 +432,9 @@ public class AIManager {
                                  .replaceAll("<think>[\\s\\S]*", "")
                                  .trim();
 
-                    if (clean.isEmpty() || clean.equalsIgnoreCase("NONE")) {
+                    if (clean.isEmpty() || 
+                        clean.equalsIgnoreCase("NONE") ||
+                        clean.toUpperCase().startsWith("NONE")) {
                         callback.onMemoryExtracted(null, null);
                         return;
                     }

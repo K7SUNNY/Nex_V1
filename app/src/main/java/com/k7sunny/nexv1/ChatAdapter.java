@@ -217,6 +217,10 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         }
 
         if (!rawText.contains("<think>")) {
+            // Guard against flashing opening tag tokens during initial streaming (e.g. "<", "<th", "<think")
+            if (rawText.startsWith("<") && "<think>".startsWith(rawText)) {
+                return new ParsedMessage("", true, true, "");
+            }
             return new ParsedMessage("", false, false, rawText);
         }
 
