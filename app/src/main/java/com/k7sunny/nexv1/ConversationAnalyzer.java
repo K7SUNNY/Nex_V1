@@ -121,6 +121,7 @@ public class ConversationAnalyzer {
         String titleSystemPrompt = "You write short, clean titles for chat conversations.";
 
         String instruction =
+                "/no_think\n\n" +
                 "Here is a conversation:\n\n" +
                         transcript + "\n\n" +
                         "Write a short title (2-6 words) describing the main topic of this conversation.\n" +
@@ -172,6 +173,17 @@ public class ConversationAnalyzer {
         if (title == null) return "";
 
         String clean = title.trim();
+
+        // Strip Qwen3 / CoT <think>...</think> reasoning blocks if present
+        if (clean.contains("<think>")) {
+            int thinkEnd = clean.lastIndexOf("</think>");
+            if (thinkEnd != -1) {
+                clean = clean.substring(thinkEnd + 8).trim();
+            } else {
+                // thinking block wasn't closed or cut off
+                clean = clean.replaceAll("<think>[\\s\\S]*", "").trim();
+            }
+        }
 
         // FIX: small models often add an explanation on a second line
         // ("Planning Your Day\n\nThis title reflects..."). Previously any
@@ -264,6 +276,7 @@ public class ConversationAnalyzer {
         String driftSystemPrompt = "You are a strict classifier. You reply with only YES or NO.";
 
         String instruction =
+                "/no_think\n\n" +
                 "Current chat title: \"" + currentTitle + "\"\n\n" +
                         "Conversation:\n" + transcript + "\n\n" +
                         "Has the conversation moved on to a completely different subject than the title?\n" +
@@ -293,8 +306,12 @@ public class ConversationAnalyzer {
                             return;
                         }
 
-                        String clean = response.trim().toUpperCase();
-                        callback.onDriftDetected(clean.contains("YES"));
+                        // Strip thinking blocks before checking classification
+                        String stripped = response.replaceAll("<think>[\\s\\S]*?</think>", "")
+                                                  .replaceAll("<think>[\\s\\S]*", "")
+                                                  .trim()
+                                                  .toUpperCase();
+                        callback.onDriftDetected(stripped.contains("YES"));
                     }
 
                     @Override

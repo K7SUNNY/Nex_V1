@@ -390,6 +390,7 @@ public class AIManager {
         String memorySystemPrompt = "You are a concise, accurate memory extractor.";
 
         String instruction =
+            "/no_think\n\n" +
             "Here is the recent chat conversation:\n\n" +
             transcript + "\n\n" +
             "Task: Extract any personal facts, plans, preferences, family/life events, work, or details shared by the HUMAN USER (labeled as \"User\").\n" +
@@ -416,24 +417,47 @@ public class AIManager {
             new ResponseCallback() {
                 @Override
                 public void onResponse(String response) {
-                    if (response == null || response.trim().isEmpty() || response.trim().equalsIgnoreCase("NONE")) {
+                    if (response == null || response.trim().isEmpty()) {
                         callback.onMemoryExtracted(null, null);
                         return;
                     }
 
                     String clean = response.trim();
-                    
+
+                    // Strip Qwen3 / CoT <think>...</think> reasoning blocks if present
+                    clean = clean.replaceAll("<think>[\\s\\S]*?</think>", "")
+                                 .replaceAll("<think>[\\s\\S]*", "")
+                                 .trim();
+
+                    if (clean.isEmpty() || clean.equalsIgnoreCase("NONE")) {
+                        callback.onMemoryExtracted(null, null);
+                        return;
+                    }
+
+                    // Guard against prompt echoes
+                    if (clean.toLowerCase().contains("here is the recent") ||
+                        clean.toLowerCase().startsWith("task:") ||
+                        clean.toLowerCase().contains("rules:") ||
+                        clean.toLowerCase().contains("examples:")) {
+                        callback.onMemoryExtracted(null, null);
+                        return;
+                    }
+
+                    if (clean.toLowerCase().startsWith("memory:")) {
+                        clean = clean.substring(7).trim();
+                    }
+
                     // Improved parsing for variations (Pipe, Colon, Dash)
                     String title = "Personal Detail";
                     String content = clean;
-                    
+
                     int pipeIndex = clean.indexOf('|');
                     int colonIndex = clean.indexOf(':');
                     int dashIndex = clean.indexOf(" - ");
-                    
+
                     int splitIndex = -1;
                     int splitLen = 1;
-                    
+
                     if (pipeIndex != -1) {
                         splitIndex = pipeIndex;
                     } else if (colonIndex != -1) {
@@ -442,14 +466,14 @@ public class AIManager {
                         splitIndex = dashIndex;
                         splitLen = 3;
                     }
-                    
+
                     if (splitIndex != -1) {
                         title = clean.substring(0, splitIndex).trim();
                         content = clean.substring(splitIndex + splitLen).trim();
                     }
-                    
+
                     if (title.length() > 30) title = title.substring(0, 27) + "...";
-                    
+
                     String finalTitle = normalizePersonReference(title);
                     String finalContent = normalizePersonReference(content);
                     callback.onMemoryExtracted(finalTitle, finalContent);
