@@ -522,6 +522,14 @@ public class MainActivity extends AppCompatActivity {
                             long total = cursor.getLong(bytesTotalCol);
                             int status = cursor.getInt(statusCol);
 
+                            if (status == DownloadManager.STATUS_SUCCESSFUL) {
+                                stopProgressPolling();
+                                currentDownloadId = -1;
+                                preferenceManager.setActiveDownloadId(-1);
+                                checkModelStatus();
+                                return;
+                            }
+
                             if (status == DownloadManager.STATUS_FAILED) {
                                 int reasonCol = cursor.getColumnIndex(DownloadManager.COLUMN_REASON);
                                 int reason = -1;
@@ -574,6 +582,24 @@ public class MainActivity extends AppCompatActivity {
 
     private void checkModelStatus() {
         String modelKey = preferenceManager.getSelectedModel();
+        long activeDownload = preferenceManager != null ? preferenceManager.getActiveDownloadId() : -1;
+        if (currentDownloadId != -1 || activeDownload != -1) {
+            long downloadId = currentDownloadId != -1 ? currentDownloadId : activeDownload;
+            currentDownloadId = downloadId;
+            downloadModelCard.setVisibility(View.VISIBLE);
+            downloadProgress.setVisibility(View.VISIBLE);
+            btnDownloadModel.setEnabled(false);
+            if (modelManager.isModelDownloaded(modelKey)) {
+                btnDownloadModel.setText("Downloading Vision...");
+                downloadStatusText.setText("Downloading companion vision projector...");
+            } else {
+                btnDownloadModel.setText("Downloading Model...");
+                downloadStatusText.setText("Downloading core AI engine (" + modelManager.getModelSize(modelKey) + ")...");
+            }
+            startProgressPolling();
+            return;
+        }
+
         if (modelManager.isModelDownloaded()) {
             downloadModelCard.setVisibility(View.GONE);
             downloadProgress.setVisibility(View.GONE);
@@ -591,11 +617,6 @@ public class MainActivity extends AppCompatActivity {
             }
         } else if (modelManager.isModelFilePresentWithCorrectSize(modelKey) && !modelManager.isModelVerified(modelKey)) {
             verifyModelInBackground();
-        } else if (currentDownloadId != -1 || preferenceManager.getActiveDownloadId() != -1) {
-            downloadModelCard.setVisibility(View.VISIBLE);
-            downloadProgress.setVisibility(View.VISIBLE);
-            btnDownloadModel.setEnabled(false);
-            btnDownloadModel.setText("Downloading...");
         } else {
             downloadModelCard.setVisibility(View.VISIBLE);
             downloadProgress.setVisibility(View.GONE);
@@ -713,29 +734,6 @@ public class MainActivity extends AppCompatActivity {
             updateModelSelectorButton();
             checkModelStatus();
             dialog.dismiss();
-        }, modelManager, item -> {
-            long currentActiveId = preferenceManager.getActiveDownloadId();
-            if (currentActiveId != -1 || currentDownloadId != -1) {
-                Toast.makeText(this, "Cannot delete while a download is in progress.", Toast.LENGTH_SHORT).show();
-                return;
-            }
-            new androidx.appcompat.app.AlertDialog.Builder(this)
-                    .setTitle("Delete " + item.getName())
-                    .setMessage("Are you sure you want to delete this AI model (" + item.getSize() + ") from device storage? You can download it again anytime.")
-                    .setPositiveButton(R.string.delete, (d, which) -> {
-                        boolean deleted = modelManager.deleteModel(item.getKey());
-                        if (deleted) {
-                            // Toast.makeText(this, item.getName() + " deleted from storage.", Toast.LENGTH_SHORT).show();
-                            if (adapterHolder[0] != null) {
-                                adapterHolder[0].notifyDataSetChanged();
-                            }
-                            checkModelStatus();
-                        } else {
-                            // Toast.makeText(this, "Failed to delete model file.", Toast.LENGTH_SHORT).show();
-                        }
-                    })
-                    .setNegativeButton(android.R.string.cancel, null)
-                    .show();
         });
         recycler.setAdapter(adapterHolder[0]);
 

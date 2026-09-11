@@ -8,11 +8,12 @@ It focuses on privacy, performance, and simplicity by running a lightweight lang
 ## Core Idea
 
 Nex V1 is built as a fully offline personal AI system where:
+
 - All inference happens on-device
 - No internet is required after setup
 - No user data leaves the device
 
-The goal is to create a fast, private, and controllable AI assistant that actually *remembers* you.
+The goal is to create a fast, private, and controllable AI assistant that actually _remembers_ you.
 
 ---
 
@@ -36,6 +37,7 @@ The goal is to create a fast, private, and controllable AI assistant that actual
 ## AI Engine and Model Architecture
 
 ### Engine: llama.cpp + mtmd (Native C++)
+
 - Integrated via **Android NDK and JNI bridge**.
 - **Multimodal Subsystem (`mtmd`):** Uses llama.cpp's `mtmd` engine for vision tokenization, image patch embedding, and spatial merging.
 - **Visual Token Clamping & Patch Alignment:** Dynamically limits vision tokens to 256 and pre-scales images to patch-aligned 392px to ensure 3–5s vision inference on mobile CPUs without memory thrashing.
@@ -44,6 +46,7 @@ The goal is to create a fast, private, and controllable AI assistant that actual
 - **Thread-Safe Architecture:** Mutex synchronization across JNI operations prevents race conditions during concurrent inference and cancellations.
 
 ### Models
+
 - **Qwen 3.5 Family (GGUF, Q4_K_M):**
   - `Qwen3.5-0.8B-Instruct` (~550MB)
   - `Qwen3.5-2B-Instruct` (~1.3GB)
@@ -132,9 +135,9 @@ Nex V1 features a sophisticated, local "Personal Knowledge Base":
 **Sunny** - Creator of Nex AI
 
 ---
-GPU Acceleration is in progress
+
 ## Inspiration
 
 Built as the next evolution after the **Spark AI** project, Nex V1 pushes the boundaries of what's possible with local-only AI on mobile hardware.
 
-*This app is fully functional and offline.*
+_This app is fully functional and offline._

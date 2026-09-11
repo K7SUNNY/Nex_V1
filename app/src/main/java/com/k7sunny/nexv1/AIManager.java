@@ -29,7 +29,7 @@ public class AIManager {
     private static final int MAX_HISTORY = 12; // Keep last 6 rounds of chat
     private volatile String systemPrompt = "";
     private final java.util.List<String> pinnedMemories = java.util.Collections.synchronizedList(new java.util.ArrayList<>());
-    private volatile int maxTokens = 256;
+    private volatile int maxTokens = 2048;
     private volatile float temperature = 0.7f;
     private volatile int contextWindowSize = 12;
     private volatile boolean isCancelled = false;

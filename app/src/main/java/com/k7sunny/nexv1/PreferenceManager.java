@@ -135,7 +135,12 @@ public class PreferenceManager {
     }
 
     public int getMaxTokens() {
-        return prefs.getInt("max_tokens", 256);
+        int val = prefs.getInt("max_tokens", 2048);
+        if (val < 512) {
+            val = 2048;
+            setMaxTokens(val);
+        }
+        return val;
     }
 
     public void setMaxTokens(int maxTokens) {

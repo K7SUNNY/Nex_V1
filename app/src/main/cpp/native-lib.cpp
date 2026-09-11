@@ -546,16 +546,26 @@ Java_com_k7sunny_nexv1_AIManager_runInferenceNative(
         int n_past = 0;
         // Compare token by token to find common prefix
         size_t max_reuse = std::min(all_tokens.size(), g_last_tokens.size());
-        while (n_past < max_reuse && all_tokens[n_past] == g_last_tokens[n_past]) {
+        while (n_past < (int)max_reuse && all_tokens[n_past] == g_last_tokens[n_past]) {
             n_past++;
         }
 
-        if (n_past > 0) {
-            LOG_CACHE("Reusing KV cache: %d tokens", n_past);
-            llama_memory_seq_rm(llama_get_memory(g_ctx), 0, n_past, -1);
-        } else {
+        // Only attempt KV cache reuse if prefix is meaningful (>= 16 tokens)
+        // and llama_memory_seq_rm succeeds in removing the suffix.
+        bool cache_reused = false;
+        if (n_past >= 16) {
+            if (llama_memory_seq_rm(llama_get_memory(g_ctx), 0, n_past, -1)) {
+                LOG_CACHE("Reusing KV cache: %d tokens", n_past);
+                cache_reused = true;
+            } else {
+                LOG_CACHE("Partial KV cache removal not supported, clearing cache");
+            }
+        }
+
+        if (!cache_reused) {
+            n_past = 0;
             llama_memory_clear(llama_get_memory(g_ctx), true);
-            LOG_CACHE("Cache cleared — no common prefix");
+            LOG_CACHE("Cache cleared — no common prefix or full refresh");
         }
 
         // Tokens we actually need to decode

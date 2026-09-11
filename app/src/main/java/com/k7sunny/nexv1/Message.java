@@ -13,6 +13,8 @@ public class Message {
     private String documentName = null;
     private String modelName = null;
 
+    private boolean isThinkingExpanded = false;
+
     public Message(String text, int type) {
         this.text = text;
         this.type = type;
@@ -40,10 +42,19 @@ public class Message {
         this.text = other.text;
         this.type = other.type;
         this.isActionsVisible = other.isActionsVisible;
+        this.isThinkingExpanded = other.isThinkingExpanded;
         this.memoryTag = other.memoryTag;
         this.imageUri = other.imageUri;
         this.documentName = other.documentName;
         this.modelName = other.modelName;
+    }
+
+    public boolean isThinkingExpanded() {
+        return isThinkingExpanded;
+    }
+
+    public void setThinkingExpanded(boolean thinkingExpanded) {
+        this.isThinkingExpanded = thinkingExpanded;
     }
 
     public String getText() {

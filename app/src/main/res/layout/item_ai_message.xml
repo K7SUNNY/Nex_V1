@@ -48,6 +48,71 @@
             android:textStyle="italic" />
     </LinearLayout>
 
+    <!-- Thinking Process Accordion Card -->
+    <LinearLayout
+        android:id="@+id/cardThinkingContainer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="30dp"
+        android:layout_marginBottom="8dp"
+        android:background="@drawable/bg_thinking_card"
+        android:orientation="vertical"
+        android:visibility="gone">
+
+        <!-- Clickable Header Bar -->
+        <LinearLayout
+            android:id="@+id/layoutThinkingHeader"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="?attr/selectableItemBackground"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingHorizontal="12dp"
+            android:paddingVertical="9dp">
+
+            <ImageView
+                android:id="@+id/ivThinkingIcon"
+                android:layout_width="15dp"
+                android:layout_height="15dp"
+                android:src="@drawable/ic_sparkle"
+                app:tint="#9A9EA7" />
+
+            <TextView
+                android:id="@+id/tvThinkingTitle"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:layout_weight="1"
+                android:letterSpacing="0.02"
+                android:text="Thought Process"
+                android:textColor="#A0A4B0"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+
+            <ImageView
+                android:id="@+id/ivThinkingChevron"
+                android:layout_width="16dp"
+                android:layout_height="16dp"
+                android:src="@drawable/ic_chevron_down"
+                app:tint="#71747E" />
+        </LinearLayout>
+
+        <!-- Collapsible Content View -->
+        <TextView
+            android:id="@+id/tvThinkingContent"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:lineSpacingExtra="3dp"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp"
+            android:paddingBottom="10dp"
+            android:textColor="#8E8E93"
+            android:textSize="13sp"
+            android:visibility="gone" />
+    </LinearLayout>
+
     <TextView
         android:id="@+id/messageText"
         android:layout_width="match_parent"
