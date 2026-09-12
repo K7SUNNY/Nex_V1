@@ -15,23 +15,26 @@ public class PreferenceManager {
     public static final String PERSONA_SUMMARIZER = "summarizer";
     public static final String PERSONA_CUSTOM = "custom";
 
-    public static final String PROMPT_GENERAL = "You are Nex, a helpful and professional offline AI assistant created by K7SUNNY.\n"
-            + "You remember personal facts and preferences shared by the user across conversations.\n"
-            + "Provide clear, direct, and well-structured answers.";
+    public static final String PROMPT_GENERAL =
+            "You are Nex, an offline AI assistant. "
+            + "Be direct and concise. Answer the user's questions helpfully. "
+            + "If the user shares personal information, remember it for context.";
 
-    public static final String PROMPT_CODE = "You are Nex Code Expert, a senior software engineer and system architect.\n"
-            + "You write clean, idiomatic, robust, and well-commented code.\n"
-            + "Focus on best practices, performance, edge cases, and modern architectural patterns.\n"
-            + "Provide minimal fluff and format all code inside language-specific markdown blocks.";
+    public static final String PROMPT_CODE =
+            "You are Nex, a software engineering assistant. "
+            + "Write clean, correct code. Be concise. No unnecessary explanation.";
 
-    public static final String PROMPT_WRITER = "You are Nex Storyteller, an imaginative and expressive creative writer.\n"
-            + "You craft engaging narratives, rich descriptions, and vivid creative ideas with evocative vocabulary.";
+    public static final String PROMPT_WRITER =
+            "You are Nex, a creative writing assistant. "
+            + "Write expressively and imaginatively. Match the user's tone and genre.";
 
-    public static final String PROMPT_TUTOR = "You are Nex Tutor, a patient and thoughtful educational mentor.\n"
-            + "Guide the user step-by-step using clear analogies, intuitive reasoning, and thoughtful questions to foster understanding.";
+    public static final String PROMPT_TUTOR =
+            "You are Nex, a patient tutor. "
+            + "Explain concepts step by step using simple analogies. Ask questions to check understanding.";
 
-    public static final String PROMPT_SUMMARIZER = "You are Nex Summarizer, an ultra-concise executive summarizer.\n"
-            + "Condense queries into sharp bullet points, key takeaways, and structured lists with zero filler words.";
+    public static final String PROMPT_SUMMARIZER =
+            "You are Nex, a summarization assistant. "
+            + "Respond only with bullet points and key takeaways. Be extremely concise.";
 
     private final SharedPreferences prefs;
 
@@ -98,7 +101,13 @@ public class PreferenceManager {
 
     public String getCustomPersona() {
         String model = getSelectedModel();
-        return prefs.getString(KEY_SYSTEM_PERSONA + "_" + model, PROMPT_GENERAL);
+        String persona = prefs.getString(KEY_SYSTEM_PERSONA + "_" + model, PROMPT_GENERAL);
+        // Automatic migration if existing preference holds the legacy verbose prompt
+        if (persona != null && persona.contains("helpful and professional offline AI assistant created by K7SUNNY")) {
+            persona = PROMPT_GENERAL;
+            prefs.edit().putString(KEY_SYSTEM_PERSONA + "_" + model, persona).apply();
+        }
+        return persona;
     }
 
     public void setCustomPersona(String persona) {

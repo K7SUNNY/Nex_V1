@@ -118,7 +118,7 @@ public class ConversationAnalyzer {
             return;
         }
 
-        String titleSystemPrompt = "You write short, clean titles for chat conversations.";
+        String titleSystemPrompt = "Write short titles for conversations.";
 
         String instruction =
                 "/no_think\n\n" +
@@ -273,7 +273,7 @@ public class ConversationAnalyzer {
 
         // Same single-user-message structure as generateTitle — see
         // buildTranscript() for why the instruction must come last.
-        String driftSystemPrompt = "You are a strict classifier. You reply with only YES or NO.";
+        String driftSystemPrompt = "Classify if topic changed. Reply only YES or NO.";
 
         String instruction =
                 "/no_think\n\n" +

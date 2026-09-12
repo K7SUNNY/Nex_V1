@@ -209,7 +209,7 @@ public class AIManager {
                         if (sb.length() > 0) {
                             sb.append("\n\n");
                         }
-                        sb.append("Background facts about the person you are chatting with (referred to below as \"User\"):\n");
+                        sb.append("Facts about User:\n");
                         for (String memory : pinnedMemories) {
                             sb.append("- ").append(memory).append("\n");
                         }
@@ -390,7 +390,7 @@ public class AIManager {
             return;
         }
 
-        String memorySystemPrompt = "You are a concise, accurate memory extractor.";
+        String memorySystemPrompt = "Extract personal facts from conversations.";
 
         String instruction =
             "/no_think\n\n" +
