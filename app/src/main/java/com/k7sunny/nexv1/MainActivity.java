@@ -1178,7 +1178,7 @@ public class MainActivity extends AppCompatActivity {
             File destFile = new File(imagesDir, "attach_" + System.currentTimeMillis() + ".jpg");
 
             Bitmap bitmap = null;
-            int maxTarget = 392; // Fast mobile CPU inference (~3-5s), low memory, crisp OCR/vision
+            int maxTarget = 720; // Fast mobile CPU inference (~3-5s), low memory, crisp OCR/vision
             try (InputStream in = getContentResolver().openInputStream(uri)) {
                 if (in != null) {
                     BitmapFactory.Options options = new BitmapFactory.Options();
@@ -1216,7 +1216,7 @@ public class MainActivity extends AppCompatActivity {
                 }
 
                 try (OutputStream out = new FileOutputStream(destFile)) {
-                    bitmap.compress(Bitmap.CompressFormat.JPEG, 90, out);
+                    bitmap.compress(Bitmap.CompressFormat.JPEG, 100, out);
                 }
                 bitmap.recycle();
             } else {
